@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Platform } from 'react-native'
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://scpmyuvcqsjfcrehwzsl.supabase.co'
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36n5YhWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc'
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
+    "@opentelemetry/api": "^1.9.1",
     "@react-native-community/netinfo": "^11.0.0",
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
