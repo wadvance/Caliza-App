@@ -90,6 +90,19 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_samples_synced ON samples(synced);
     CREATE INDEX IF NOT EXISTS idx_zones_probability ON caliza_zones(probability);
     CREATE INDEX IF NOT EXISTS idx_sync_queue_timestamp ON sync_queue(timestamp);
+
+    CREATE TABLE IF NOT EXISTS sample_history (
+      id TEXT PRIMARY KEY,
+      sample_id TEXT NOT NULL,
+      field TEXT NOT NULL,
+      old_value TEXT,
+      new_value TEXT,
+      changed_by TEXT DEFAULT '',
+      timestamp INTEGER NOT NULL,
+      FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_history_sample ON sample_history(sample_id, timestamp);
   `)
 }
 
@@ -300,4 +313,120 @@ export async function exportDatabase(): Promise<string> {
   const exportPath = FileSystem.documentDirectory + `caliza_export_${Date.now()}.db`
   await FileSystem.copyAsync({ from: dbPath, to: exportPath })
   return exportPath
+}
+
+export interface HistoryEntry {
+  id: string
+  sampleId: string
+  field: string
+  oldValue: string | null
+  newValue: string | null
+  changedBy: string
+  timestamp: number
+}
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 9)
+}
+
+export async function addSampleHistory(
+  sampleId: string,
+  field: string,
+  oldValue: string | null,
+  newValue: string | null,
+  changedBy = '',
+): Promise<void> {
+  if (!db) return
+  if (oldValue === newValue) return
+  await db.runAsync(
+    `INSERT INTO sample_history (id, sample_id, field, old_value, new_value, changed_by, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [generateId(), sampleId, field, oldValue, newValue, changedBy, Date.now()],
+  )
+}
+
+export async function getSampleHistory(sampleId: string): Promise<HistoryEntry[]> {
+  if (!db) return []
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM sample_history WHERE sample_id = ? ORDER BY timestamp DESC',
+    [sampleId],
+  )
+  return rows.map(r => ({
+    id: r.id,
+    sampleId: r.sample_id,
+    field: r.field,
+    oldValue: r.old_value,
+    newValue: r.new_value,
+    changedBy: r.changed_by,
+    timestamp: r.timestamp,
+  }))
+}
+
+export function formatFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    notes: 'Observaciones',
+    estimated_rock_type: 'Tipo de roca',
+    status: 'Estado',
+    acid_reaction: 'Reacción HCl',
+    hardness: 'Dureza',
+    color: 'Color',
+    texture: 'Textura',
+    stratification: 'Estratificación',
+    fossil_presence: 'Presencia de fósiles',
+    estimated_caco3: 'CaCO₃ estimado',
+    lab_caco3: 'CaCO₃ (lab)',
+    lab_mgo: 'MgO (lab)',
+    lab_sio2: 'SiO₂ (lab)',
+    lab_al2o3: 'Al₂O₃ (lab)',
+    lab_fe2o3: 'Fe₂O₃ (lab)',
+    lab_loi: 'LOI (lab)',
+    lab_moisture: 'Humedad (lab)',
+    lab_name: 'Laboratorio',
+    operator_name: 'Operador',
+  }
+  return labels[field] || field
+}
+
+export async function saveSampleWithHistory(
+  sample: Sample,
+  previousSample: Sample | null,
+  changedBy = '',
+): Promise<void> {
+  await saveSample(sample)
+  if (!previousSample) return
+
+  const changes: [string, string | null, string | null][] = []
+  if (sample.notes !== previousSample.notes) changes.push(['notes', previousSample.notes, sample.notes])
+  if (sample.estimatedRockType !== previousSample.estimatedRockType) changes.push(['estimated_rock_type', previousSample.estimatedRockType, sample.estimatedRockType])
+  if (sample.operatorName !== previousSample.operatorName) changes.push(['operator_name', previousSample.operatorName, sample.operatorName])
+  if (sample.status !== previousSample.status) changes.push(['status', previousSample.status, sample.status])
+
+  const q = sample.quickTestResult
+  const pq = previousSample.quickTestResult
+  if (q && pq) {
+    if (q.acidReaction !== pq.acidReaction) changes.push(['acid_reaction', pq.acidReaction, q.acidReaction])
+    if (q.hardness !== pq.hardness) changes.push(['hardness', String(pq.hardness), String(q.hardness)])
+    if (q.color !== pq.color) changes.push(['color', pq.color, q.color])
+    if (q.texture !== pq.texture) changes.push(['texture', pq.texture, q.texture])
+    if (q.stratification !== pq.stratification) changes.push(['stratification', pq.stratification, q.stratification])
+    if (q.fossilPresence !== pq.fossilPresence) changes.push(['fossil_presence', String(pq.fossilPresence), String(q.fossilPresence)])
+    if (q.estimatedCaCO3 !== pq.estimatedCaCO3) changes.push(['estimated_caco3', String(pq.estimatedCaCO3 ?? ''), String(q.estimatedCaCO3 ?? '')])
+  }
+
+  const l = sample.labResult
+  const pl = previousSample.labResult
+  if (l && pl) {
+    if (l.caco3Purity !== pl.caco3Purity) changes.push(['lab_caco3', String(pl.caco3Purity), String(l.caco3Purity)])
+    if (l.mgo !== pl.mgo) changes.push(['lab_mgo', String(pl.mgo), String(l.mgo)])
+    if (l.sio2 !== pl.sio2) changes.push(['lab_sio2', String(pl.sio2), String(l.sio2)])
+    if (l.al2o3 !== pl.al2o3) changes.push(['lab_al2o3', String(pl.al2o3), String(l.al2o3)])
+    if (l.fe2o3 !== pl.fe2o3) changes.push(['lab_fe2o3', String(pl.fe2o3), String(l.fe2o3)])
+    if (l.loi !== pl.loi) changes.push(['lab_loi', String(pl.loi), String(l.loi)])
+    if (l.moisture !== pl.moisture) changes.push(['lab_moisture', String(pl.moisture), String(l.moisture)])
+    if (l.laboratoryName !== pl.laboratoryName) changes.push(['lab_name', pl.laboratoryName, l.laboratoryName])
+  }
+
+  for (const [field, oldVal, newVal] of changes) {
+    await addSampleHistory(sample.id, field, oldVal, newVal, changedBy)
+  }
 }
