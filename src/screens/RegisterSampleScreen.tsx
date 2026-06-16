@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { COLORS, ROCK_TYPES, ACID_REACTION_LABELS } from '../types/constants'
 import { getCurrentLocation } from '../services/locationService'
-import { saveSample } from '../services/database'
+import { saveSample, addToSyncQueue } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { PhotoGrid } from '../components/PhotoGrid'
 import { Sample, MLPrediction, AcidReaction } from '../types'
@@ -76,6 +76,14 @@ export function RegisterSampleScreen({ route, navigation }: any) {
 
       await saveSample(sample)
       addSample(sample)
+      await addToSyncQueue({
+        id: `sync_${sample.id}`,
+        type: 'sample',
+        action: 'create',
+        data: sample,
+        timestamp: Date.now(),
+        retries: 0,
+      })
       Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ])

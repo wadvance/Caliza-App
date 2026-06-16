@@ -1,7 +1,9 @@
 import API_CONFIG, { getApiUrl, getAuthHeaders } from './api'
-import { getToken } from './authService'
-import { getSyncQueue, removeFromSyncQueue, getAllSamples, addToSyncQueue, saveSample } from './database'
-import { Sample, SyncQueueItem } from '../types'
+import { getToken, getAuthMode } from './authService'
+import { getSyncQueue, removeFromSyncQueue, getAllSamples, saveSample } from './database'
+import { supabaseGetSamples, supabaseSyncBatch, supabaseGetSample } from './supabaseDataService'
+import { supabaseGetSession } from './supabaseClient'
+import { Sample } from '../types'
 import NetInfo from '@react-native-community/netinfo'
 
 type SyncStatusCallback = (status: SyncStatus) => void
@@ -54,70 +56,14 @@ export async function syncNow(): Promise<void> {
   currentStatus.error = null
   notifyStatus()
 
+  const mode = getAuthMode()
+
   try {
-    const queue = await getSyncQueue()
-    currentStatus.total = queue.length
-    currentStatus.progress = 0
-    notifyStatus()
-
-    const unsyncedSamples = queue.filter(i => i.type === 'sample')
-
-    if (unsyncedSamples.length > 0) {
-      const batch = unsyncedSamples.map(i => i.data as any)
-      const lastSync = currentStatus.lastSync
-        ? new Date(currentStatus.lastSync).toISOString()
-        : undefined
-
-      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.SYNC), {
-        method: 'POST',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify({
-          samples: batch,
-          last_sync: lastSync,
-        }),
-      })
-
-      if (res.ok) {
-        const result = await res.json()
-        for (const item of unsyncedSamples) {
-          await removeFromSyncQueue(item.id)
-          currentStatus.progress++
-          notifyStatus()
-        }
-        if (result.errors?.length > 0) {
-          currentStatus.error = result.errors.slice(0, 3).join('; ')
-        }
-      } else {
-        throw new Error(`Error del servidor: ${res.status}`)
-      }
+    if (mode === 'supabase') {
+      await syncToSupabase()
+    } else {
+      await syncToMockServer(token)
     }
-
-    const pendingRes = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.SYNC_PENDING), {
-      headers: getAuthHeaders(token),
-    })
-    if (pendingRes.ok) {
-      const pendingData = await pendingRes.json()
-      for (const remoteSample of pendingData.samples || []) {
-        const existing = await getAllSamples()
-        if (!existing.find(s => s.id === remoteSample.id)) {
-          await saveSample({
-            id: remoteSample.id,
-            photoUri: remoteSample.photo_urls || [],
-            latitude: remoteSample.latitude,
-            longitude: remoteSample.longitude,
-            altitude: remoteSample.altitude || 0,
-            operatorName: remoteSample.operator_name || '',
-            timestamp: new Date(remoteSample.timestamp).getTime(),
-            notes: remoteSample.notes || '',
-            estimatedRockType: remoteSample.estimated_rock_type || 'desconocido',
-            confidenceLevel: remoteSample.confidence_level || 0,
-            status: remoteSample.status || 'pendiente',
-            synced: true,
-          } as Sample)
-        }
-      }
-    }
-
     currentStatus.lastSync = Date.now()
   } catch (err) {
     currentStatus.error = `Error de sincronización: ${err}`
@@ -127,7 +73,129 @@ export async function syncNow(): Promise<void> {
   }
 }
 
+async function syncToSupabase(): Promise<void> {
+  const session = await supabaseGetSession()
+  if (!session?.user) {
+    currentStatus.error = 'No hay sesión de Supabase'
+    return
+  }
+  const userId = session.user.id
+
+  const queue = await getSyncQueue()
+  currentStatus.total = queue.length
+  currentStatus.progress = 0
+  notifyStatus()
+
+  const unsyncedSamples = queue.filter(i => i.type === 'sample')
+
+  if (unsyncedSamples.length > 0) {
+    const batch = unsyncedSamples.map(i => ({
+      ...i.data,
+      user_id: userId,
+    }))
+
+    const result = await supabaseSyncBatch(batch)
+
+    for (const item of unsyncedSamples) {
+      await removeFromSyncQueue(item.id)
+      currentStatus.progress++
+      notifyStatus()
+    }
+
+    if (result.errors.length > 0) {
+      currentStatus.error = result.errors.slice(0, 3).join('; ')
+    }
+  }
+
+  const remoteSamples = await supabaseGetSamples(userId)
+  const existing = await getAllSamples()
+
+  for (const remote of remoteSamples) {
+    if (!existing.find(s => s.id === remote.id)) {
+      await saveSample({ ...remote, synced: true })
+    }
+  }
+}
+
+async function syncToMockServer(token: string): Promise<void> {
+  const queue = await getSyncQueue()
+  currentStatus.total = queue.length
+  currentStatus.progress = 0
+  notifyStatus()
+
+  const unsyncedSamples = queue.filter(i => i.type === 'sample')
+
+  if (unsyncedSamples.length > 0) {
+    const batch = unsyncedSamples.map(i => i.data as any)
+    const lastSync = currentStatus.lastSync
+      ? new Date(currentStatus.lastSync).toISOString()
+      : undefined
+
+    const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.SYNC), {
+      method: 'POST',
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({
+        samples: batch,
+        last_sync: lastSync,
+      }),
+    })
+
+    if (res.ok) {
+      const result = await res.json()
+      for (const item of unsyncedSamples) {
+        await removeFromSyncQueue(item.id)
+        currentStatus.progress++
+        notifyStatus()
+      }
+      if (result.errors?.length > 0) {
+        currentStatus.error = result.errors.slice(0, 3).join('; ')
+      }
+    } else {
+      throw new Error(`Error del servidor: ${res.status}`)
+    }
+  }
+
+  const pendingRes = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.SYNC_PENDING), {
+    headers: getAuthHeaders(token),
+  })
+  if (pendingRes.ok) {
+    const pendingData = await pendingRes.json()
+    for (const remoteSample of pendingData.samples || []) {
+      const existing = await getAllSamples()
+      if (!existing.find(s => s.id === remoteSample.id)) {
+        await saveSample({
+          id: remoteSample.id,
+          photoUri: remoteSample.photo_urls || [],
+          latitude: remoteSample.latitude,
+          longitude: remoteSample.longitude,
+          altitude: remoteSample.altitude || 0,
+          operatorName: remoteSample.operator_name || '',
+          timestamp: new Date(remoteSample.timestamp).getTime(),
+          notes: remoteSample.notes || '',
+          estimatedRockType: remoteSample.estimated_rock_type || 'desconocido',
+          confidenceLevel: remoteSample.confidence_level || 0,
+          status: remoteSample.status || 'pendiente',
+          synced: true,
+        } as Sample)
+      }
+    }
+  }
+}
+
 export async function syncSample(sample: Sample): Promise<boolean> {
+  const mode = getAuthMode()
+
+  if (mode === 'supabase') {
+    try {
+      const session = await supabaseGetSession()
+      if (!session?.user) return false
+      const result = await supabaseGetSample(sample.id)
+      return result !== null
+    } catch {
+      return false
+    }
+  }
+
   const token = getToken()
   if (!token) return false
 
