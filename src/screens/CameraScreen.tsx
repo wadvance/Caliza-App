@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { classifyImage, getConfidenceLabel } from '../services/mlService'
@@ -14,6 +14,77 @@ if (!isWeb) {
   } catch {}
 }
 
+function WebcamCapture({ onCapture }: { onCapture: (dataUri: string) => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(s => {
+        setStream(s)
+        if (videoRef.current) videoRef.current.srcObject = s
+      })
+      .catch(() => {
+        navigator.mediaDevices?.getUserMedia({ video: true })
+          .then(s => {
+            setStream(s)
+            if (videoRef.current) videoRef.current.srcObject = s
+          })
+          .catch(e => setError('No se pudo acceder a la cámara: ' + (e.message || '')))
+      })
+    return () => { stream?.getTracks().forEach(t => t.stop()) }
+  }, [])
+
+  const capture = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d')!.drawImage(video, 0, 0)
+    onCapture(canvas.toDataURL('image/jpeg', 0.8))
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 }}>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
+        <Text style={{ color: COLORS.highlight, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>{error}</Text>
+        <TouchableOpacity style={styles.webSelectBtn} onPress={() => {
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = 'image/*'
+          input.onchange = (e: any) => {
+            const file = e.target?.files?.[0]
+            if (file) {
+              const reader = new FileReader()
+              reader.onload = ev => onCapture(ev.target?.result as string)
+              reader.readAsDataURL(file)
+            }
+          }
+          input.click()
+        }}>
+          <Text style={styles.webSelectText}>Seleccionar imagen</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <video ref={videoRef} autoPlay playsInline style={{ flex: 1, objectFit: 'cover' }} />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <View style={styles.cameraFooter}>
+        <TouchableOpacity style={styles.captureBtn} onPress={capture}>
+          <View style={styles.captureInner} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}
+
 export function CameraScreen({ navigation }: any) {
   const [capturedUri, setCapturedUri] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -21,34 +92,8 @@ export function CameraScreen({ navigation }: any) {
   const cameraRef = useRef<any>(null)
   const { setLastPrediction } = useAppStore()
 
-  const triggerPhotoSelection = useCallback(() => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = async (e: any) => {
-      const file = e.target?.files?.[0]
-      if (file) {
-        const reader = new FileReader()
-        reader.onload = async (ev) => {
-          const dataUri = ev.target?.result as string
-          setCapturedUri(dataUri)
-          setAnalyzing(true)
-          const result = await classifyImage(dataUri)
-          setPrediction(result)
-          setLastPrediction(result)
-          setAnalyzing(false)
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-    input.click()
-  }, [])
-
   const takePhoto = useCallback(async () => {
-    if (isWeb) {
-      triggerPhotoSelection()
-      return
-    }
+    if (isWeb) return
     if (!cameraRef.current) return
     const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 })
     if (photo) {
@@ -141,14 +186,15 @@ export function CameraScreen({ navigation }: any) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Mapa')}>
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <View style={styles.webFallback}>
-          <Text style={styles.webIcon}>📷</Text>
-          <Text style={styles.webTitle}>Escanear roca</Text>
-          <Text style={styles.webSubtitle}>Apunta la cámara a la roca o afloramiento para analizarla con IA</Text>
-          <TouchableOpacity style={styles.webSelectBtn} onPress={triggerPhotoSelection}>
-            <Text style={styles.webSelectText}>Seleccionar imagen</Text>
-          </TouchableOpacity>
-        </View>
+        <WebcamCapture onCapture={(uri) => {
+          setCapturedUri(uri)
+          setAnalyzing(true)
+          classifyImage(uri).then(result => {
+            setPrediction(result)
+            setLastPrediction(result)
+            setAnalyzing(false)
+          })
+        }} />
       </View>
     )
   }
@@ -206,10 +252,6 @@ const styles = StyleSheet.create({
   retakeText: { color: COLORS.text, fontWeight: '600' },
   registerBtn: { flex: 2, padding: 14, borderRadius: 10, backgroundColor: COLORS.accent, alignItems: 'center' },
   registerText: { color: '#fff', fontWeight: '700' },
-  webFallback: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 },
-  webIcon: { fontSize: 64, marginBottom: 16 },
-  webTitle: { color: COLORS.text, fontSize: 22, fontWeight: '700', marginBottom: 8 },
-  webSubtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   webSelectBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
   webSelectText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })
