@@ -96,24 +96,47 @@ export async function ruleBasedClassification(imageUri: string): Promise<MLPredi
   let calizaScore = 0
   const reasons: string[] = []
 
-  if (features.colorScore > 0.7) {
-    calizaScore += 0.3
-    reasons.push('Color característico de carbonatos')
+  const c = features.colorScore
+  const t = features.textureScore
+  const g = features.granulometryScore
+  const f = features.fractureScore
+  const v = features.veinScore
+
+  if (c > 0.5) {
+    const contrib = 0.15 + (c - 0.5) * 0.3
+    calizaScore += contrib
+    reasons.push('Color claro característico de carbonatos')
+  } else if (c > 0.3) {
+    calizaScore += 0.08
+    reasons.push('Color ligeramente claro')
+  } else {
+    calizaScore += 0.03
+    reasons.push('Color no concluyente')
   }
-  if (features.textureScore > 0.6) {
-    calizaScore += 0.25
-    reasons.push('Textura compatible con roca sedimentaria')
+
+  if (t > 0.5) {
+    const contrib = 0.1 + (t - 0.5) * 0.3
+    calizaScore += contrib
+    reasons.push('Textura homogénea compatible con sedimentaria')
+  } else if (t > 0.3) {
+    calizaScore += 0.06
+    reasons.push('Textura parcialmente homogénea')
+  } else {
+    calizaScore += 0.02
   }
-  if (features.granulometryScore > 0.5) {
-    calizaScore += 0.15
+
+  if (g > 0.4) {
+    calizaScore += 0.08 + (g - 0.4) * 0.15
     reasons.push('Granulometría fina a media')
   }
-  if (features.fractureScore > 0.4) {
-    calizaScore += 0.1
-    reasons.push('Patrón de fracturación presente')
+
+  if (f > 0.35) {
+    calizaScore += 0.05 + (f - 0.35) * 0.1
+    reasons.push('Patrón de fractura presente')
   }
-  if (features.veinScore > 0.3) {
-    calizaScore += 0.1
+
+  if (v > 0.25) {
+    calizaScore += 0.04 + (v - 0.25) * 0.1
     reasons.push('Posibles vetas de calcita')
   }
 
@@ -121,29 +144,31 @@ export async function ruleBasedClassification(imageUri: string): Promise<MLPredi
 
   const recommendations: string[] = []
   if (probability > 0.7) {
-    recommendations.push('Alta probabilidad de caliza - validar con HCl')
-  } else if (probability > 0.4) {
-    recommendations.push('Probabilidad media - realizar prueba de dureza y ácido')
+    recommendations.push('Alta probabilidad de caliza - validar con HCl diluido')
+  } else if (probability > 0.5) {
+    recommendations.push('Probabilidad media-alta - realizar prueba de ácido y dureza')
+  } else if (probability > 0.3) {
+    recommendations.push('Probabilidad media - verificar con prueba de HCl en campo')
   } else {
-    recommendations.push('Baja probabilidad - verificar visualmente otras características')
+    recommendations.push('Baja probabilidad - buscar afloramientos de color claro')
   }
   recommendations.push('Registrar coordenadas GPS exactas')
   recommendations.push('Tomar múltiples fotos desde diferentes ángulos')
 
   let className = 'desconocido'
-  if (probability > 0.7) className = 'caliza'
-  else if (probability > 0.5) className = 'posible_caliza'
+  if (probability > 0.6) className = 'caliza'
+  else if (probability > 0.35) className = 'posible_caliza'
 
   const allProbabilities: Record<string, number> = {
     caliza: probability,
-    dolomita: Math.max(0, probability - 0.15),
-    marga: Math.max(0, probability * 0.6),
-    arcilla: Math.max(0, 1 - probability - 0.3),
-    yeso: Math.max(0, 1 - probability - 0.5),
-    travertino: Math.max(0, probability * 0.3),
-    granito: Math.max(0, 1 - probability - 0.6),
-    basalto: Math.max(0, 1 - probability - 0.7),
-    caliche: Math.max(0, probability * 0.4),
+    dolomita: Math.max(0, probability * 0.6),
+    marga: Math.max(0, probability * 0.4),
+    arcilla: Math.max(0, (1 - probability) * 0.35),
+    yeso: Math.max(0, (1 - probability) * 0.2),
+    travertino: Math.max(0, probability * 0.25),
+    granito: Math.max(0, (1 - probability) * 0.15),
+    basalto: Math.max(0, (1 - probability) * 0.1),
+    caliche: Math.max(0, probability * 0.3),
     desconocido: Math.max(0, 1 - probability),
   }
 
@@ -198,26 +223,23 @@ async function extractFeatures(uri: string): Promise<FeatureScores> {
     }
     brightnessVariance = Math.sqrt(brightnessVariance / n) / 255
 
-    const isLight = avgBrightness > 160
-    const isVeryLight = avgBrightness > 200
-    const isDark = avgBrightness < 80
-    const isDesaturated = avgSaturation < 0.15
+    const lightness = avgBrightness / 255
+    const desaturation = 1 - avgSaturation
 
-    let colorScore = 0.5
-    if (isVeryLight && isDesaturated) colorScore = 0.9
-    else if (isLight && isDesaturated) colorScore = 0.75
-    else if (isLight) colorScore = 0.6
-    else if (isDark) colorScore = 0.15
-    else if (avgSaturation > 0.3) colorScore = 0.3
+    let colorScore = lightness * 0.6 + desaturation * 0.4
+    colorScore = Math.max(0.1, Math.min(0.95, colorScore))
 
-    const textureScore = isDark ? 0.3 : Math.max(0.2, 1 - brightnessVariance)
+    const textureScore = 1 - brightnessVariance
+    const granulometryScore = lightness > 0.5 ? 0.5 + lightness * 0.3 : 0.2 + lightness * 0.3
+    const fractureScore = 0.2 + brightnessVariance * 0.6
+    const veinScore = 0.15 + brightnessVariance * 0.5
 
     return {
       colorScore,
       textureScore,
-      granulometryScore: isLight ? 0.6 : 0.3,
-      fractureScore: brightnessVariance > 0.15 ? 0.5 : 0.3,
-      veinScore: brightnessVariance > 0.2 ? 0.4 : 0.2,
+      granulometryScore,
+      fractureScore,
+      veinScore,
     }
   } catch {
     return defaultScores()
