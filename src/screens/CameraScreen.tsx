@@ -78,6 +78,9 @@ export function CameraScreen({ navigation }: any) {
   if (capturedUri) {
     return (
       <View style={styles.container}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Mapa')}>
+          <Text style={styles.backArrow}>←</Text>
+        </TouchableOpacity>
         <Image source={{ uri: capturedUri }} style={styles.preview} />
         {analyzing ? (
           <View style={styles.analyzingOverlay}>
@@ -135,6 +138,9 @@ export function CameraScreen({ navigation }: any) {
   if (isWeb || !NativeCameraView) {
     return (
       <View style={styles.container}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Mapa')}>
+          <Text style={styles.backArrow}>←</Text>
+        </TouchableOpacity>
         <View style={styles.webFallback}>
           <Text style={styles.webIcon}>📷</Text>
           <Text style={styles.webTitle}>Escanear roca</Text>
@@ -168,6 +174,8 @@ export function CameraScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  backBtn: { position: 'absolute', top: 50, left: 16, zIndex: 10, padding: 8 },
+  backArrow: { color: '#fff', fontSize: 28, fontWeight: '600' },
   camera: { flex: 1 },
   cameraOverlay: { flex: 1, justifyContent: 'flex-end', paddingBottom: 40 },
   scanFrame: { flex: 1, justifyContent: 'center', alignItems: 'center', margin: 40, borderWidth: 2, borderColor: COLORS.highlight, borderRadius: 16, borderStyle: 'dashed' },
