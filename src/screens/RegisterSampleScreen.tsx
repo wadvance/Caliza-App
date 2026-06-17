@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { COLORS, ROCK_TYPES, ACID_REACTION_LABELS } from '../types/constants'
 import { getCurrentLocation } from '../services/locationService'
+import { getUser } from '../services/authService'
 import { saveSample, addToSyncQueue } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { PhotoGrid } from '../components/PhotoGrid'
@@ -35,11 +36,14 @@ export function RegisterSampleScreen({ route, navigation }: any) {
   const [texture, setTexture] = useState('')
   const [stratification, setStratification] = useState('')
   const [fossilPresence, setFossilPresence] = useState(false)
-  const [operatorName, setOperatorName] = useState('')
+  const [operatorName, setOperatorName] = useState(getUser()?.full_name || '')
   const [location, setLocation] = useState({ latitude: 0, longitude: 0, altitude: 0 })
+  const [locating, setLocating] = useState(true)
 
   useEffect(() => {
-    getCurrentLocation().then(setLocation)
+    getCurrentLocation()
+      .then(loc => { setLocation(loc); setLocating(false) })
+      .catch(() => setLocating(false))
   }, [])
 
   const handleSave = async () => {
@@ -110,10 +114,19 @@ export function RegisterSampleScreen({ route, navigation }: any) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ubicación</Text>
-        <Text style={styles.coords}>
-          Lat: {location.latitude.toFixed(6)}, Lon: {location.longitude.toFixed(6)}
-        </Text>
-        <Text style={styles.coords}>Altitud: {location.altitude.toFixed(1)} m</Text>
+        {locating ? (
+          <Text style={styles.coords}>Obteniendo ubicación...</Text>
+        ) : location.latitude === 0 && location.longitude === 0 ? (
+          <>
+            <Text style={[styles.coords, { color: COLORS.highlight }]}>No se pudo obtener la ubicación</Text>
+            <Text style={[styles.coords, { fontSize: 12 }]}>Permite acceso a ubicación en el navegador (candado 🔒 junto a la URL)</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.coords}>Lat: {location.latitude.toFixed(6)}, Lon: {location.longitude.toFixed(6)}</Text>
+            <Text style={styles.coords}>Altitud: {location.altitude.toFixed(1)} m</Text>
+          </>
+        )}
         <TextInput style={styles.input} placeholder="Profundidad (m)" placeholderTextColor={COLORS.textMuted} value={depth} onChangeText={setDepth} keyboardType="decimal-pad" />
       </View>
 
