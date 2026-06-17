@@ -144,6 +144,21 @@ export function getAuthMode(): AuthMode {
   return currentMode
 }
 
+export async function forgotPassword(email: string): Promise<boolean> {
+  try {
+    const res = await fetch(getApiUrl('/api/v1/auth/forgot-password'), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email }),
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    return !!data.message
+  } catch {
+    return false
+  }
+}
+
 export async function logout(): Promise<void> {
   try { await supabaseLogoutFn() } catch {}
   currentToken = null

@@ -122,6 +122,14 @@ function handleMe(headers) {
   return json({ id: user.id, email: user.email, full_name: user.full_name, role: user.role, is_active: user.is_active })
 }
 
+function handleForgotPassword(body) {
+  const { email } = body
+  if (!email) return error('Correo electrónico requerido', 400)
+  const user = store.users.find(u => u.email === email)
+  if (!user) return json({ message: 'Si el correo existe, recibirás instrucciones para restablecer tu contraseña' })
+  return json({ message: 'Si el correo existe, recibirás instrucciones para restablecer tu contraseña' })
+}
+
 function handleGetSamples(headers, params) {
   const user = requireAuth(headers)
   if (!user) return error('No autorizado', 401)
@@ -301,6 +309,7 @@ function route(method, url, headers, body) {
   if (method === 'POST' && p === '/api/v1/auth/login') return handleLogin(body)
   if (method === 'POST' && p === '/api/v1/auth/register') return handleRegister(body)
   if (method === 'GET' && p === '/api/v1/auth/me') return handleMe(headers)
+  if (method === 'POST' && p === '/api/v1/auth/forgot-password') return handleForgotPassword(body)
 
   // Samples
   if (method === 'GET' && p === '/api/v1/samples') return handleGetSamples(headers, params)
