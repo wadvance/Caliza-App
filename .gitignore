@@ -37,3 +37,10 @@ ml/models/*.h5
 ml/models/*.hdf5
 ml/data/
 backend/static/admin/.env
+# EAS
+*.apk
+*.aab
+*.ipa
+android/app/build/
+ios/build/
+.expo-eas-env

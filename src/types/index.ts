@@ -79,7 +79,8 @@ export interface CalizaZone {
   coordinates: { latitude: number; longitude: number }[]
   probability: ProbabilityLevel
   confidence: number
-  source: 'satellite' | 'field' | 'model'
+  source: string
+  estimatedRockType?: string
 }
 
 export type ProbabilityLevel = 'alta' | 'media' | 'baja' | 'pendiente'
@@ -94,6 +95,8 @@ export interface SatelliteAnalysis {
   carbonateIndex: number
   quartzIndex: number
   zones: CalizaZone[]
+  swirBands?: { band11: number; band12: number; band6: number; band7: number }
+  elevation?: number
 }
 
 export interface FieldObservation {

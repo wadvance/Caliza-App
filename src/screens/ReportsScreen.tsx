@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform, Share } from 'react-native'
 import * as FileSystem from 'expo-file-system'
+import * as Print from 'expo-print'
 import { COLORS } from '../types/constants'
 import { getAllSamples, getAllZones } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
@@ -103,31 +104,81 @@ ${report.samples.map(s => `
         mimeType = 'application/vnd.google-earth.kml+xml'
         break
       }
-      default:
       case 'PDF': {
-        content = [
-          `REPORTE DE EXPLORACIÓN - GeoCaliza`,
-          `================================`,
-          `Título: ${report.title}`,
-          `Generado: ${new Date(report.generatedAt).toLocaleString()}`,
-          `Autor: ${report.author}`,
-          `Período: ${new Date(report.dateRange.start).toLocaleDateString()} - ${new Date(report.dateRange.end).toLocaleDateString()}`,
-          ``,
-          `ESTADÍSTICAS`,
-          `Total muestras: ${report.statistics.totalSamples}`,
-          `Validadas: ${report.statistics.validatedSamples}`,
-          `Zonas alta prob.: ${report.statistics.highProbabilityZones}`,
-          `Confianza media: ${(report.statistics.averageConfidence * 100).toFixed(0)}%`,
-          `Roca dominante: ${report.statistics.dominantRockType}`,
-          `Área cubierta: ${report.statistics.areaCoveredKm2} km²`,
-          ``,
-          `MUESTRAS (${report.samples.length})`,
-          ...report.samples.map(s =>
-            `  ${s.id} | ${s.estimatedRockType} | conf: ${(s.confidenceLevel * 100).toFixed(0)}% | ${s.status} | ${new Date(s.timestamp).toLocaleDateString()}`
-          ),
-        ].join('\n')
-        filename += '.txt'
-        mimeType = 'text/plain'
+        const rows = report.samples.map(s => `
+          <tr>
+            <td>${s.estimatedRockType}</td>
+            <td>${(s.confidenceLevel * 100).toFixed(0)}%</td>
+            <td style="text-transform:capitalize">${s.status}</td>
+            <td>${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}</td>
+            <td>${new Date(s.timestamp).toLocaleDateString()}</td>
+          </tr>`).join('')
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; padding: 40px; }
+  h1 { color: #e94560; font-size: 24px; border-bottom: 3px solid #e94560; padding-bottom: 8px; }
+  h2 { color: #16213e; font-size: 18px; margin-top: 24px; }
+  .meta { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+  .stat { background: #f5f5f5; border-radius: 8px; padding: 12px 20px; flex:1; min-width:120px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: #16213e; }
+  .stat-label { font-size: 11px; color: #888; text-transform: uppercase; }
+  .detail { margin: 4px 0; }
+  .detail-label { color: #888; font-size: 13px; }
+  .detail-value { color: #1a1a2e; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #16213e; color: #fff; padding: 10px 8px; text-align: left; font-size: 12px; }
+  td { padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; }
+  .footer { margin-top: 30px; color: #aaa; font-size: 11px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>🗺️ GeoCaliza — Reporte de exploración</h1>
+<div class="meta">
+  <div class="detail"><span class="detail-label">Generado:</span> <span class="detail-value">${new Date(report.generatedAt).toLocaleString()}</span></div>
+  <div class="detail"><span class="detail-label">Autor:</span> <span class="detail-value">${report.author}</span></div>
+  <div class="detail"><span class="detail-label">Período:</span> <span class="detail-value">${new Date(report.dateRange.start).toLocaleDateString()} — ${new Date(report.dateRange.end).toLocaleDateString()}</span></div>
+</div>
+
+<h2>📊 Estadísticas</h2>
+<div class="stats">
+  <div class="stat"><div class="stat-value">${report.statistics.totalSamples}</div><div class="stat-label">Muestras</div></div>
+  <div class="stat"><div class="stat-value">${report.statistics.validatedSamples}</div><div class="stat-label">Validadas</div></div>
+  <div class="stat"><div class="stat-value">${report.statistics.highProbabilityZones}</div><div class="stat-label">Zonas alta prob.</div></div>
+  <div class="stat"><div class="stat-value">${(report.statistics.averageConfidence * 100).toFixed(0)}%</div><div class="stat-label">Confianza media</div></div>
+  <div class="stat"><div class="stat-value">${report.statistics.dominantRockType}</div><div class="stat-label">Roca dominante</div></div>
+  <div class="stat"><div class="stat-value">${report.statistics.areaCoveredKm2} km²</div><div class="stat-label">Área cubierta</div></div>
+</div>
+
+<h2>📋 Muestras (${report.samples.length})</h2>
+<table>
+<thead><tr><th>Tipo de roca</th><th>Confianza</th><th>Estado</th><th>Coordenadas</th><th>Fecha</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<div class="footer">GeoCaliza — Generado el ${new Date().toLocaleString()}</div>
+</body>
+</html>`
+        if (isWeb) {
+          content = html
+          filename += '.html'
+          mimeType = 'text/html'
+        } else {
+          try {
+            const { uri } = await Print.printToFileAsync({ html })
+            const dest = FileSystem.documentDirectory + `reporte_caliza_${Date.now()}.pdf`
+            await FileSystem.moveAsync({ from: uri, to: dest })
+            await Share.share({ url: dest, title: 'Reporte GeoCaliza PDF' })
+            Alert.alert('Exportado', `PDF guardado: reporte_caliza.pdf`)
+            return
+          } catch (err) {
+            Alert.alert('Error', 'No se pudo generar el PDF')
+            return
+          }
+        }
+        break
       }
     }
 

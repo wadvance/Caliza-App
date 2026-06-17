@@ -1,4 +1,5 @@
-import { View, Text, Image, StyleSheet, Platform } from 'react-native'
+import { useMemo, useRef, useEffect } from 'react'
+import { View, Text, StyleSheet, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 
 const isWeb = Platform.OS === 'web'
@@ -8,8 +9,6 @@ let NativeMarker: any = null
 let NativePolygon: any = null
 let NativePolyline: any = null
 let NativeCallout: any = null
-let NativeMapViewDir: any = null
-
 if (!isWeb) {
   try {
     const Maps = require('react-native-maps')
@@ -77,57 +76,146 @@ interface CalloutProps {
   onPress?: () => void
 }
 
-export const Marker = (props: MarkerProps) => {
+const MarkerComponent = (props: MarkerProps) => {
   if (isWeb || !NativeMarker) {
-    return <View style={{ position: 'absolute', left: '50%', top: '50%' }} />
+    return null
   }
   return <NativeMarker {...props} />
 }
+MarkerComponent.displayName = 'Marker'
 
-export const Polygon = (props: PolygonProps) => {
+const PolygonComponent = (props: PolygonProps) => {
   if (isWeb || !NativePolygon) {
     return null
   }
   return <NativePolygon {...props} />
 }
+PolygonComponent.displayName = 'Polygon'
 
-export const Polyline = (props: PolylineProps) => {
+const PolylineComponent = (props: PolylineProps) => {
   if (isWeb || !NativePolyline) {
     return null
   }
   return <NativePolyline {...props} />
 }
 
-export const Callout = (props: CalloutProps) => {
+const CalloutComponent = (props: CalloutProps) => {
   if (isWeb || !NativeCallout) {
     return <>{props.children}</>
   }
   return <NativeCallout {...props} />
 }
 
-const WebMapFallback = ({ initialRegion, style, children }: MapViewProps) => {
-  const lat = initialRegion?.latitude || 19.4326
-  const lon = initialRegion?.longitude || -99.1332
+function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons: PolygonProps[]): string {
+  const reg = props.initialRegion || props.region || { latitude: 8.9824, longitude: -79.5199, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+  const center = [reg.latitude, reg.longitude]
+  const zoom = Math.round(Math.log2(360 / Math.max(reg.latitudeDelta || 0.05, reg.longitudeDelta || 0.05)) + 1)
+
+  const markerScript = markers.map((m, i) => {
+    const color = m.pinColor || '#e94560'
+    const iconSize = 24
+    return `
+      L.circleMarker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
+        radius: 8, color: '${color}', fillColor: '${color}', fillOpacity: 0.9, weight: 2
+      })
+      ${m.title ? `.bindTooltip('${m.title.replace(/'/g, "\\'")}', {permanent: false})` : ''}
+      .addTo(map);
+    `
+  }).join('\n')
+
+  const polygonScript = polygons.map(p => {
+    const coords = p.coordinates.map(c => `[${c.latitude}, ${c.longitude}]`).join(', ')
+    const fill = p.fillColor || '#2ecc7140'
+    const stroke = p.strokeColor || '#2ecc71'
+    return `
+      L.polygon([${coords}], {
+        color: '${stroke}', fillColor: '${fill}', fillOpacity: 0.35, weight: ${p.strokeWidth || 2}
+      }).addTo(map);
+    `
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="referrer" content="origin"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body, #map { width: 100%; height: 100%; }
+  body { background: #0f0f23; }
+  .leaflet-control-zoom a { background: #fff !important; color: #333 !important; border-color: #ccc !important; }
+  .leaflet-control-attribution { background: #fffffff2 !important; color: #666 !important; font-size: 10px !important; }
+  .leaflet-control-attribution a { color: #666 !important; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  var map = L.map('map', {
+    center: [${center[0]}, ${center[1]}],
+    zoom: ${zoom},
+    zoomControl: true,
+    attributionControl: true,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+  }).addTo(map);
+
+  ${markerScript}
+  ${polygonScript}
+</script>
+</body>
+</html>`
+}
+
+function WebMap({ style, children, ...props }: MapViewProps & { children?: React.ReactNode }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const markers: MarkerProps[] = []
+  const polygons: PolygonProps[] = []
+
+  const childrenArr = Array.isArray(children) ? children : [children]
+  childrenArr.forEach((child: any) => {
+    if (!child) return
+    if (child.props?.coordinate && (child.type?.displayName === 'Marker' || child.type?.name === 'Marker')) {
+      markers.push(child.props as MarkerProps)
+    }
+    if (child.props?.coordinates && (child.type?.displayName === 'Polygon' || child.type?.name === 'Polygon')) {
+      polygons.push(child.props as PolygonProps)
+    }
+  })
+
+  const html = useMemo(() => buildLeafletHtml(props, markers, polygons),
+    [props.initialRegion?.latitude, props.initialRegion?.longitude,
+     markers.length, polygons.length, JSON.stringify(markers), JSON.stringify(polygons)])
+
+  const blobUrl = useMemo(() => {
+    const blob = new Blob([html], { type: 'text/html' })
+    return URL.createObjectURL(blob)
+  }, [html])
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(blobUrl)
+  }, [blobUrl])
 
   return (
-    <View style={[style, { backgroundColor: COLORS.surfaceLight }]}>
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapPlaceholderIcon}>🗺️</Text>
-        <Text style={styles.mapPlaceholderCoords}>
-          {lat.toFixed(4)}, {lon.toFixed(4)}
-        </Text>
-        <Text style={styles.mapPlaceholderHint}>
-          Mapa disponible en dispositivo móvil
-        </Text>
-      </View>
-      <View style={styles.webChildren} pointerEvents="box-none">{children}</View>
+    <View style={style} pointerEvents="auto">
+      <iframe
+        ref={iframeRef}
+        src={blobUrl}
+        style={{ width: '100%', height: '100%', border: 'none' }}
+        title="map"
+      />
     </View>
   )
 }
 
-const MapViewComponent = (props: MapViewProps, ref: any) => {
+const MapViewComponent = (props: MapViewProps & { children?: React.ReactNode }, ref: any) => {
   if (isWeb) {
-    return <WebMapFallback {...props} />
+    return <WebMap {...props} />
   }
 
   if (!NativeMapView) {
@@ -147,7 +235,7 @@ const MapViewComponent = (props: MapViewProps, ref: any) => {
   )
 }
 
-const MapView = (props: MapViewProps) => MapViewComponent(props, null)
+const MapView = (props: MapViewProps & { children?: React.ReactNode }) => MapViewComponent(props, null)
 
 let PROVIDER_GOOGLE: any = undefined
 if (!isWeb) {
@@ -157,7 +245,11 @@ if (!isWeb) {
   } catch {}
 }
 
-export { Marker, Polygon, Polyline, Callout, PROVIDER_GOOGLE }
+export const Marker = MarkerComponent
+export const Polygon = PolygonComponent
+export const Polyline = PolylineComponent
+export const Callout = CalloutComponent
+export { PROVIDER_GOOGLE }
 export default MapView
 
 const styles = StyleSheet.create({
@@ -175,30 +267,5 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 13,
     marginTop: 4,
-  },
-  webChildren: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    pointerEvents: 'none',
-  },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  mapPlaceholderIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  mapPlaceholderCoords: {
-    color: COLORS.textSecondary,
-    fontSize: 16,
-    fontFamily: 'monospace',
-    marginBottom: 8,
-  },
-  mapPlaceholderHint: {
-    color: COLORS.textMuted,
-    fontSize: 13,
   },
 })

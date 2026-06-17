@@ -1,8 +1,10 @@
+import { Text } from 'react-native'
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { COLORS } from '../types/constants'
 import { LoginScreen } from '../screens/LoginScreen'
+import { DashboardScreen } from '../screens/DashboardScreen'
 import { MapScreen } from '../screens/MapScreen'
 import { CameraScreen } from '../screens/CameraScreen'
 import { RegisterSampleScreen } from '../screens/RegisterSampleScreen'
@@ -12,9 +14,11 @@ import { SatelliteAnalysisScreen } from '../screens/SatelliteAnalysisScreen'
 import { ARScreen } from '../screens/ARScreen'
 import { ReportsScreen } from '../screens/ReportsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
+import { WorkflowGuideScreen } from '../screens/WorkflowGuideScreen'
 
 const RootStack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
+const HomeStack = createNativeStackNavigator()
 const MapStack = createNativeStackNavigator()
 const CameraStack = createNativeStackNavigator()
 const SamplesStack = createNativeStackNavigator()
@@ -38,6 +42,14 @@ const screenOptions = {
   headerStyle: { backgroundColor: COLORS.surface },
   headerTintColor: COLORS.text,
   headerTitleStyle: { fontWeight: '700' },
+}
+
+function HomeStackScreen() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="DashboardMain" component={DashboardScreen} />
+    </HomeStack.Navigator>
+  )
 }
 
 function MapStackScreen() {
@@ -72,6 +84,7 @@ function MoreStackScreen() {
     <MoreStack.Navigator screenOptions={screenOptions}>
       <MoreStack.Screen name="Satellite" component={SatelliteAnalysisScreen} options={{ title: 'Análisis satelital' }} />
       <MoreStack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reportes' }} />
+      <MoreStack.Screen name="WorkflowGuide" component={WorkflowGuideScreen} options={{ title: 'Guía de campo' }} />
       <MoreStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuración' }} />
     </MoreStack.Navigator>
   )
@@ -90,11 +103,18 @@ function MainTabs() {
         tabBarInactiveTintColor: COLORS.textMuted,
       }}
     >
-      <Tab.Screen name="Mapa" component={MapStackScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Camara" component={CameraStackScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Muestras" component={SamplesStackScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="AR" component={ARScreen} options={{ title: 'Realidad aumentada' }} />
-      <Tab.Screen name="Más" component={MoreStackScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Inicio" component={HomeStackScreen}
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🏠</Text> }} />
+      <Tab.Screen name="Mapa" component={MapStackScreen}
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🗺️</Text> }} />
+      <Tab.Screen name="Camara" component={CameraStackScreen}
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📷</Text> }} />
+      <Tab.Screen name="Muestras" component={SamplesStackScreen}
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📋</Text> }} />
+      <Tab.Screen name="AR" component={ARScreen}
+        options={{ title: 'Realidad aumentada', tabBarIcon: () => <Text style={{ fontSize: 20 }}>🪄</Text> }} />
+      <Tab.Screen name="Más" component={MoreStackScreen}
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text> }} />
     </Tab.Navigator>
   )
 }

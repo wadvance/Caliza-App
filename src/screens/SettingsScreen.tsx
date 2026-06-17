@@ -216,6 +216,13 @@ export function SettingsScreen({ navigation }: any) {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Guía</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('WorkflowGuide')}>
+          <Text style={styles.actionBtnText}>📖 Flujo de trabajo en campo</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Datos</Text>
         <TouchableOpacity style={styles.actionBtn} onPress={handleExport}>
           <Text style={styles.actionBtnText}>Exportar todos los datos</Text>
