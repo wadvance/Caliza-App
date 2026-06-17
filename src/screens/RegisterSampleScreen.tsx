@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   codeValue: { color: COLORS.highlight, fontSize: 16, fontWeight: '700', fontFamily: 'monospace', marginHorizontal: 8 },
   codeRefresh: { color: COLORS.accent, fontSize: 20 },
   section: { padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  sectionTitle: { color: COLORS.highlight, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
   label: { color: COLORS.textSecondary, fontSize: 13, marginBottom: 8, marginTop: 12 },
   coords: { color: COLORS.textSecondary, fontSize: 13, fontFamily: 'monospace', marginVertical: 2 },
   input: { backgroundColor: COLORS.surfaceLight, color: COLORS.text, borderRadius: 10, padding: 14, fontSize: 15, marginTop: 8, borderWidth: 1, borderColor: COLORS.border },
