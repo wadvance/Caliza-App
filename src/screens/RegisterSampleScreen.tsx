@@ -7,6 +7,8 @@ import { COLORS, ROCK_TYPES, ACID_REACTION_LABELS } from '../types/constants'
 import { getCurrentLocation } from '../services/locationService'
 import { getUser } from '../services/authService'
 import { saveSample, addToSyncQueue } from '../services/database'
+import { supabaseSaveSample } from '../services/supabaseDataService'
+import supabase from '../services/supabaseClient'
 import { useAppStore } from '../store/useAppStore'
 import { PhotoGrid } from '../components/PhotoGrid'
 import { Sample, MLPrediction, AcidReaction } from '../types'
@@ -79,15 +81,33 @@ export function RegisterSampleScreen({ route, navigation }: any) {
       }
 
       await saveSample(sample)
+
+      // Intentar guardar directo a Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const result = await supabaseSaveSample({
+            ...sample,
+            user_id: user.id,
+            photoUri: photos,
+          })
+          if (result) {
+            sample.synced = true
+          }
+        }
+      } catch {
+        // Si falla, se sincronizará después vía sync queue
+        await addToSyncQueue({
+          id: `sync_${sample.id}`,
+          type: 'sample',
+          action: 'create',
+          data: sample,
+          timestamp: Date.now(),
+          retries: 0,
+        })
+      }
+
       addSample(sample)
-      await addToSyncQueue({
-        id: `sync_${sample.id}`,
-        type: 'sample',
-        action: 'create',
-        data: sample,
-        timestamp: Date.now(),
-        retries: 0,
-      })
       Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ])
