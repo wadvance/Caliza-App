@@ -31,8 +31,8 @@ jobs:
           cd dist
           sed -i 's|"/_expo/|"/Caliza-App/_expo/|g' index.html
           sed -i 's|"/assets/|"/Caliza-App/assets/|g' index.html
-          sed -i 's|"/_expo/|"/Caliza-App/_expo/|g' *.js 2>/dev/null || true
-          sed -i 's|"/assets/|"/Caliza-App/assets/|g' *.js 2>/dev/null || true
+          find . -name '*.js' -exec sed -i 's|"/_expo/|"/Caliza-App/_expo/|g' {} +
+          find . -name '*.js' -exec sed -i 's|"/assets/|"/Caliza-App/assets/|g' {} +
           touch .nojekyll
 
       - name: Deploy to gh-pages branch
