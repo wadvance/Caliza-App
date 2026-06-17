@@ -26,6 +26,25 @@ let currentLocation: LocationData | null = null
 let locationSubscription: Location.LocationSubscription | null = null
 let watchers: Array<(loc: LocationData) => void> = []
 
+function loadPersistedLocation(): LocationData | null {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('geocaliza_last_loc') : null
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function persistLocation(loc: LocationData): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('geocaliza_last_loc', JSON.stringify(loc))
+    }
+  } catch {}
+}
+
+// Restore persisted location on module load
+const persisted = loadPersistedLocation()
+if (persisted) { currentLocation = persisted }
+
 export async function requestLocationPermissions(): Promise<boolean> {
   if (isWeb) return true
   const foreground = await Location.requestForegroundPermissionsAsync()
@@ -153,6 +172,7 @@ export function useCurrentLocation(): LocationData | null {
     if (!currentLocation) {
       getCurrentLocation().then(l => {
         currentLocation = l
+        persistLocation(l)
         setLoc(l)
       })
     }
