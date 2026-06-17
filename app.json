@@ -20,6 +20,11 @@
         "NSLocationWhenInUseUsageDescription": "Se necesita el GPS para registrar coordenadas de muestras y mostrar mapa.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Se necesita ubicación en segundo plano para tracking en campo.",
         "NSPhotoLibraryUsageDescription": "Para guardar fotos de muestras."
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "TU_API_KEY_GOOGLE_MAPS"
+        }
       }
     },
     "android": {
@@ -33,7 +38,11 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "config": {
         "googleMaps": {
@@ -65,8 +74,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "caliza-explorer"
+        "projectId": "b78fad1e-c65b-4570-b1c9-1f6762cbc876"
       }
-    }
+    },
+    "owner": "jamesbar"
   }
 }

@@ -11,9 +11,9 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "",
-        "EXPO_PUBLIC_API_URL": ""
+        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
       }
     },
     "preview": {
@@ -23,11 +23,21 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
       }
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
+      }
     }
   },
   "submit": {

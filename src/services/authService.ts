@@ -96,20 +96,21 @@ export async function login(email: string, password: string): Promise<boolean> {
   }
 }
 
-export async function register(email: string, password: string, fullName?: string): Promise<boolean> {
-  // On web, skip Supabase and use mock server directly
+export async function register(email: string, password: string, fullName?: string): Promise<'ok' | 'email_confirmation' | 'error'> {
   if (!isWeb) {
     try {
       const data = await supabaseRegister(email, password, fullName || email.split('@')[0])
       if (data.session) {
         setUserFromSupabase(data.session)
         currentMode = 'supabase'
-        return true
+        return 'ok'
       }
       if (data.user) {
-        return login(email, password)
+        return 'email_confirmation'
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Supabase register error:', e)
+    }
   }
 
   // Fallback to mock server
@@ -124,10 +125,11 @@ export async function register(email: string, password: string, fullName?: strin
         role: 'operator',
       }),
     })
-    if (!res.ok) return false
-    return login(email, password)
-  } catch {
-    return false
+    if (!res.ok) return 'error'
+    return (await login(email, password)) ? 'ok' : 'error'
+  } catch (e) {
+    console.warn('Mock server register error:', e)
+    return 'error'
   }
 }
 

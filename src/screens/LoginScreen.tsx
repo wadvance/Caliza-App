@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
   ScrollView, Animated, Dimensions,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS } from '../types/constants'
 import { login, register, forgotPassword } from '../services/authService'
 
@@ -17,6 +18,7 @@ export function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const fadeAnim = useRef(new Animated.Value(1)).current
@@ -65,15 +67,26 @@ export function LoginScreen({ navigation }: any) {
 
     setLoading(true)
     try {
-      const ok = mode === 'login'
-        ? await login(email.trim(), password)
-        : await register(email.trim(), password, fullName.trim())
-      if (ok) {
-        navigation.replace('MainTabs')
+      if (mode === 'login') {
+        const ok = await login(email.trim(), password)
+        if (ok) {
+          navigation.replace('MainTabs')
+        } else {
+          Alert.alert('Error', 'Credenciales inválidas. Verifica tu correo y contraseña.')
+        }
       } else {
-        Alert.alert('Error', mode === 'login'
-          ? 'Credenciales inválidas. Verifica tu correo y contraseña.'
-          : 'No se pudo crear la cuenta. El correo podría ya estar registrado.')
+        const result = await register(email.trim(), password, fullName.trim())
+        if (result === 'ok') {
+          navigation.replace('MainTabs')
+        } else if (result === 'email_confirmation') {
+          Alert.alert(
+            'Revisa tu correo',
+            'Hemos enviado un enlace de confirmación a tu correo electrónico. Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace para activar tu cuenta. Luego inicia sesión.',
+            [{ text: 'Entendido', onPress: () => switchMode('login') }],
+          )
+        } else {
+          Alert.alert('Error', 'No se pudo crear la cuenta. El correo podría ya estar registrado.')
+        }
       }
     } catch {
       Alert.alert('Error', 'Error de conexión. Intenta de nuevo.')
@@ -140,25 +153,51 @@ export function LoginScreen({ navigation }: any) {
 
           {mode !== 'forgot' && (
             <>
-              <TextInput
-                style={styles.input}
-                placeholder="Contraseña"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                returnKeyType={mode === 'register' ? 'next' : 'done'}
-              />
-              {mode === 'register' && (
+              <View style={styles.passwordContainer}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Confirmar contraseña"
+                  style={styles.passwordInput}
+                  placeholder="Contraseña"
                   placeholderTextColor={COLORS.textMuted}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  returnKeyType="done"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType={mode === 'register' ? 'next' : 'done'}
                 />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={22}
+                    color={COLORS.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+              {mode === 'register' && (
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Confirmar contraseña"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showPassword}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeBtn}
+                    onPress={() => setShowPassword(!showPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={22}
+                      color={COLORS.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
               )}
             </>
           )}
@@ -323,6 +362,28 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  passwordInput: {
+    backgroundColor: COLORS.surfaceLight,
+    color: COLORS.text,
+    borderRadius: 12,
+    padding: 16,
+    paddingRight: 48,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   submitBtn: {
     backgroundColor: COLORS.accent,

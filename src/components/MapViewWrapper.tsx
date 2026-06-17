@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect } from 'react'
-import { View, Text, StyleSheet, Platform } from 'react-native'
+import { View, Text, StyleSheet, Platform, Dimensions } from 'react-native'
 import { COLORS } from '../types/constants'
 
 const isWeb = Platform.OS === 'web'
@@ -9,6 +9,7 @@ let NativeMarker: any = null
 let NativePolygon: any = null
 let NativePolyline: any = null
 let NativeCallout: any = null
+let WebViewModule: any = null
 if (!isWeb) {
   try {
     const Maps = require('react-native-maps')
@@ -17,6 +18,9 @@ if (!isWeb) {
     NativePolygon = Maps.Polygon
     NativePolyline = Maps.Polyline
     NativeCallout = Maps.Callout
+  } catch {}
+  try {
+    WebViewModule = require('react-native-webview').default
   } catch {}
 }
 
@@ -213,18 +217,56 @@ function WebMap({ style, children, ...props }: MapViewProps & { children?: React
   )
 }
 
+function MobileWebMap({ style, children, ...props }: MapViewProps & { children?: React.ReactNode }) {
+  const markers: MarkerProps[] = []
+  const polygons: PolygonProps[] = []
+
+  const childrenArr = Array.isArray(children) ? children : [children]
+  childrenArr.forEach((child: any) => {
+    if (!child) return
+    if (child.props?.coordinate && (child.type?.displayName === 'Marker' || child.type?.name === 'Marker')) {
+      markers.push(child.props as MarkerProps)
+    }
+    if (child.props?.coordinates && (child.type?.displayName === 'Polygon' || child.type?.name === 'Polygon')) {
+      polygons.push(child.props as PolygonProps)
+    }
+  })
+
+  const html = useMemo(() => buildLeafletHtml(props, markers, polygons),
+    [props.initialRegion?.latitude, props.initialRegion?.longitude,
+     markers.length, polygons.length, JSON.stringify(markers), JSON.stringify(polygons)])
+
+  if (!WebViewModule) {
+    return (
+      <View style={[style, styles.fallback]}>
+        <Text style={styles.fallbackText}>Mapa no disponible</Text>
+      </View>
+    )
+  }
+
+  return (
+    <View style={style}>
+      <WebViewModule
+        source={{ html }}
+        style={{ flex: 1 }}
+        scrollEnabled={false}
+        overScrollMode="never"
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        javaScriptEnabled
+        domStorageEnabled
+      />
+    </View>
+  )
+}
+
 const MapViewComponent = (props: MapViewProps & { children?: React.ReactNode }, ref: any) => {
   if (isWeb) {
     return <WebMap {...props} />
   }
 
   if (!NativeMapView) {
-    return (
-      <View style={[props.style, styles.fallback]}>
-        <Text style={styles.fallbackText}>Mapa no disponible</Text>
-        <Text style={styles.fallbackSubtext}>Cargando módulo de mapas...</Text>
-      </View>
-    )
+    return <MobileWebMap {...props} />
   }
 
   return (
@@ -262,10 +304,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: '600',
-  },
-  fallbackSubtext: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 4,
   },
 })
