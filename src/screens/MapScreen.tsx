@@ -309,7 +309,7 @@ export function MapScreen({ navigation }: any) {
           <Text style={styles.actionIcon}>📷</Text>
           <Text style={styles.actionLabel}>Escanear</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Camara', { screen: 'CameraMain' })}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Camara', { screen: 'RegisterSample' })}>
           <Text style={styles.actionIcon}>📋</Text>
           <Text style={styles.actionLabel}>Registrar</Text>
         </TouchableOpacity>

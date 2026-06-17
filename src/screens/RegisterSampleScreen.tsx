@@ -49,11 +49,6 @@ export function RegisterSampleScreen({ route, navigation }: any) {
   }, [])
 
   const handleSave = async () => {
-    if (photos.length === 0) {
-      Alert.alert('Error', 'Debe tomar al menos una foto')
-      return
-    }
-
     setSaving(true)
     try {
       const sample: Sample = {
