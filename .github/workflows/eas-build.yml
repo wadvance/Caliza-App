@@ -1,13 +1,11 @@
 name: EAS Build (Android & iOS)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       platform:
         description: 'Platform to build (android, ios, all)'
-        default: 'all'
+        default: 'android'
         required: true
 
 jobs:
@@ -15,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [android, ios]
+        platform: [android]
       fail-fast: false
 
     steps:
@@ -34,8 +32,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build on EAS
-        run: eas build --platform ${{ matrix.platform }} --non-interactive --profile production
+        run: eas build --platform ${{ matrix.platform }} --non-interactive --profile preview
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EAS_SKIP_AUTO_FINGERPRINT: 1
