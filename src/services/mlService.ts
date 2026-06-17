@@ -56,11 +56,11 @@ export async function classifyImage(imageUri: string): Promise<MLPrediction> {
       const predictions = await model.predict(imageTensor)
       return parseModelOutput(predictions)
     } catch {
-      return ruleBasedClassification(imageUri)
+      return await ruleBasedClassification(imageUri)
     }
   }
 
-  return ruleBasedClassification(imageUri)
+  return await ruleBasedClassification(imageUri)
 }
 
 async function imageToTensor(uri: string): Promise<any> {
@@ -90,8 +90,8 @@ function parseModelOutput(predictions: any): MLPrediction {
   }
 }
 
-export function ruleBasedClassification(imageUri: string): MLPrediction {
-  const features = extractFeatures(imageUri)
+export async function ruleBasedClassification(imageUri: string): Promise<MLPrediction> {
+  const features = await extractFeatures(imageUri)
 
   let calizaScore = 0
   const reasons: string[] = []
@@ -156,14 +156,76 @@ export function ruleBasedClassification(imageUri: string): MLPrediction {
   }
 }
 
-function extractFeatures(uri: string): FeatureScores {
-  return {
-    colorScore: 0.65,
-    textureScore: 0.55,
-    granulometryScore: 0.5,
-    fractureScore: 0.45,
-    veinScore: 0.35,
+function loadImage(uri: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = uri
+  })
+}
+
+async function extractFeatures(uri: string): Promise<FeatureScores> {
+  try {
+    if (typeof document === 'undefined') return defaultScores()
+    const img = await loadImage(uri)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return defaultScores()
+    const w = 64, h = 64
+    canvas.width = w
+    canvas.height = h
+    ctx.drawImage(img, 0, 0, w, h)
+    const data = ctx.getImageData(0, 0, w, h).data
+
+    let totalR = 0, totalG = 0, totalB = 0
+    const brightnessValues: number[] = []
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2]
+      totalR += r; totalG += g; totalB += b
+      brightnessValues.push((r + g + b) / 3)
+    }
+
+    const n = data.length / 4
+    const avgR = totalR / n, avgG = totalG / n, avgB = totalB / n
+    const avgBrightness = (avgR + avgG + avgB) / 3
+    const avgSaturation = (Math.max(avgR, avgG, avgB) - Math.min(avgR, avgG, avgB)) / 255
+
+    let brightnessVariance = 0
+    for (const b of brightnessValues) {
+      brightnessVariance += (b - avgBrightness) ** 2
+    }
+    brightnessVariance = Math.sqrt(brightnessVariance / n) / 255
+
+    const isLight = avgBrightness > 160
+    const isVeryLight = avgBrightness > 200
+    const isDark = avgBrightness < 80
+    const isDesaturated = avgSaturation < 0.15
+
+    let colorScore = 0.5
+    if (isVeryLight && isDesaturated) colorScore = 0.9
+    else if (isLight && isDesaturated) colorScore = 0.75
+    else if (isLight) colorScore = 0.6
+    else if (isDark) colorScore = 0.15
+    else if (avgSaturation > 0.3) colorScore = 0.3
+
+    const textureScore = isDark ? 0.3 : Math.max(0.2, 1 - brightnessVariance)
+
+    return {
+      colorScore,
+      textureScore,
+      granulometryScore: isLight ? 0.6 : 0.3,
+      fractureScore: brightnessVariance > 0.15 ? 0.5 : 0.3,
+      veinScore: brightnessVariance > 0.2 ? 0.4 : 0.2,
+    }
+  } catch {
+    return defaultScores()
   }
+}
+
+function defaultScores(): FeatureScores {
+  return { colorScore: 0.5, textureScore: 0.5, granulometryScore: 0.5, fractureScore: 0.4, veinScore: 0.3 }
 }
 
 interface FeatureScores {
