@@ -1,11 +1,31 @@
-import * as FileSystem from 'expo-file-system'
+import { Platform } from 'react-native'
 import { MLPrediction } from '../types'
 
 let model: any = null
 let modelLoaded = false
 
-export async function loadMLModel(): Promise<boolean> {
+const isWeb = Platform.OS === 'web'
+
+let _FileSystem: any = null
+async function getFileSystem(): Promise<any> {
+  if (_FileSystem) return _FileSystem
   try {
+    _FileSystem = require('expo-file-system')
+  } catch {
+    _FileSystem = {
+      documentDirectory: '/',
+      bundleDirectory: '/',
+      getInfoAsync: async () => ({ exists: false }),
+      copyAsync: async () => {},
+    }
+  }
+  return _FileSystem
+}
+
+export async function loadMLModel(): Promise<boolean> {
+  if (isWeb) return false
+  try {
+    const FileSystem = await getFileSystem()
     const modelPath = `${FileSystem.documentDirectory}models/caliza_model.json`
     const exists = await FileSystem.getInfoAsync(modelPath)
     if (!exists.exists) {

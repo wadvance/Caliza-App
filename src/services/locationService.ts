@@ -1,8 +1,9 @@
-import * as Location from 'expo-location'
 import { useState, useEffect } from 'react'
 import { Platform } from 'react-native'
 
 const isWeb = Platform.OS === 'web'
+
+type LocationSubscription = { remove: () => void }
 
 export interface LocationData {
   latitude: number
@@ -23,7 +24,7 @@ const DEFAULT_LOCATION: LocationData = {
 }
 
 let currentLocation: LocationData | null = null
-let locationSubscription: Location.LocationSubscription | null = null
+let locationSubscription: LocationSubscription | null = null
 let watchers: Array<(loc: LocationData) => void> = []
 
 function loadPersistedLocation(): LocationData | null {
@@ -45,8 +46,21 @@ function persistLocation(loc: LocationData): void {
 const persisted = loadPersistedLocation()
 if (persisted) { currentLocation = persisted }
 
+let _LocationModule: any = null
+async function getLocationModule(): Promise<any> {
+  if (_LocationModule) return _LocationModule
+  try {
+    _LocationModule = require('expo-location')
+  } catch {
+    _LocationModule = null
+  }
+  return _LocationModule
+}
+
 export async function requestLocationPermissions(): Promise<boolean> {
   if (isWeb) return true
+  const Location = await getLocationModule()
+  if (!Location) return false
   const foreground = await Location.requestForegroundPermissionsAsync()
   if (!foreground.granted) return false
 
@@ -76,6 +90,8 @@ async function getWebLocation(): Promise<LocationData> {
 
 export async function getCurrentLocation(): Promise<LocationData> {
   if (isWeb) return getWebLocation()
+  const Location = await getLocationModule()
+  if (!Location) return DEFAULT_LOCATION
   const loc = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.High,
   })
@@ -90,8 +106,11 @@ export async function getCurrentLocation(): Promise<LocationData> {
   }
 }
 
-export function startLocationTracking(): void {
+export async function startLocationTracking(): Promise<void> {
   if (locationSubscription) return
+  if (isWeb) return
+  const Location = await getLocationModule()
+  if (!Location) return
 
   Location.watchPositionAsync(
     {

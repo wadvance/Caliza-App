@@ -4,7 +4,21 @@ import { getSyncQueue, removeFromSyncQueue, getAllSamples, saveSample } from './
 import { supabaseGetSamples, supabaseSyncBatch, supabaseGetSample } from './supabaseDataService'
 import { supabaseGetSession } from './supabaseClient'
 import { Sample } from '../types'
-import NetInfo from '@react-native-community/netinfo'
+
+let _NetInfo: any = null
+async function getNetInfo(): Promise<any> {
+  if (_NetInfo) return _NetInfo
+  try {
+    const mod = require('@react-native-community/netinfo')
+    _NetInfo = mod.default || mod
+  } catch {
+    _NetInfo = {
+      fetch: async () => ({ isConnected: true }),
+      addEventListener: () => () => {},
+    }
+  }
+  return _NetInfo
+}
 
 type SyncStatusCallback = (status: SyncStatus) => void
 
@@ -38,6 +52,7 @@ function notifyStatus(): void {
 }
 
 export async function syncNow(): Promise<void> {
+  const NetInfo = await getNetInfo()
   const netState = await NetInfo.fetch()
   if (!netState.isConnected) {
     currentStatus.error = 'Sin conexión a internet'
@@ -224,6 +239,7 @@ export async function syncSample(sample: Sample): Promise<boolean> {
 
 export function startAutoSync(intervalMs = 300000): () => void {
   const interval = setInterval(async () => {
+    const NetInfo = await getNetInfo()
     const netState = await NetInfo.fetch()
     if (netState.isConnected && getToken()) {
       syncNow()
@@ -233,11 +249,13 @@ export function startAutoSync(intervalMs = 300000): () => void {
 }
 
 export async function isOnline(): Promise<boolean> {
+  const NetInfo = await getNetInfo()
   const netState = await NetInfo.fetch()
   return netState.isConnected ?? false
 }
 
-export function onNetworkChange(callback: (connected: boolean) => void): () => void {
+export async function onNetworkChange(callback: (connected: boolean) => void): Promise<() => void> {
+  const NetInfo = await getNetInfo()
   return NetInfo.addEventListener(state => {
     callback(state.isConnected ?? false)
   })

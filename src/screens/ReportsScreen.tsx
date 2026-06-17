@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform, Share } from 'react-native'
-import * as FileSystem from 'expo-file-system'
-import * as Print from 'expo-print'
 import { COLORS } from '../types/constants'
 import { getAllSamples, getAllZones } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
@@ -167,6 +165,8 @@ ${report.samples.map(s => `
           mimeType = 'text/html'
         } else {
           try {
+            const Print = require('expo-print')
+            const FileSystem = require('expo-file-system')
             const { uri } = await Print.printToFileAsync({ html })
             const dest = FileSystem.documentDirectory + `reporte_caliza_${Date.now()}.pdf`
             await FileSystem.moveAsync({ from: uri, to: dest })
@@ -192,6 +192,7 @@ ${report.samples.map(s => `
       URL.revokeObjectURL(url)
     } else {
       try {
+        const FileSystem = require('expo-file-system')
         const fileUri = FileSystem.documentDirectory + filename
         await FileSystem.writeAsStringAsync(fileUri, content, {
           encoding: FileSystem.EncodingType.UTF8,
