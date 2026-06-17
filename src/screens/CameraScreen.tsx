@@ -58,7 +58,12 @@ function WebcamCapture({ onCapture }: { onCapture: (dataUri: string) => void }) 
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 }}>
         <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
         <Text style={{ color: COLORS.highlight, fontSize: 14, textAlign: 'center', marginBottom: 8 }}>{error}</Text>
-        <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>Puedes seleccionar una imagen de la galería</Text>
+        <Text style={{ color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginBottom: 4, lineHeight: 18 }}>
+          Para usar la cámara, ve a la configuración del navegador (candado 🔒 junto a la URL) y activa "Cámara" o "Permisos de cámara".
+        </Text>
+        <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20, marginTop: 8 }}>
+          Mientras tanto, puedes seleccionar una imagen de la galería:
+        </Text>
         <TouchableOpacity style={styles.webSelectBtn} onPress={() => {
           const input = document.createElement('input')
           input.type = 'file'
@@ -73,7 +78,7 @@ function WebcamCapture({ onCapture }: { onCapture: (dataUri: string) => void }) 
           }
           input.click()
         }}>
-          <Text style={styles.webSelectText}>Seleccionar imagen</Text>
+          <Text style={styles.webSelectText}>Seleccionar imagen de galería</Text>
         </TouchableOpacity>
       </View>
     )
