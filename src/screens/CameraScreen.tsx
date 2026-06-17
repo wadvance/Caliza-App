@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { classifyImage, getConfidenceLabel } from '../services/mlService'
@@ -14,116 +14,55 @@ if (!isWeb) {
   } catch {}
 }
 
-function WebcamCapture({ onCapture }: { onCapture: (dataUri: string) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
-  const [error, setError] = useState('')
-  const [started, setStarted] = useState(false)
-
-  const startCamera = async () => {
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      setStream(s)
-      setStarted(true)
-      if (videoRef.current) videoRef.current.srcObject = s
-    } catch {
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: true })
-        setStream(s)
-        setStarted(true)
-        if (videoRef.current) videoRef.current.srcObject = s
-      } catch (e: any) {
-        setError('No se pudo acceder a la cámara: ' + (e.message || ''))
-      }
+function pickImage(onCapture: (uri: string) => void, useCamera = false) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  if (useCamera) input.setAttribute('capture', 'environment')
+  input.onchange = (e: any) => {
+    const file = e.target?.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = ev => onCapture(ev.target?.result as string)
+      reader.readAsDataURL(file)
     }
   }
+  input.click()
+}
 
-  useEffect(() => {
-    return () => { stream?.getTracks().forEach(t => t.stop()) }
-  }, [stream])
-
-  const capture = () => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas) return
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')!.drawImage(video, 0, 0)
-    onCapture(canvas.toDataURL('image/jpeg', 0.8))
-  }
-
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 }}>
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
-        <Text style={{ color: COLORS.highlight, fontSize: 14, textAlign: 'center', marginBottom: 8 }}>{error}</Text>
-        <Text style={{ color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginBottom: 4, lineHeight: 18 }}>
-          Para usar la cámara, ve a la configuración del navegador (candado 🔒 junto a la URL) y activa "Cámara" o "Permisos de cámara".
-        </Text>
-        <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20, marginTop: 8 }}>
-          Mientras tanto, puedes seleccionar una imagen de la galería:
-        </Text>
-        <TouchableOpacity style={styles.webSelectBtn} onPress={() => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = 'image/*'
-          input.onchange = (e: any) => {
-            const file = e.target?.files?.[0]
-            if (file) {
-              const reader = new FileReader()
-              reader.onload = ev => onCapture(ev.target?.result as string)
-              reader.readAsDataURL(file)
-            }
-          }
-          input.click()
-        }}>
-          <Text style={styles.webSelectText}>Seleccionar imagen de galería</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
-
-  if (!started) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 }}>
-        <Text style={{ fontSize: 64, marginBottom: 16 }}>📷</Text>
-        <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>Escanear roca</Text>
-        <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
-          Apunta la cámara a la roca o afloramiento para analizarla con IA
-        </Text>
-        <TouchableOpacity style={styles.webSelectBtn} onPress={startCamera}>
-          <Text style={styles.webSelectText}>Abrir cámara</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ marginTop: 16, padding: 8 }} onPress={() => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = 'image/*'
-          input.onchange = (e: any) => {
-            const file = e.target?.files?.[0]
-            if (file) {
-              const reader = new FileReader()
-              reader.onload = ev => onCapture(ev.target?.result as string)
-              reader.readAsDataURL(file)
-            }
-          }
-          input.click()
-        }}>
-          <Text style={{ color: COLORS.textMuted, fontSize: 13, textDecorationLine: 'underline' }}>Seleccionar de galería</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
+function WebcamCapture({ onCapture }: { onCapture: (dataUri: string) => void }) {
+  const [error, setError] = useState('')
 
   return (
-    <View style={{ flex: 1 }}>
-      <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      <View style={styles.cameraFooter}>
-        <TouchableOpacity style={styles.captureBtn} onPress={capture}>
-          <View style={styles.captureInner} />
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 40 }}>
+      {error ? (
+        <>
+          <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
+          <Text style={{ color: COLORS.highlight, fontSize: 14, textAlign: 'center', marginBottom: 16 }}>{error}</Text>
+        </>
+      ) : (
+        <>
+          <Text style={{ fontSize: 64, marginBottom: 16 }}>📷</Text>
+          <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>Escanear roca</Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+            Apunta la cámara a la roca o afloramiento para analizarla con IA
+          </Text>
+        </>
+      )}
+
+      <TouchableOpacity style={styles.webSelectBtn} onPress={() => {
+        try {
+          pickImage(onCapture, true)
+        } catch {
+          setError('No se pudo abrir la cámara. Usa la opción de galería.')
+        }
+      }}>
+        <Text style={styles.webSelectText}>Tomar foto con la cámara</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={{ marginTop: 12, padding: 8 }} onPress={() => pickImage(onCapture, false)}>
+        <Text style={{ color: COLORS.textMuted, fontSize: 13, textDecorationLine: 'underline' }}>Seleccionar de galería</Text>
+      </TouchableOpacity>
     </View>
   )
 }
