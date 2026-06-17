@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { COLORS } from '../types/constants'
 import { classifyImage, getConfidenceLabel } from '../services/mlService'
 import { useAppStore } from '../store/useAppStore'
@@ -74,6 +75,16 @@ export function CameraScreen({ navigation }: any) {
   const cameraRef = useRef<any>(null)
   const { setLastPrediction } = useAppStore()
 
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setCapturedUri(null)
+        setPrediction(null)
+        setAnalyzing(false)
+      }
+    }, [])
+  )
+
   const takePhoto = useCallback(async () => {
     if (isWeb) return
     if (!cameraRef.current) return
@@ -105,7 +116,7 @@ export function CameraScreen({ navigation }: any) {
   if (capturedUri) {
     return (
       <View style={styles.container}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Mapa')}>
+        <TouchableOpacity style={styles.backBtn} onPress={retakePhoto}>
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <Image source={{ uri: capturedUri }} style={styles.preview} />
