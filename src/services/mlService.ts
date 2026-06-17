@@ -93,87 +93,74 @@ function parseModelOutput(predictions: any): MLPrediction {
 export async function ruleBasedClassification(imageUri: string): Promise<MLPrediction> {
   const features = await extractFeatures(imageUri)
 
-  let calizaScore = 0
   const reasons: string[] = []
+  const brightness = features.rawBrightness ?? 128
+  const saturation = features.rawSaturation ?? 0.3
 
-  const c = features.colorScore
-  const t = features.textureScore
-  const g = features.granulometryScore
-  const f = features.fractureScore
-  const v = features.veinScore
+  const isLight = brightness > 160 && saturation < 0.25
+  const isVeryLight = brightness > 200 && saturation < 0.15
+  const isMedium = brightness >= 100 && brightness <= 160
+  const isDark = brightness < 100
 
-  if (c > 0.5) {
-    const contrib = 0.15 + (c - 0.5) * 0.3
-    calizaScore += contrib
-    reasons.push('Color claro característico de carbonatos')
-  } else if (c > 0.3) {
-    calizaScore += 0.08
-    reasons.push('Color ligeramente claro')
+  let calizaScore = 0
+
+  if (isVeryLight) {
+    calizaScore = 0.8 + features.textureScore * 0.15
+    reasons.push('Color muy claro (blanco/beige) típico de caliza pura')
+  } else if (isLight) {
+    calizaScore = 0.4 + features.textureScore * 0.2
+    reasons.push('Color claro - posible carbonato')
+  } else if (isMedium) {
+    calizaScore = 0.1 + features.textureScore * 0.1
+    reasons.push('Color intermedio - poco característico de caliza')
   } else {
-    calizaScore += 0.03
-    reasons.push('Color no concluyente')
+    calizaScore = 0.03
+    reasons.push('Color oscuro - no característico de carbonatos')
   }
 
-  if (t > 0.5) {
-    const contrib = 0.1 + (t - 0.5) * 0.3
-    calizaScore += contrib
-    reasons.push('Textura homogénea compatible con sedimentaria')
-  } else if (t > 0.3) {
-    calizaScore += 0.06
-    reasons.push('Textura parcialmente homogénea')
-  } else {
-    calizaScore += 0.02
-  }
-
-  if (g > 0.4) {
-    calizaScore += 0.08 + (g - 0.4) * 0.15
-    reasons.push('Granulometría fina a media')
-  }
-
-  if (f > 0.35) {
-    calizaScore += 0.05 + (f - 0.35) * 0.1
-    reasons.push('Patrón de fractura presente')
-  }
-
-  if (v > 0.25) {
-    calizaScore += 0.04 + (v - 0.25) * 0.1
-    reasons.push('Posibles vetas de calcita')
-  }
+  if (features.textureScore > 0.7) calizaScore += 0.05
+  if (features.granulometryScore > 0.6) calizaScore += 0.03
+  if (features.fractureScore > 0.5) calizaScore += 0.02
 
   const probability = Math.min(calizaScore, 0.95)
 
   const recommendations: string[] = []
   if (probability > 0.7) {
     recommendations.push('Alta probabilidad de caliza - validar con HCl diluido')
-  } else if (probability > 0.5) {
-    recommendations.push('Probabilidad media-alta - realizar prueba de ácido y dureza')
-  } else if (probability > 0.3) {
-    recommendations.push('Probabilidad media - verificar con prueba de HCl en campo')
+  } else if (probability > 0.4) {
+    recommendations.push('Probabilidad media - realizar prueba de ácido y dureza')
+  } else if (probability > 0.15) {
+    recommendations.push('Baja probabilidad de caliza - buscar rocas de color más claro')
   } else {
-    recommendations.push('Baja probabilidad - buscar afloramientos de color claro')
+    recommendations.push('No parece caliza - buscar afloramientos de color blanco/beige')
   }
   recommendations.push('Registrar coordenadas GPS exactas')
   recommendations.push('Tomar múltiples fotos desde diferentes ángulos')
 
   let className = 'desconocido'
-  if (probability > 0.6) className = 'caliza'
+  if (probability > 0.65) className = 'caliza'
   else if (probability > 0.35) className = 'posible_caliza'
 
-  const isCarbonate = probability > 0.25
-  const isDark = features.colorScore < 0.35
-  const isClayLike = features.colorScore >= 0.35 && features.colorScore < 0.55
-
   const allProbabilities: Record<string, number> = {
-    caliza: isCarbonate ? probability : 0,
-    dolomita: isCarbonate ? Math.max(0, probability * 0.5) : 0,
-    marga: isCarbonate ? Math.max(0, probability * 0.35) : 0,
-    travertino: isCarbonate ? Math.max(0, probability * 0.2) : 0,
-    caliche: isCarbonate ? Math.max(0, probability * 0.25) : 0,
-    arcilla: isClayLike ? 0.5 : isDark ? 0.2 : 0.3,
-    yeso: isClayLike ? 0.3 : 0.1,
-    granito: isDark ? 0.4 : 0.1,
-    basalto: isDark ? 0.5 : 0.05,
-    desconocido: Math.max(0, 1 - probability),
+    caliza: Math.max(0, probability),
+    desconocido: Math.max(0, 1 - probability * 1.2),
+  }
+  if (isVeryLight) {
+    allProbabilities.dolomita = probability * 0.4
+    allProbabilities.caliche = probability * 0.3
+    allProbabilities.yeso = probability * 0.2
+  } else if (isLight) {
+    allProbabilities.arcilla = 0.3
+    allProbabilities.marga = probability * 0.3
+    allProbabilities.yeso = 0.2
+  } else if (isDark) {
+    allProbabilities.basalto = 0.4
+    allProbabilities.granito = 0.3
+    allProbabilities.arcilla = 0.2
+  } else {
+    allProbabilities.arcilla = 0.35
+    allProbabilities.yeso = 0.15
+    allProbabilities.marga = probability * 0.2
   }
 
   return {
@@ -227,23 +214,20 @@ async function extractFeatures(uri: string): Promise<FeatureScores> {
     }
     brightnessVariance = Math.sqrt(brightnessVariance / n) / 255
 
-    const lightness = avgBrightness / 255
-    const desaturation = 1 - avgSaturation
-
-    let colorScore = lightness * 0.6 + desaturation * 0.4
-    colorScore = Math.max(0.1, Math.min(0.95, colorScore))
-
     const textureScore = 1 - brightnessVariance
+    const lightness = avgBrightness / 255
     const granulometryScore = lightness > 0.5 ? 0.5 + lightness * 0.3 : 0.2 + lightness * 0.3
     const fractureScore = 0.2 + brightnessVariance * 0.6
     const veinScore = 0.15 + brightnessVariance * 0.5
 
     return {
-      colorScore,
+      colorScore: 0.5,
       textureScore,
       granulometryScore,
       fractureScore,
       veinScore,
+      rawBrightness: avgBrightness,
+      rawSaturation: avgSaturation,
     }
   } catch {
     return defaultScores()
@@ -251,7 +235,7 @@ async function extractFeatures(uri: string): Promise<FeatureScores> {
 }
 
 function defaultScores(): FeatureScores {
-  return { colorScore: 0.5, textureScore: 0.5, granulometryScore: 0.5, fractureScore: 0.4, veinScore: 0.3 }
+  return { colorScore: 0.5, textureScore: 0.5, granulometryScore: 0.5, fractureScore: 0.4, veinScore: 0.3, rawBrightness: 128, rawSaturation: 0.3 }
 }
 
 interface FeatureScores {
@@ -260,6 +244,8 @@ interface FeatureScores {
   granulometryScore: number
   fractureScore: number
   veinScore: number
+  rawBrightness?: number
+  rawSaturation?: number
 }
 
 export function getConfidenceLabel(probability: number): string {
