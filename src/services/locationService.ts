@@ -1,5 +1,8 @@
 import * as Location from 'expo-location'
 import { useState, useEffect } from 'react'
+import { Platform } from 'react-native'
+
+const isWeb = Platform.OS === 'web'
 
 export interface LocationData {
   latitude: number
@@ -10,11 +13,21 @@ export interface LocationData {
   timestamp: number
 }
 
+const DEFAULT_LOCATION: LocationData = {
+  latitude: 8.9824,
+  longitude: -79.5199,
+  altitude: 0,
+  accuracy: 1000,
+  speed: null,
+  timestamp: Date.now(),
+}
+
 let currentLocation: LocationData | null = null
 let locationSubscription: Location.LocationSubscription | null = null
 let watchers: Array<(loc: LocationData) => void> = []
 
 export async function requestLocationPermissions(): Promise<boolean> {
+  if (isWeb) return true
   const foreground = await Location.requestForegroundPermissionsAsync()
   if (!foreground.granted) return false
 
@@ -22,7 +35,28 @@ export async function requestLocationPermissions(): Promise<boolean> {
   return background.granted
 }
 
+async function getWebLocation(): Promise<LocationData> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(DEFAULT_LOCATION)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          altitude: pos.coords.altitude ?? 0,
+          accuracy: pos.coords.accuracy ?? 1000,
+          speed: pos.coords.speed,
+          timestamp: pos.timestamp,
+        })
+      },
+      () => resolve(DEFAULT_LOCATION),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+    )
+  })
+}
+
 export async function getCurrentLocation(): Promise<LocationData> {
+  if (isWeb) return getWebLocation()
   const loc = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.High,
   })
@@ -117,7 +151,10 @@ export function useCurrentLocation(): LocationData | null {
   useEffect(() => {
     const unsub = onLocationChange(setLoc)
     if (!currentLocation) {
-      getCurrentLocation().then(setLoc)
+      getCurrentLocation().then(l => {
+        currentLocation = l
+        setLoc(l)
+      })
     }
     return unsub
   }, [])
