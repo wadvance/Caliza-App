@@ -302,6 +302,11 @@ function handleGenerateReport(headers) {
 function route(method, url, headers, body) {
   const { path: p, params } = parseUrl(url)
 
+  // CORS preflight
+  if (method === 'OPTIONS') {
+    return { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' }, body: '' }
+  }
+
   // API routes (must come BEFORE static fallback)
   if (method === 'GET' && p === '/health') return json({ status: 'ok', service: 'GeoCaliza API (dev)' })
 
@@ -372,18 +377,6 @@ const server = http.createServer((req, res) => {
     }
     console.log(`${req.method} ${req.url} ${res.statusCode} ${Date.now() - start}ms`)
   })
-})
-
-server.on('request', (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    })
-    res.end()
-  }
 })
 
 server.listen(PORT, () => {

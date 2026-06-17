@@ -59,17 +59,19 @@ export async function initAuth(): Promise<void> {
 }
 
 export async function login(email: string, password: string): Promise<boolean> {
-  // Try Supabase first
-  try {
-    const data = await supabaseLogin(email, password)
-    if (data.session) {
-      setUserFromSupabase(data.session)
-      currentMode = 'supabase'
-      return true
-    }
-  } catch {}
+  // On web, skip Supabase and use mock server directly (faster, avoids CORS issues)
+  if (!isWeb) {
+    try {
+      const data = await supabaseLogin(email, password)
+      if (data.session) {
+        setUserFromSupabase(data.session)
+        currentMode = 'supabase'
+        return true
+      }
+    } catch {}
+  }
 
-  // Fallback to mock server
+  // Use mock/local server
   try {
     const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_LOGIN), {
       method: 'POST',
@@ -95,19 +97,20 @@ export async function login(email: string, password: string): Promise<boolean> {
 }
 
 export async function register(email: string, password: string, fullName?: string): Promise<boolean> {
-  // Try Supabase first
-  try {
-    const data = await supabaseRegister(email, password, fullName || email.split('@')[0])
-    if (data.session) {
-      setUserFromSupabase(data.session)
-      currentMode = 'supabase'
-      return true
-    }
-    if (data.user) {
-      // Email confirmation may be required — try logging in
-      return login(email, password)
-    }
-  } catch {}
+  // On web, skip Supabase and use mock server directly
+  if (!isWeb) {
+    try {
+      const data = await supabaseRegister(email, password, fullName || email.split('@')[0])
+      if (data.session) {
+        setUserFromSupabase(data.session)
+        currentMode = 'supabase'
+        return true
+      }
+      if (data.user) {
+        return login(email, password)
+      }
+    } catch {}
+  }
 
   // Fallback to mock server
   try {
