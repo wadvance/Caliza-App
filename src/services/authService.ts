@@ -1,6 +1,5 @@
 import API_CONFIG, { getApiUrl, getAuthHeaders } from './api'
 import { setSetting, getSetting } from './database'
-import { Platform } from 'react-native'
 import {
   supabaseLogin,
   supabaseRegister,
@@ -8,8 +7,6 @@ import {
   supabaseGetSession,
   supabaseGetUser,
 } from './supabaseClient'
-
-const isWeb = Platform.OS === 'web'
 
 type AuthMode = 'mock' | 'supabase' | 'auto'
 let currentMode: AuthMode = 'auto'
@@ -59,26 +56,6 @@ export async function initAuth(): Promise<void> {
 }
 
 export async function login(email: string, password: string): Promise<boolean> {
-  if (isWeb) {
-    try {
-      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_LOGIN), {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ email, password }),
-      })
-      if (!res.ok) return false
-      const data = await res.json()
-      currentToken = data.access_token
-      await setSetting('auth_token', currentToken!)
-      const meRes = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_ME), {
-        headers: getAuthHeaders(currentToken!),
-      })
-      if (meRes.ok) { currentUser = await meRes.json() }
-      currentMode = 'mock'
-      return true
-    } catch { return false }
-  }
-
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('timeout')), 15000)
   )
@@ -97,25 +74,6 @@ export async function login(email: string, password: string): Promise<boolean> {
 }
 
 export async function register(email: string, password: string, fullName?: string): Promise<'ok' | 'email_confirmation' | 'error'> {
-  if (isWeb) {
-    try {
-      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_REGISTER), {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName || email.split('@')[0],
-          role: 'operator',
-        }),
-      })
-      if (!res.ok) return 'error'
-      return (await login(email, password)) ? 'ok' : 'error'
-    } catch {
-      return 'error'
-    }
-  }
-
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('timeout')), 15000)
   )
