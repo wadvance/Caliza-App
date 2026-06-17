@@ -89,7 +89,8 @@ export async function register(email: string, password: string, fullName?: strin
       return 'email_confirmation'
     }
     return 'error'
-  } catch {
+  } catch (e) {
+    console.warn('Register error:', e)
     return 'error'
   }
 }

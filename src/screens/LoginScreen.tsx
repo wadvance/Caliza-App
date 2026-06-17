@@ -20,6 +20,7 @@ export function LoginScreen({ navigation }: any) {
   const [fullName, setFullName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   const fadeAnim = useRef(new Animated.Value(1)).current
 
@@ -40,6 +41,7 @@ export function LoginScreen({ navigation }: any) {
   }
 
   const handleSubmit = async () => {
+    setErrorMsg('')
     if (!email.trim()) { Alert.alert('Error', 'Ingresa tu correo electrónico'); return }
 
     if (mode === 'forgot') {
@@ -72,7 +74,7 @@ export function LoginScreen({ navigation }: any) {
         if (ok) {
           navigation.replace('MainTabs')
         } else {
-          Alert.alert('Error', 'Credenciales inválidas. Verifica tu correo y contraseña.')
+          setErrorMsg('Credenciales inválidas. Verifica tu correo y contraseña.')
         }
       } else {
         const result = await register(email.trim(), password, fullName.trim())
@@ -85,7 +87,7 @@ export function LoginScreen({ navigation }: any) {
             [{ text: 'Entendido', onPress: () => switchMode('login') }],
           )
         } else {
-          Alert.alert('Error', 'No se pudo crear la cuenta. El correo podría ya estar registrado.')
+          setErrorMsg('No se pudo crear la cuenta. El correo podría ya estar registrado o Supabase tiene límite de registros.')
         }
       }
     } catch {
@@ -201,6 +203,12 @@ export function LoginScreen({ navigation }: any) {
               )}
             </>
           )}
+
+          {errorMsg ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
@@ -428,6 +436,22 @@ const styles = StyleSheet.create({
     color: '#9090b0',
     fontSize: 12,
     marginHorizontal: 12,
+  },
+
+  // Error box
+  errorBox: {
+    backgroundColor: '#e9456022',
+    borderWidth: 1,
+    borderColor: '#e94560',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#ff6b81',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 
   // Switch mode
