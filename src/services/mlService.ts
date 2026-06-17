@@ -159,16 +159,20 @@ export async function ruleBasedClassification(imageUri: string): Promise<MLPredi
   if (probability > 0.6) className = 'caliza'
   else if (probability > 0.35) className = 'posible_caliza'
 
+  const isCarbonate = probability > 0.25
+  const isDark = features.colorScore < 0.35
+  const isClayLike = features.colorScore >= 0.35 && features.colorScore < 0.55
+
   const allProbabilities: Record<string, number> = {
-    caliza: probability,
-    dolomita: Math.max(0, probability * 0.6),
-    marga: Math.max(0, probability * 0.4),
-    arcilla: Math.max(0, (1 - probability) * 0.35),
-    yeso: Math.max(0, (1 - probability) * 0.2),
-    travertino: Math.max(0, probability * 0.25),
-    granito: Math.max(0, (1 - probability) * 0.15),
-    basalto: Math.max(0, (1 - probability) * 0.1),
-    caliche: Math.max(0, probability * 0.3),
+    caliza: isCarbonate ? probability : 0,
+    dolomita: isCarbonate ? Math.max(0, probability * 0.5) : 0,
+    marga: isCarbonate ? Math.max(0, probability * 0.35) : 0,
+    travertino: isCarbonate ? Math.max(0, probability * 0.2) : 0,
+    caliche: isCarbonate ? Math.max(0, probability * 0.25) : 0,
+    arcilla: isClayLike ? 0.5 : isDark ? 0.2 : 0.3,
+    yeso: isClayLike ? 0.3 : 0.1,
+    granito: isDark ? 0.4 : 0.1,
+    basalto: isDark ? 0.5 : 0.05,
     desconocido: Math.max(0, 1 - probability),
   }
 
