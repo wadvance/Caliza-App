@@ -141,26 +141,24 @@ export async function ruleBasedClassification(imageUri: string): Promise<MLPredi
   if (probability > 0.65) className = 'caliza'
   else if (probability > 0.35) className = 'posible_caliza'
 
+  const calizaDisplay = (isVeryLight || isLight) ? probability : 0
+
   const allProbabilities: Record<string, number> = {
-    caliza: Math.max(0, probability),
-    desconocido: Math.max(0, 1 - probability * 1.2),
+    caliza: calizaDisplay,
+    desconocido: Math.max(0, 1 - calizaDisplay),
   }
-  if (isVeryLight) {
+  if (isVeryLight || isLight) {
     allProbabilities.dolomita = probability * 0.4
     allProbabilities.caliche = probability * 0.3
-    allProbabilities.yeso = probability * 0.2
-  } else if (isLight) {
-    allProbabilities.arcilla = 0.3
-    allProbabilities.marga = probability * 0.3
-    allProbabilities.yeso = 0.2
-  } else if (isDark) {
+    allProbabilities.marga = probability * 0.25
+  }
+  if (isDark) {
     allProbabilities.basalto = 0.4
     allProbabilities.granito = 0.3
     allProbabilities.arcilla = 0.2
-  } else {
+  } else if (!isVeryLight && !isLight) {
     allProbabilities.arcilla = 0.35
-    allProbabilities.yeso = 0.15
-    allProbabilities.marga = probability * 0.2
+    allProbabilities.yeso = 0.1
   }
 
   return {
