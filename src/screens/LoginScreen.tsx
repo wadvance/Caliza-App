@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   subtitle: {
-    color: COLORS.textMuted,
+    color: '#9090b0',
     fontSize: 13,
     marginTop: 6,
     textAlign: 'center',
@@ -336,11 +336,11 @@ const styles = StyleSheet.create({
   // Form card
   formCard: {
     marginHorizontal: 24,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#222244',
     borderRadius: 20,
     padding: 28,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#3a3a6a',
   },
   formTitle: {
     color: COLORS.text,
@@ -349,33 +349,33 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   formSubtitle: {
-    color: COLORS.textMuted,
+    color: '#9090b0',
     fontSize: 13,
     marginBottom: 24,
   },
   input: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#2e2e55',
     color: COLORS.text,
     borderRadius: 12,
     padding: 16,
     fontSize: 15,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: '#3a3a6a',
   },
   passwordContainer: {
     position: 'relative',
     marginBottom: 12,
   },
   passwordInput: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#2e2e55',
     color: COLORS.text,
     borderRadius: 12,
     padding: 16,
     paddingRight: 48,
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: '#3a3a6a',
   },
   eyeBtn: {
     position: 'absolute',
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   forgotText: {
-    color: COLORS.textMuted,
+    color: '#9090b0',
     fontSize: 13,
     textDecorationLine: 'underline',
   },
@@ -422,10 +422,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#3a3a6a',
   },
   dividerText: {
-    color: COLORS.textMuted,
+    color: '#9090b0',
     fontSize: 12,
     marginHorizontal: 12,
   },
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   switchText: {
-    color: COLORS.textMuted,
+    color: '#9090b0',
     fontSize: 14,
   },
   switchLink: {
