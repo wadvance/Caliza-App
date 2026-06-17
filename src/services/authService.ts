@@ -59,76 +59,79 @@ export async function initAuth(): Promise<void> {
 }
 
 export async function login(email: string, password: string): Promise<boolean> {
-  // On web, skip Supabase and use mock server directly (faster, avoids CORS issues)
-  if (!isWeb) {
+  if (isWeb) {
     try {
-      const data = await supabaseLogin(email, password)
-      if (data.session) {
-        setUserFromSupabase(data.session)
-        currentMode = 'supabase'
-        return true
-      }
-    } catch {}
+      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_LOGIN), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email, password }),
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      currentToken = data.access_token
+      await setSetting('auth_token', currentToken!)
+      const meRes = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_ME), {
+        headers: getAuthHeaders(currentToken!),
+      })
+      if (meRes.ok) { currentUser = await meRes.json() }
+      currentMode = 'mock'
+      return true
+    } catch { return false }
   }
 
-  // Use mock/local server
-  try {
-    const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_LOGIN), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ email, password }),
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    currentToken = data.access_token
-    await setSetting('auth_token', currentToken!)
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 15000)
+  )
 
-    const meRes = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_ME), {
-      headers: getAuthHeaders(currentToken!),
-    })
-    if (meRes.ok) {
-      currentUser = await meRes.json()
+  try {
+    const data: any = await Promise.race([supabaseLogin(email, password), timeoutPromise])
+    if (data.session) {
+      setUserFromSupabase(data.session)
+      currentMode = 'supabase'
+      return true
     }
-    currentMode = 'mock'
-    return true
+    return false
   } catch {
     return false
   }
 }
 
 export async function register(email: string, password: string, fullName?: string): Promise<'ok' | 'email_confirmation' | 'error'> {
-  if (!isWeb) {
+  if (isWeb) {
     try {
-      const data = await supabaseRegister(email, password, fullName || email.split('@')[0])
-      if (data.session) {
-        setUserFromSupabase(data.session)
-        currentMode = 'supabase'
-        return 'ok'
-      }
-      if (data.user) {
-        return 'email_confirmation'
-      }
-    } catch (e) {
-      console.warn('Supabase register error:', e)
+      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_REGISTER), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: fullName || email.split('@')[0],
+          role: 'operator',
+        }),
+      })
+      if (!res.ok) return 'error'
+      return (await login(email, password)) ? 'ok' : 'error'
+    } catch {
+      return 'error'
     }
   }
 
-  // Fallback to mock server
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 15000)
+  )
+
   try {
-    const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_REGISTER), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        email,
-        password,
-        full_name: fullName || email.split('@')[0],
-        role: 'operator',
-      }),
-    })
-    if (!res.ok) return 'error'
-    return (await login(email, password)) ? 'ok' : 'error'
-  } catch (e) {
-    console.warn('Mock server register error:', e)
+    const data: any = await Promise.race([supabaseRegister(email, password, fullName || email.split('@')[0]), timeoutPromise])
+    if (data.session) {
+      setUserFromSupabase(data.session)
+      currentMode = 'supabase'
+      return 'ok'
+    }
+    if (data.user) {
+      return 'email_confirmation'
+    }
+    return 'error'
+  } catch {
     return 'error'
   }
 }
