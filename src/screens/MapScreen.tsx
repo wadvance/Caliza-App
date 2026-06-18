@@ -10,11 +10,19 @@ import { Sample, CalizaZone } from '../types'
 
 const { height } = Dimensions.get('window')
 
+interface Township {
+  id: string
+  name: string
+  lat: number
+  lng: number
+}
+
 interface District {
   id: string
   name: string
   lat: number
   lng: number
+  townships?: Township[]
 }
 
 interface Province {
@@ -59,19 +67,136 @@ const PANAMA: Province[] = [
   {
     id: 'chiriqui', name: 'Chiriquí', lat: 8.4333, lng: -82.3333,
     districts: [
-      { id: 'alanje', name: 'Alanje', lat: 8.4000, lng: -82.5667 },
-      { id: 'baru', name: 'Barú', lat: 8.2833, lng: -82.8667 },
-      { id: 'boqueron', name: 'Boquerón', lat: 8.5000, lng: -82.5667 },
-      { id: 'boquete', name: 'Boquete', lat: 8.7833, lng: -82.4333 },
-      { id: 'bugaba', name: 'Bugaba', lat: 8.4833, lng: -82.6167 },
-      { id: 'david', name: 'David', lat: 8.4333, lng: -82.4333 },
-      { id: 'dolega', name: 'Dolega', lat: 8.6333, lng: -82.4167 },
-      { id: 'gualaca', name: 'Gualaca', lat: 8.5333, lng: -82.3000 },
-      { id: 'remedios', name: 'Remedios', lat: 8.2333, lng: -81.8333 },
-      { id: 'san-felix', name: 'San Félix', lat: 8.3000, lng: -81.8667 },
-      { id: 'san-lorenzo', name: 'San Lorenzo', lat: 8.4000, lng: -82.1333 },
-      { id: 'tierras-altas', name: 'Tierras Altas', lat: 8.9167, lng: -82.6000 },
-      { id: 'tole', name: 'Tolé', lat: 8.2500, lng: -81.6667 },
+      { id: 'alanje', name: 'Alanje', lat: 8.4000, lng: -82.5667,
+        townships: [
+          { id: 'alanje-c', name: 'Alanje', lat: 8.4000, lng: -82.5667 },
+          { id: 'divala', name: 'Divalá', lat: 8.4167, lng: -82.6333 },
+          { id: 'el-tejar', name: 'El Tejar', lat: 8.3833, lng: -82.5500 },
+          { id: 'guarumal', name: 'Guarumal', lat: 8.3500, lng: -82.5333 },
+          { id: 'palo-grande', name: 'Palo Grande', lat: 8.3667, lng: -82.6167 },
+          { id: 'querevalo', name: 'Querévalo', lat: 8.3667, lng: -82.5000 },
+          { id: 'santo-tomas', name: 'Santo Tomás', lat: 8.4333, lng: -82.5833 },
+        ] },
+      { id: 'baru', name: 'Barú', lat: 8.2833, lng: -82.8667,
+        townships: [
+          { id: 'puerto-armuelles', name: 'Puerto Armuelles', lat: 8.2833, lng: -82.8667 },
+          { id: 'limones', name: 'Limones', lat: 8.2500, lng: -82.8667 },
+          { id: 'progreso', name: 'Progreso', lat: 8.3167, lng: -82.9000 },
+          { id: 'baco', name: 'Baco', lat: 8.3000, lng: -82.8833 },
+          { id: 'rodolfo-aguilar', name: 'Rodolfo Aguilar Delgado', lat: 8.2500, lng: -82.8500 },
+        ] },
+      { id: 'boqueron', name: 'Boquerón', lat: 8.5000, lng: -82.5667,
+        townships: [
+          { id: 'boqueron-c', name: 'Boquerón', lat: 8.5000, lng: -82.5667 },
+          { id: 'bagala', name: 'Bágala', lat: 8.4667, lng: -82.5833 },
+          { id: 'cordillera', name: 'Cordillera', lat: 8.5333, lng: -82.6000 },
+          { id: 'guabal', name: 'Guabal', lat: 8.5167, lng: -82.5333 },
+          { id: 'guayabal', name: 'Guayabal', lat: 8.5500, lng: -82.5500 },
+          { id: 'paraiso', name: 'Paraíso', lat: 8.5333, lng: -82.4833 },
+          { id: 'pedregal-bq', name: 'Pedregal', lat: 8.4833, lng: -82.5500 },
+          { id: 'tijeras', name: 'Tijeras', lat: 8.5167, lng: -82.4833 },
+        ] },
+      { id: 'boquete', name: 'Boquete', lat: 8.7833, lng: -82.4333,
+        townships: [
+          { id: 'bajo-boquete', name: 'Bajo Boquete', lat: 8.7833, lng: -82.4333 },
+          { id: 'alto-boquete', name: 'Alto Boquete', lat: 8.7667, lng: -82.4167 },
+          { id: 'caldera', name: 'Caldera', lat: 8.6500, lng: -82.3500 },
+          { id: 'jaramillo', name: 'Jaramillo', lat: 8.8000, lng: -82.4500 },
+          { id: 'los-naranjos', name: 'Los Naranjos', lat: 8.7833, lng: -82.4000 },
+          { id: 'palmira', name: 'Palmira', lat: 8.7333, lng: -82.4667 },
+        ] },
+      { id: 'bugaba', name: 'Bugaba', lat: 8.4833, lng: -82.6167,
+        townships: [
+          { id: 'la-concepcion', name: 'La Concepción', lat: 8.4833, lng: -82.6167 },
+          { id: 'aserrio-gariche', name: 'Aserrío de Gariché', lat: 8.4500, lng: -82.7000 },
+          { id: 'bugaba-c', name: 'Bugaba', lat: 8.5167, lng: -82.6500 },
+          { id: 'cerro-punta', name: 'Cerro Punta', lat: 8.8833, lng: -82.5833 },
+          { id: 'gomez', name: 'Gómez', lat: 8.5500, lng: -82.7000 },
+          { id: 'la-estrella', name: 'La Estrella', lat: 8.4333, lng: -82.6500 },
+          { id: 'san-andres', name: 'San Andrés', lat: 8.4833, lng: -82.6833 },
+          { id: 'santa-marta', name: 'Santa Marta', lat: 8.5167, lng: -82.7167 },
+          { id: 'santa-rosa', name: 'Santa Rosa', lat: 8.5500, lng: -82.6833 },
+          { id: 'santo-domingo', name: 'Santo Domingo', lat: 8.4500, lng: -82.6833 },
+          { id: 'sortova', name: 'Sortová', lat: 8.4667, lng: -82.6617 },
+          { id: 'volcan', name: 'Volcán', lat: 8.7667, lng: -82.6333 },
+        ] },
+      { id: 'david', name: 'David', lat: 8.4333, lng: -82.4333,
+        townships: [
+          { id: 'david-c', name: 'David', lat: 8.4333, lng: -82.4333 },
+          { id: 'bijagual', name: 'Bijagual', lat: 8.4333, lng: -82.4833 },
+          { id: 'cochea', name: 'Cochea', lat: 8.4833, lng: -82.3833 },
+          { id: 'chiriqui-d', name: 'Chiriquí', lat: 8.4667, lng: -82.4667 },
+          { id: 'guaca', name: 'Guacá', lat: 8.4667, lng: -82.4000 },
+          { id: 'las-lomas', name: 'Las Lomas', lat: 8.4333, lng: -82.3833 },
+          { id: 'los-algarrobos', name: 'Los Algarrobos', lat: 8.4833, lng: -82.4333 },
+          { id: 'pedregal-da', name: 'Pedregal', lat: 8.3833, lng: -82.4333 },
+          { id: 'san-carlos-da', name: 'San Carlos', lat: 8.3833, lng: -82.4000 },
+          { id: 'san-pablo-nuevo', name: 'San Pablo Nuevo', lat: 8.4500, lng: -82.4833 },
+          { id: 'san-pablo-viejo', name: 'San Pablo Viejo', lat: 8.4500, lng: -82.4500 },
+        ] },
+      { id: 'dolega', name: 'Dolega', lat: 8.6333, lng: -82.4167,
+        townships: [
+          { id: 'dolega-c', name: 'Dolega', lat: 8.6333, lng: -82.4167 },
+          { id: 'dos-rios', name: 'Dos Ríos', lat: 8.6333, lng: -82.3667 },
+          { id: 'los-anastacios', name: 'Los Anastacios', lat: 8.6333, lng: -82.4500 },
+          { id: 'potrerillos', name: 'Potrerillos', lat: 8.6833, lng: -82.4833 },
+          { id: 'potrerillos-abajo', name: 'Potrerillos Abajo', lat: 8.6667, lng: -82.4667 },
+          { id: 'rovira', name: 'Rovira', lat: 8.6000, lng: -82.4167 },
+          { id: 'tinajas', name: 'Tinajas', lat: 8.6000, lng: -82.4500 },
+        ] },
+      { id: 'gualaca', name: 'Gualaca', lat: 8.5333, lng: -82.3000,
+        townships: [
+          { id: 'gualaca-c', name: 'Gualaca', lat: 8.5333, lng: -82.3000 },
+          { id: 'hornito', name: 'Hornito', lat: 8.6500, lng: -82.2500 },
+          { id: 'los-angeles', name: 'Los Ángeles', lat: 8.5833, lng: -82.2667 },
+          { id: 'paja-de-sombrero', name: 'Paja de Sombrero', lat: 8.5333, lng: -82.3500 },
+          { id: 'rincon', name: 'Rincón', lat: 8.4833, lng: -82.3000 },
+        ] },
+      { id: 'remedios', name: 'Remedios', lat: 8.2333, lng: -81.8333,
+        townships: [
+          { id: 'remedios-c', name: 'Remedios', lat: 8.2333, lng: -81.8333 },
+          { id: 'el-nancito', name: 'El Nancito', lat: 8.2000, lng: -81.8333 },
+          { id: 'el-porvenir', name: 'El Porvenir', lat: 8.2500, lng: -81.8333 },
+          { id: 'el-puerto', name: 'El Puerto', lat: 8.2500, lng: -81.8000 },
+          { id: 'santa-lucia', name: 'Santa Lucía', lat: 8.2000, lng: -81.8500 },
+        ] },
+      { id: 'san-felix', name: 'San Félix', lat: 8.3000, lng: -81.8667,
+        townships: [
+          { id: 'san-felix-c', name: 'San Félix', lat: 8.3000, lng: -81.8667 },
+          { id: 'las-lajas', name: 'Las Lajas', lat: 8.2500, lng: -81.8833 },
+          { id: 'lajas-adentro', name: 'Lajas Adentro', lat: 8.2667, lng: -81.8333 },
+          { id: 'san-juan-sf', name: 'San Juan', lat: 8.3333, lng: -81.8833 },
+          { id: 'santa-cruz', name: 'Santa Cruz', lat: 8.3000, lng: -81.8500 },
+        ] },
+      { id: 'san-lorenzo', name: 'San Lorenzo', lat: 8.4000, lng: -82.1333,
+        townships: [
+          { id: 'san-lorenzo-c', name: 'San Lorenzo', lat: 8.4000, lng: -82.1333 },
+          { id: 'boca-chica', name: 'Boca Chica', lat: 8.2167, lng: -82.2167 },
+          { id: 'boca-del-monte', name: 'Boca del Monte', lat: 8.3500, lng: -82.1500 },
+          { id: 'horconcitos', name: 'Horconcitos', lat: 8.3167, lng: -82.1833 },
+          { id: 'san-juan-sl', name: 'San Juan', lat: 8.4167, lng: -82.1167 },
+        ] },
+      { id: 'tierras-altas', name: 'Tierras Altas', lat: 8.9167, lng: -82.6000,
+        townships: [
+          { id: 'volcan-ta', name: 'Volcán', lat: 8.7667, lng: -82.6333 },
+          { id: 'cerro-punta-ta', name: 'Cerro Punta', lat: 8.8833, lng: -82.5833 },
+          { id: 'cuesta-piedra', name: 'Cuesta de Piedra', lat: 8.9000, lng: -82.6167 },
+          { id: 'nueva-california', name: 'Nueva California', lat: 8.8833, lng: -82.6500 },
+          { id: 'paso-ancho', name: 'Paso Ancho', lat: 8.9333, lng: -82.5833 },
+        ] },
+      { id: 'tole', name: 'Tolé', lat: 8.2500, lng: -81.6667,
+        townships: [
+          { id: 'tole-c', name: 'Tolé', lat: 8.2500, lng: -81.6667 },
+          { id: 'alto-tole', name: 'Alto Tolé', lat: 8.2000, lng: -81.6667 },
+          { id: 'bella-vista-t', name: 'Bella Vista', lat: 8.2667, lng: -81.7000 },
+          { id: 'cerro-viejo', name: 'Cerro Viejo', lat: 8.2833, lng: -81.6333 },
+          { id: 'el-cristo', name: 'El Cristo', lat: 8.2500, lng: -81.7000 },
+          { id: 'justo-fidel-palacios', name: 'Justo Fidel Palacios', lat: 8.2333, lng: -81.6500 },
+          { id: 'lajas-de-tole', name: 'Lajas de Tolé', lat: 8.2167, lng: -81.6667 },
+          { id: 'potrero-de-cana', name: 'Potrero de Caña', lat: 8.3000, lng: -81.6833 },
+          { id: 'quebrada-piedra', name: 'Quebrada de Piedra', lat: 8.2833, lng: -81.6833 },
+          { id: 'veladero', name: 'Veladero', lat: 8.2333, lng: -81.6833 },
+        ] },
     ],
   },
   {
@@ -181,6 +306,7 @@ export function MapScreen({ navigation }: any) {
   const [searchText, setSearchText] = useState('')
   const [selectedProvince, setSelectedProvince] = useState<Province | null>(null)
   const [targetRegion, setTargetRegion] = useState<any>(null)
+  const [districtTownships, setDistrictTownships] = useState<(Township & { districtName: string; provinceName: string })[] | null>(null)
   const [samples, setLocalSamples] = useState<Sample[]>([])
   const [zones, setLocalZones] = useState<CalizaZone[]>([])
 
@@ -207,9 +333,20 @@ export function MapScreen({ navigation }: any) {
   const showPotentialZones = visibleLayers.some(l => l.id === 'potential')
   const showSamplePoints = visibleLayers.some(l => l.id === 'samples')
 
+  const allTownships: (Township & { districtName: string; provinceName: string })[] =
+    PANAMA.flatMap(p =>
+      p.districts.flatMap(d =>
+        (d.townships || []).map(t => ({ ...t, districtName: d.name, provinceName: p.name }))
+      )
+    )
+
   const filteredProvinces = searchText.trim()
     ? PANAMA.filter(p => p.name.toLowerCase().includes(searchText.trim().toLowerCase()))
     : PANAMA
+
+  const filteredAllTownships = searchText.trim()
+    ? allTownships.filter(t => t.name.toLowerCase().includes(searchText.trim().toLowerCase()))
+    : []
 
   const filteredDistricts = searchText.trim() && selectedProvince
     ? selectedProvince.districts.filter(d => d.name.toLowerCase().includes(searchText.trim().toLowerCase()))
@@ -217,31 +354,58 @@ export function MapScreen({ navigation }: any) {
 
   const handleSelectProvince = (province: Province) => {
     if (province.districts.length === 1) {
-      setTargetRegion({ latitude: province.districts[0].lat, longitude: province.districts[0].lng, latitudeDelta: 0.25, longitudeDelta: 0.25 })
-      setShowSearch(false)
-      setSelectedProvince(null)
-      setSearchText('')
+      const d = province.districts[0]
+      if (d.townships && d.townships.length > 0) {
+        setDistrictTownships(d.townships.map(t => ({ ...t, districtName: d.name, provinceName: province.name })))
+        setSelectedProvince(null)
+        setSearchText('')
+      } else {
+        setTargetRegion({ latitude: d.lat, longitude: d.lng, latitudeDelta: 0.25, longitudeDelta: 0.25 })
+        setShowSearch(false)
+        setSelectedProvince(null)
+        setSearchText('')
+      }
     } else {
       setSelectedProvince(province)
+      setDistrictTownships(null)
       setSearchText('')
     }
   }
 
   const handleSelectDistrict = (district: District) => {
-    setTargetRegion({ latitude: district.lat, longitude: district.lng, latitudeDelta: 0.1, longitudeDelta: 0.1 })
+    const towns = allTownships.filter(t => t.districtName === district.name && t.provinceName === selectedProvince?.name)
+    if (towns.length > 0) {
+      setDistrictTownships(towns)
+      setSearchText('')
+    } else {
+      setTargetRegion({ latitude: district.lat, longitude: district.lng, latitudeDelta: 0.1, longitudeDelta: 0.1 })
+      setShowSearch(false)
+      setSelectedProvince(null)
+      setSearchText('')
+    }
+  }
+
+  const handleSelectTownship = (township: Township) => {
+    setTargetRegion({ latitude: township.lat, longitude: township.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 })
     setShowSearch(false)
     setSelectedProvince(null)
+    setDistrictTownships(null)
     setSearchText('')
   }
 
   const handleBack = () => {
-    setSelectedProvince(null)
+    if (districtTownships) {
+      setDistrictTownships(null)
+    } else {
+      setSelectedProvince(null)
+    }
     setSearchText('')
   }
 
   const handleCloseSearch = () => {
     setShowSearch(false)
     setSelectedProvince(null)
+    setDistrictTownships(null)
     setSearchText('')
   }
 
@@ -323,40 +487,51 @@ export function MapScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Search modal: province -> district drill-down */}
+      {/* Search modal */}
       <Modal visible={showSearch} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modal, { maxHeight: height * 0.75 }]}>
             <Text style={styles.modalTitle}>
-              {selectedProvince ? `Distritos de ${selectedProvince.name}` : 'Buscar provincia'}
+              {districtTownships
+                ? 'Corregimientos'
+                : selectedProvince
+                  ? `Distritos de ${selectedProvince.name}`
+                  : 'Buscar provincia'}
             </Text>
-            {selectedProvince && (
+            {(selectedProvince || districtTownships) && (
               <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-                <Text style={styles.backBtnText}>← Volver a provincias</Text>
+                <Text style={styles.backBtnText}>← Volver{districtTownships ? ' a distritos' : ' a provincias'}</Text>
               </TouchableOpacity>
             )}
             <TextInput
               style={styles.searchInput}
-              placeholder={selectedProvince ? 'Buscar distrito...' : 'Ej: Chiriquí, David, Penonomé...'}
+              placeholder={
+                districtTownships ? 'Buscar corregimiento...' :
+                selectedProvince ? 'Buscar distrito...' :
+                'Ej: Chiriquí, David, Penonomé...'}
               placeholderTextColor={COLORS.textMuted}
               value={searchText}
               onChangeText={setSearchText}
               autoFocus
             />
 
-            {!selectedProvince ? (
+            {districtTownships ? (
               <FlatList
-                data={filteredProvinces}
+                data={
+                  searchText.trim()
+                    ? filteredAllTownships
+                    : districtTownships
+                }
                 keyExtractor={item => item.id}
                 style={styles.provinceList}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.provinceRow} onPress={() => handleSelectProvince(item)}>
-                    <Text style={styles.provinceName}>{item.name}</Text>
-                    <Text style={styles.provinceBadge}>{item.districts.length} distritos</Text>
+                  <TouchableOpacity style={styles.townshipRow} onPress={() => handleSelectTownship(item)}>
+                    <Text style={styles.townshipName}>{item.name}</Text>
+                    <Text style={styles.townshipSub}>{item.districtName}, {item.provinceName}</Text>
                   </TouchableOpacity>
                 )}
               />
-            ) : (
+            ) : selectedProvince ? (
               <FlatList
                 data={filteredDistricts}
                 keyExtractor={item => item.id}
@@ -367,6 +542,38 @@ export function MapScreen({ navigation }: any) {
                     <Text style={styles.provinceCoords}>{item.lat.toFixed(2)}, {item.lng.toFixed(2)}</Text>
                   </TouchableOpacity>
                 )}
+              />
+            ) : (
+              <FlatList
+                data={
+                  searchText.trim() && filteredAllTownships.length > 0
+                    ? [...filteredProvinces, { __type: 'separator' as const }, ...filteredAllTownships]
+                    : filteredProvinces}
+                keyExtractor={(item: any, index: number) => item.__type === 'separator' ? 'sep' : item.id}
+                style={styles.provinceList}
+                renderItem={({ item }: any) => {
+                  if (item.__type === 'separator') {
+                    return (
+                      <View style={styles.separatorRow}>
+                        <Text style={styles.separatorText}>Corregimientos</Text>
+                      </View>
+                    )
+                  }
+                  if ('districts' in item) {
+                    return (
+                      <TouchableOpacity style={styles.provinceRow} onPress={() => handleSelectProvince(item)}>
+                        <Text style={styles.provinceName}>{item.name}</Text>
+                        <Text style={styles.provinceBadge}>{item.districts.length} distritos</Text>
+                      </TouchableOpacity>
+                    )
+                  }
+                  return (
+                    <TouchableOpacity style={styles.townshipRow} onPress={() => handleSelectTownship(item)}>
+                      <Text style={styles.townshipName}>{item.name}</Text>
+                      <Text style={styles.townshipSub}>{item.districtName}, {item.provinceName}</Text>
+                    </TouchableOpacity>
+                  )
+                }}
               />
             )}
 
@@ -443,6 +650,11 @@ const styles = StyleSheet.create({
   provinceName: { color: COLORS.text, fontSize: 15, fontWeight: '500' },
   provinceCoords: { color: COLORS.textMuted, fontSize: 12 },
   provinceBadge: { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
+  separatorRow: { paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surfaceLight + '80' },
+  separatorText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' as any },
+  townshipRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  townshipName: { color: COLORS.text, fontSize: 14, fontWeight: '500' },
+  townshipSub: { color: COLORS.textMuted, fontSize: 11 },
   closeBtn: { backgroundColor: COLORS.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 12 },
   closeBtnText: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
 })
