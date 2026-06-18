@@ -13,40 +13,37 @@ if (isWeb) {
   const WebCam = ({ children, style }: any) => {
     const [started, setStarted] = useState(false)
     const [error, setError] = useState('')
-    const btnRef = useRef<any>(null)
-    const startCam = (e: any) => {
+    const containerRef = useRef<any>(null)
+    const startCam = () => {
       if (started) return
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
         setError('Tu navegador no soporta la cámara. Usa Chrome o Safari.')
         return
       }
-      // Don't call setStarted before getUserMedia — DOM changes can invalidate user gesture
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
         .then(stream => {
           setStarted(true)
+          if (!containerRef.current) return
           const existing = document.getElementById('ar-video')
           if (existing) existing.remove()
           const video = document.createElement('video')
           video.id = 'ar-video'
           video.setAttribute('autoplay', '')
           video.setAttribute('playsinline', '')
-          video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;pointer-events:none'
-          document.body.prepend(video)
           video.srcObject = stream
-          document.body.style.background = 'transparent'
-          const root = document.getElementById('root')
-          if (root) root.style.background = 'transparent'
+          video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;border-radius:inherit'
+          containerRef.current.style.background = 'transparent'
+          containerRef.current.prepend(video)
         })
         .catch((err) => {
-          const msg = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
-            ? 'Permiso de cámara denegado. Abre el menú ⋮ → Configuración del sitio → Cámara → Permitir, y recarga.'
-            : err.message || 'Error al iniciar cámara'
+          const msg = err.name + ': ' + (err.message || '')
           setError(msg)
         })
     }
     return React.createElement('div', {
+      ref: containerRef,
       style: {
         flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden',
         width: '100%', height: '100%',
@@ -54,7 +51,6 @@ if (isWeb) {
     },
       !started
         ? React.createElement('button', {
-            ref: btnRef,
             onClick: startCam,
             style: {
               position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
@@ -63,7 +59,9 @@ if (isWeb) {
             }
           }, error || 'Toca para iniciar AR')
         : null,
-      React.createElement('div', { style: { flex: 1, width: '100%', height: '100%', position: 'relative' } }, children)
+      React.createElement('div', {
+        style: { zIndex: 1, position: 'relative', width: '100%', height: '100%' }
+      }, children)
     )
   }
   CameraView = WebCam
