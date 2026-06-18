@@ -139,8 +139,7 @@ export function SettingsScreen({ navigation }: any) {
 
   const handleExport = () => {
     if (samples.length === 0) {
-      if (Platform.OS === 'web') window.alert('No hay muestras para exportar')
-      else Alert.alert('Sin datos', 'No hay muestras registradas')
+      window.alert('No hay muestras para exportar')
       return
     }
     const json = JSON.stringify({
@@ -157,13 +156,12 @@ export function SettingsScreen({ navigation }: any) {
       })),
       total: samples.length,
     }, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `caliza_${Date.now()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    const w = window.open('', '_blank')
+    if (w) {
+      w.document.write(`<pre>${json}</pre>`)
+      w.document.title = `caliza_${Date.now()}.json`
+      w.document.close()
+    }
   }
 
   const formatBytes = (bytes: number) => {
