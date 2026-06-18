@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { useState, useMemo } from 'react'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native'
 import { COLORS, ROCK_TYPES } from '../types/constants'
-import { getAllSamples, getSamplesByStatus } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { SampleCard } from '../components/SampleCard'
 import { Sample } from '../types'
@@ -15,28 +13,10 @@ const STATUS_FILTERS = [
 ]
 
 export function SampleListScreen({ navigation }: any) {
-  const { samples, setSamples } = useAppStore()
+  const { samples } = useAppStore()
   const [statusFilter, setStatusFilter] = useState('all')
   const [rockFilter, setRockFilter] = useState('all')
   const [searchText, setSearchText] = useState('')
-  const [refreshing, setRefreshing] = useState(false)
-
-  useEffect(() => {
-    loadSamples()
-  }, [statusFilter])
-
-  useFocusEffect(
-    useCallback(() => {
-      loadSamples()
-    }, [statusFilter])
-  )
-
-  const loadSamples = async () => {
-    const data = statusFilter === 'all'
-      ? await getAllSamples()
-      : await getSamplesByStatus(statusFilter)
-    if (data.length > 0) setSamples(data)
-  }
 
   const filteredSamples = useMemo(() => {
     let list = samples
@@ -54,12 +34,6 @@ export function SampleListScreen({ navigation }: any) {
     }
     return list
   }, [samples, rockFilter, searchText])
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await loadSamples()
-    setRefreshing(false)
-  }, [statusFilter])
 
   const handleSamplePress = (sample: Sample) => {
     navigation.navigate('SampleDetail', { sampleId: sample.id })
@@ -140,13 +114,6 @@ export function SampleListScreen({ navigation }: any) {
         renderItem={({ item }) => (
           <SampleCard sample={item} onPress={handleSamplePress} />
         )}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.accent}
-          />
-        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
