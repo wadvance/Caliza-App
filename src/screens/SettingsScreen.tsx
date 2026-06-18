@@ -73,8 +73,12 @@ export function SettingsScreen({ navigation }: any) {
     const doDelete = () => {
       const removed = samples.filter(s => !s.photoUri?.length)
       if (removed.length === 0) {
-        if (Platform.OS === 'web') window.alert('No hay muestras sin foto para borrar')
-        else Alert.alert('Sin cambios', 'No hay muestras sin foto')
+        if (Platform.OS === 'web') {
+          const info = samples.map((s,i) => `#${i+1} uris=${s.photoUri?.length??0}`).join('\n')
+          window.alert(`Store: ${samples.length} muestras\nNinguna sin foto:\n${info}`)
+        } else {
+          Alert.alert('Sin cambios', 'No hay muestras sin foto')
+        }
         return
       }
       const kept = samples.filter(s => s.photoUri?.length > 0)
