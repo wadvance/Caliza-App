@@ -233,14 +233,19 @@ export function SettingsScreen({ navigation }: any) {
         </View>
         {isAuthenticated() && (
           <TouchableOpacity style={styles.dangerBtn} onPress={() => {
-            Alert.alert('Cerrar sesión', '¿Cerrar sesión actual?', [
-              { text: 'Cancelar', style: 'cancel' },
-              { text: 'Salir', style: 'destructive', onPress: async () => {
-                await authLogout()
-                setAuth(null, null)
-                navigation.reset({ index: 0, routes: [{ name: 'Login' }] })
-              }},
-            ])
+            const doLogout = async () => {
+              await authLogout()
+              setAuth(null, null)
+              navigation.reset({ index: 0, routes: [{ name: 'Login' }] })
+            }
+            if (Platform.OS === 'web') {
+              if (window.confirm('¿Cerrar sesión actual?')) doLogout()
+            } else {
+              Alert.alert('Cerrar sesión', '¿Cerrar sesión actual?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Salir', style: 'destructive', onPress: doLogout },
+              ])
+            }
           }}>
             <Text style={styles.dangerBtnText}>Cerrar sesión</Text>
           </TouchableOpacity>
