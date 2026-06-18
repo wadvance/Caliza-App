@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation, calculateBearing, calculateDistance } from '../services/locationService'
-import { getAllSamples, getAllZones } from '../services/database'
+import { getAllZones } from '../services/database'
 import { Sample, CalizaZone } from '../types'
+import { useAppStore } from '../store/useAppStore'
 
 const isWeb = Platform.OS === 'web'
 
@@ -84,6 +85,7 @@ interface ARTarget {
 
 export function ARScreen() {
   const currentLocation = useCurrentLocation()
+  const { samples } = useAppStore()
   const [targets, setTargets] = useState<ARTarget[]>([])
   const [selectedTarget, setSelectedTarget] = useState<ARTarget | null>(null)
   const [showList, setShowList] = useState(false)
@@ -92,11 +94,10 @@ export function ARScreen() {
     if (!currentLocation) return
 
     const loadTargets = async () => {
-      const samples = await getAllSamples()
       const zones = await getAllZones()
 
       const allTargets: ARTarget[] = [
-        ...samples.map(s => ({
+        ...samples.filter(Boolean).map(s => ({
           id: s.id,
           name: s.estimatedRockType || 'Muestra',
           latitude: s.latitude,
@@ -123,7 +124,7 @@ export function ARScreen() {
     }
 
     loadTargets()
-  }, [currentLocation])
+  }, [currentLocation, samples])
 
   const formatDistance = (km: number) => {
     if (km < 1) return `${(km * 1000).toFixed(0)} m`
