@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation, calculateBearing, calculateDistance } from '../services/locationService'
@@ -12,37 +12,46 @@ let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
     const [started, setStarted] = useState(false)
+    const [error, setError] = useState('')
     const startCam = () => {
       if (started) return
       setStarted(true)
-      // Create video directly on body so no View ref needed
-      const existing = document.getElementById('ar-video')
-      if (existing) return
-      const video = document.createElement('video')
-      video.id = 'ar-video'
-      video.setAttribute('autoplay', '')
-      video.setAttribute('playsinline', '')
-      video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;pointer-events:none'
-      document.body.prepend(video)
-      // Override app body background so video shows through
-      document.body.style.background = 'transparent'
-      const root = document.getElementById('root')
-      if (root) root.style.background = 'transparent'
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
-        .then(stream => { video.srcObject = stream })
-        .catch(() => { video.style.display = 'none'; setStarted(false) })
+        .then(stream => {
+          const existing = document.getElementById('ar-video')
+          if (existing) existing.remove()
+          const video = document.createElement('video')
+          video.id = 'ar-video'
+          video.setAttribute('autoplay', '')
+          video.setAttribute('playsinline', '')
+          video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;pointer-events:none'
+          document.body.prepend(video)
+          video.srcObject = stream
+          document.body.style.background = 'transparent'
+          const root = document.getElementById('root')
+          if (root) root.style.background = 'transparent'
+        })
+        .catch((err) => {
+          setError(err.message || 'Error al iniciar cámara')
+          setStarted(false)
+        })
     }
-    return (
-      <TouchableOpacity activeOpacity={1} onPress={startCam} style={[{ backgroundColor: '#000' }, style]}>
-        {!started && (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-            <Text style={{ color: '#fff', fontSize: 18 }}>Toca para iniciar AR</Text>
-          </View>
-        )}
-        <View style={{ flex: 1, backgroundColor: 'transparent' }}>{children}</View>
-      </TouchableOpacity>
+    // Use React.createElement to render a plain html div (avoids RN wrapper issues on web)
+    return React.createElement('div', {
+      onClick: startCam,
+      style: {
+        flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden',
+        width: '100%', height: '100%',
+      }
+    },
+      !started
+        ? React.createElement('span', {
+            style: { color: '#fff', fontSize: 18, textAlign: 'center', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 10 }
+          }, error || 'Toca para iniciar AR')
+        : null,
+      React.createElement('div', { style: { flex: 1, width: '100%', height: '100%', position: 'relative' } }, children)
     )
   }
   CameraView = WebCam
