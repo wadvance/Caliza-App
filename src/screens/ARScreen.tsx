@@ -11,23 +11,24 @@ const isWeb = Platform.OS === 'web'
 let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
-    const [ready, setReady] = useState(false)
     useEffect(() => {
+      const bodyStyle = document.body.style
+      bodyStyle.background = '#000'
       const video = document.createElement('video')
-      video.id = 'ar-webcam'
       video.setAttribute('autoplay', '')
       video.setAttribute('playsinline', '')
-      video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-1'
+      video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none'
       document.body.prepend(video)
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } })
-        .then(stream => { video.srcObject = stream; setReady(true) })
-        .catch(() => { video.style.display = 'none'; setReady(false) })
+        .then(stream => { video.srcObject = stream })
+        .catch(() => { video.style.display = 'none' })
       return () => {
         if (video.srcObject) (video.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         video.remove()
+        bodyStyle.background = ''
       }
     }, [])
-    return <View style={[{ backgroundColor: ready ? 'transparent' : '#000' }, style]}>{children}</View>
+    return <View style={[{ backgroundColor: 'transparent' }, style]}>{children}</View>
   }
   CameraView = WebCam
 } else {
