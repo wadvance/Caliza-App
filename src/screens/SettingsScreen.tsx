@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
@@ -70,25 +70,28 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   const handleClearSamplesWithoutPhotos = () => {
-    Alert.alert(
-      'Borrar muestras sin foto',
-      '¿Eliminar todas las muestras que no tienen foto? Esta acción no se puede deshacer.',
-      [
+    const doDelete = () => {
+      const all = webLoadSamples()
+      const filtered = all.filter(s => s.photoUri?.length > 0)
+      const removed = all.length - filtered.length
+      if (removed === 0) {
+        if (Platform.OS === 'web') window.alert('No hay muestras sin foto para borrar')
+        else Alert.alert('Sin cambios', 'No hay muestras sin foto')
+        return
+      }
+      webSaveSamples(filtered)
+      setSamples(filtered)
+      if (Platform.OS === 'web') window.alert(`${removed} muestras sin foto fueron borradas`)
+      else Alert.alert('Listo', `${removed} muestras sin foto fueron borradas`)
+    }
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Eliminar todas las muestras sin foto? No se puede deshacer.')) doDelete()
+    } else {
+      Alert.alert('Borrar muestras sin foto', '¿Eliminar todas las muestras sin foto?', [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Borrar',
-          style: 'destructive',
-          onPress: async () => {
-            const all = webLoadSamples()
-            const filtered = all.filter(s => s.photoUri?.length > 0)
-            const removed = all.length - filtered.length
-            webSaveSamples(filtered)
-            setSamples(filtered)
-            Alert.alert('Listo', `${removed} muestras sin foto fueron borradas`)
-          },
-        },
-      ],
-    )
+        { text: 'Borrar', style: 'destructive', onPress: doDelete },
+      ])
+    }
   }
 
   const handleClearCache = () => {
