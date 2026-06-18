@@ -1,3 +1,9 @@
+export interface RockDimensions {
+  width: number
+  height: number
+  depth: number
+}
+
 export interface Sample {
   id: string
   photoUri: string[]
@@ -8,6 +14,7 @@ export interface Sample {
   timestamp: number
   notes: string
   estimatedRockType: RockType
+  rockDimensions?: RockDimensions
   quickTestResult?: QuickTestResult
   labResult?: LabResult
   confidenceLevel: number

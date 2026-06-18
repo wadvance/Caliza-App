@@ -30,6 +30,9 @@ export function RegisterSampleScreen({ route, navigation }: any) {
   const [notes, setNotes] = useState('')
   const [rockType, setRockType] = useState(prediction?.className || 'desconocido')
   const [depth, setDepth] = useState('')
+  const [rockWidth, setRockWidth] = useState('')
+  const [rockHeight, setRockHeight] = useState('')
+  const [rockDepth, setRockDepth] = useState('')
   const [acidReaction, setAcidReaction] = useState<AcidReaction>('nula')
   const [hardness, setHardness] = useState('')
   const [color, setColor] = useState('')
@@ -59,6 +62,11 @@ export function RegisterSampleScreen({ route, navigation }: any) {
         timestamp: Date.now(),
         notes: `[${sampleCode}] ${notes}`,
         estimatedRockType: rockType as Sample['estimatedRockType'],
+        rockDimensions: (rockWidth || rockHeight || rockDepth) ? {
+          width: parseFloat(rockWidth) || 0,
+          height: parseFloat(rockHeight) || 0,
+          depth: parseFloat(rockDepth) || 0,
+        } : undefined,
         quickTestResult: {
           acidReaction,
           hardness: parseFloat(hardness) || 0,
@@ -125,6 +133,21 @@ export function RegisterSampleScreen({ route, navigation }: any) {
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={styles.label}>Dimensiones aproximadas (cm)</Text>
+        <View style={styles.dimRow}>
+          <View style={styles.dimField}>
+            <Text style={styles.dimUnit}>Ancho</Text>
+            <TextInput style={styles.dimInput} placeholder="0" placeholderTextColor={COLORS.textMuted} value={rockWidth} onChangeText={setRockWidth} keyboardType="decimal-pad" />
+          </View>
+          <View style={styles.dimField}>
+            <Text style={styles.dimUnit}>Alto</Text>
+            <TextInput style={styles.dimInput} placeholder="0" placeholderTextColor={COLORS.textMuted} value={rockHeight} onChangeText={setRockHeight} keyboardType="decimal-pad" />
+          </View>
+          <View style={styles.dimField}>
+            <Text style={styles.dimUnit}>Fondo</Text>
+            <TextInput style={styles.dimInput} placeholder="0" placeholderTextColor={COLORS.textMuted} value={rockDepth} onChangeText={setRockDepth} keyboardType="decimal-pad" />
+          </View>
+        </View>
         <TextInput style={[styles.input, styles.notesInput]} placeholder="Observaciones de campo" placeholderTextColor={COLORS.textMuted} value={notes} onChangeText={setNotes} multiline />
       </View>
 
@@ -170,6 +193,10 @@ const styles = StyleSheet.create({
   coords: { color: COLORS.textSecondary, fontSize: 13, fontFamily: 'monospace', marginVertical: 2 },
   input: { backgroundColor: COLORS.surfaceLight, color: COLORS.text, borderRadius: 10, padding: 14, fontSize: 15, marginTop: 8, borderWidth: 1, borderColor: COLORS.border },
   notesInput: { height: 80, textAlignVertical: 'top' },
+  dimRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  dimField: { flex: 1, alignItems: 'center' },
+  dimUnit: { color: COLORS.textSecondary, fontSize: 11, marginBottom: 4, fontWeight: '600' },
+  dimInput: { backgroundColor: COLORS.surfaceLight, color: COLORS.text, borderRadius: 8, padding: 10, fontSize: 15, textAlign: 'center', width: '100%', borderWidth: 1, borderColor: COLORS.border },
   rockGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   rockChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceLight },
   rockChipText: { color: COLORS.textSecondary, fontSize: 13 },
