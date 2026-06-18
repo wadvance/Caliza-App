@@ -121,7 +121,7 @@ function compressDataUrl(dataUrl: string, maxW = 400, quality = 0.6): string {
   } catch { return dataUrl }
 }
 
-function webSaveSamples(samples: Sample[]): void {
+export function webSaveSamples(samples: Sample[]): void {
   try {
     const stored = samples.map(s => ({
       ...s,
@@ -131,7 +131,7 @@ function webSaveSamples(samples: Sample[]): void {
   } catch {}
 }
 
-function webLoadSamples(): Sample[] {
+export function webLoadSamples(): Sample[] {
   try {
     const data = localStorage.getItem('caliza_samples')
     return data ? JSON.parse(data) : []

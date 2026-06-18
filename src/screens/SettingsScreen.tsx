@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
+import { getAllSamples, webLoadSamples, webSaveSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
 
 export function SettingsScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
-  const { syncStatus, isOffline, setIsOffline, setAuth } = useAppStore()
+  const { syncStatus, isOffline, setIsOffline, setAuth, setSamples } = useAppStore()
   const [cacheSize, setCacheSize] = useState({ total: 0, maps: 0, photos: 0 })
   const [lastMapDownload, setLastMapDownload] = useState<number | null>(null)
   const [lastSync, setLastSync] = useState<number | null>(null)
@@ -66,6 +67,28 @@ export function SettingsScreen({ navigation }: any) {
     setSyncing(true)
     await syncNow()
     loadStatus()
+  }
+
+  const handleClearSamplesWithoutPhotos = () => {
+    Alert.alert(
+      'Borrar muestras sin foto',
+      '¿Eliminar todas las muestras que no tienen foto? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar',
+          style: 'destructive',
+          onPress: async () => {
+            const all = webLoadSamples()
+            const filtered = all.filter(s => s.photoUri?.length > 0)
+            const removed = all.length - filtered.length
+            webSaveSamples(filtered)
+            setSamples(filtered)
+            Alert.alert('Listo', `${removed} muestras sin foto fueron borradas`)
+          },
+        },
+      ],
+    )
   }
 
   const handleClearCache = () => {
@@ -212,6 +235,9 @@ export function SettingsScreen({ navigation }: any) {
         </View>
         <TouchableOpacity style={styles.dangerBtn} onPress={handleClearCache}>
           <Text style={styles.dangerBtnText}>Limpiar caché</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.dangerBtn, { borderColor: COLORS.warning, marginTop: 8 }]} onPress={handleClearSamplesWithoutPhotos}>
+          <Text style={[styles.dangerBtnText, { color: COLORS.warning }]}>Borrar muestras sin foto</Text>
         </TouchableOpacity>
       </View>
 
