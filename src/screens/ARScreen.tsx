@@ -185,6 +185,14 @@ export function ARScreen() {
       : React.createElement(TouchableOpacity, { onPress, style }, children)
   }
 
+  const dirLabel = (bearing: number) => {
+    const diff = ((bearing - heading) % 360 + 360) % 360
+    if (diff < 30 || diff > 330) return 'Adelante'
+    if (diff < 150) return 'Derecha'
+    if (diff < 210) return 'Atrás'
+    return 'Izquierda'
+  }
+
   const formatDistance = (km: number) => {
     if (km < 1) return `${(km * 1000).toFixed(0)} m`
     return `${km.toFixed(2)} km`
@@ -213,6 +221,20 @@ export function ARScreen() {
             </View>
           </View>
 
+          {targets.length > 0 && !selectedTarget && (
+            <View style={{ position: 'absolute', top: '35%', left: 0, right: 0, alignItems: 'center' }}>
+              <View style={{ alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 60, padding: 16, width: 130, height: 130, justifyContent: 'center' }}>
+                {isWeb
+                  ? React.createElement('span', {
+                      style: { display: 'inline-block', fontSize: 50, transform: `rotate(${(targets[0].bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
+                    }, '▲')
+                  : React.createElement(Text, { style: { fontSize: 50, color: COLORS.highlight, transform: [{ rotate: `${(targets[0].bearing - heading + 360) % 360}deg` }] } }, '▲')
+                }
+                <Text style={{ color: '#fff', fontSize: 13, marginTop: 4 }}>{dirLabel(targets[0].bearing)}</Text>
+              </View>
+            </View>
+          )}
+
           <View style={styles.targetsContainer}>
             {targets.slice(0, 5).map(target => (
               clickEl(() => setSelectedTarget(target),
@@ -220,7 +242,7 @@ export function ARScreen() {
                 [React.createElement(View, { style: styles.targetInfo, key: 'info' },
                   React.createElement(Text, { style: styles.targetName }, target.name),
                   React.createElement(Text, { style: styles.targetDist },
-                    `${formatDistance(target.distance)} · ${target.bearing.toFixed(0)}°`
+                    `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
                   )
                 ),
                 React.createElement(View, { style: [styles.targetDot, { backgroundColor: target.color }], key: 'dot' })]
@@ -234,22 +256,26 @@ export function ARScreen() {
 
           {selectedTarget && (
             <View style={styles.targetDetail}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <View style={{ width: 100, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <View style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}>
                   {isWeb
                     ? React.createElement('span', {
-                        style: { display: 'inline-block', fontSize: 60, transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
+                        style: { display: 'inline-block', fontSize: 50, transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
                       }, '▲')
-                    : <Text style={{ fontSize: 60, color: COLORS.highlight, transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }] }}>▲</Text>
+                    : <Text style={{ fontSize: 50, color: COLORS.highlight, transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }] }}>▲</Text>
                   }
+                  <Text style={{ color: COLORS.highlight, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{dirLabel(selectedTarget.bearing)}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
                   <Text style={styles.detailText}>
-                    {formatDistance(selectedTarget.distance)} · {selectedTarget.bearing.toFixed(0)}°
+                    {formatDistance(selectedTarget.distance)}
                   </Text>
-                  <Text style={[styles.detailText, { fontSize: 12 }]}>
-                    Gira {(selectedTarget.bearing - heading + 360) % 360 > 180 ? 'izquierda' : 'derecha'}
+                  <Text style={styles.detailText}>
+                    Rumbo: {selectedTarget.bearing.toFixed(0)}° · Tú: {heading.toFixed(0)}°
+                  </Text>
+                  <Text style={[styles.detailText, { fontSize: 12, color: COLORS.highlight }]}>
+                    {dirLabel(selectedTarget.bearing)} — gira {(selectedTarget.bearing - heading + 360) % 360 > 180 ? 'izquierda' : 'derecha'}
                   </Text>
                 </View>
               </View>
