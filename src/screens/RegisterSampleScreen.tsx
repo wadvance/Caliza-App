@@ -6,9 +6,7 @@ import {
 import { COLORS, ROCK_TYPES, ACID_REACTION_LABELS } from '../types/constants'
 import { getCurrentLocation } from '../services/locationService'
 import { getUser } from '../services/authService'
-import { saveSample, addToSyncQueue } from '../services/database'
-import { supabaseSaveSample } from '../services/supabaseDataService'
-import supabase from '../services/supabaseClient'
+import { saveSample } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { PhotoGrid } from '../components/PhotoGrid'
 import { Sample, MLPrediction, AcidReaction } from '../types'
@@ -50,65 +48,36 @@ export function RegisterSampleScreen({ route, navigation }: any) {
 
   const handleSave = async () => {
     setSaving(true)
-    try {
-      const sample: Sample = {
-        id: `sample_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        photoUri: photos,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        altitude: location.altitude,
-        operatorName,
-        timestamp: Date.now(),
-        notes: `[${sampleCode}] ${notes}`,
-        estimatedRockType: rockType as Sample['estimatedRockType'],
-        quickTestResult: {
-          acidReaction,
-          hardness: parseFloat(hardness) || 0,
-          color,
-          texture,
-          stratification,
-          fossilPresence,
-          estimatedCaCO3: acidReaction === 'vigorosa' ? 90 : acidReaction === 'moderada' ? 70 : acidReaction === 'leve' ? 40 : 0,
-        },
-        confidenceLevel: prediction?.probability || 0.5,
-        status: 'pendiente',
-        synced: false,
-      }
-
-      await saveSample(sample)
-      addSample(sample)
-      Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ])
-
-      // Guardar en Supabase en segundo plano (con timeout)
-      ;(async () => {
-        try {
-          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
-          const { data: { user } } = await Promise.race([supabase.auth.getUser(), timeout]) as any
-          if (user) {
-            await Promise.race([supabaseSaveSample({
-              ...sample,
-              user_id: user.id,
-              photoUri: photos,
-            }), timeout])
-          }
-        } catch {
-          await addToSyncQueue({
-            id: `sync_${sample.id}`,
-            type: 'sample',
-            action: 'create',
-            data: sample,
-            timestamp: Date.now(),
-            retries: 0,
-          }).catch(() => {})
-        }
-      })()
-    } catch (err) {
-      Alert.alert('Error', 'No se pudo guardar la muestra')
-    } finally {
-      setSaving(false)
+    const sample: Sample = {
+      id: `sample_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      photoUri: photos,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      altitude: location.altitude,
+      operatorName,
+      timestamp: Date.now(),
+      notes: `[${sampleCode}] ${notes}`,
+      estimatedRockType: rockType as Sample['estimatedRockType'],
+      quickTestResult: {
+        acidReaction,
+        hardness: parseFloat(hardness) || 0,
+        color,
+        texture,
+        stratification,
+        fossilPresence,
+        estimatedCaCO3: acidReaction === 'vigorosa' ? 90 : acidReaction === 'moderada' ? 70 : acidReaction === 'leve' ? 40 : 0,
+      },
+      confidenceLevel: prediction?.probability || 0.5,
+      status: 'pendiente',
+      synced: false,
     }
+
+    await saveSample(sample)
+    addSample(sample)
+    setSaving(false)
+    Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ])
   }
 
   return (
