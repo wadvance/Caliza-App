@@ -84,8 +84,12 @@ export function SettingsScreen({ navigation }: any) {
       const kept = samples.filter(s => s.photoUri?.length > 0)
       webSaveSamples(kept)
       setSamples(kept)
-      if (Platform.OS === 'web') window.alert(`${removed.length} muestras sin foto fueron borradas`)
-      else Alert.alert('Listo', `${removed.length} muestras sin foto fueron borradas`)
+      if (Platform.OS === 'web') {
+        const ids = kept.map(s => s.id.slice(-6)).join(', ')
+        window.alert(`${removed.length} borradas, ${kept.length} quedan\nIDs: ${ids}`)
+      } else {
+        Alert.alert('Listo', `${removed.length} muestras sin foto fueron borradas`)
+      }
     }
     if (Platform.OS === 'web') {
       if (window.confirm('¿Eliminar todas las muestras sin foto? No se puede deshacer.')) doDelete()
