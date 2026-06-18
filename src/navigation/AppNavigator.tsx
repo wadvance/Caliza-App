@@ -1,5 +1,5 @@
 import { Text } from 'react-native'
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { COLORS } from '../types/constants'
@@ -108,7 +108,10 @@ function MainTabs() {
       <Tab.Screen name="Mapa" component={MapStackScreen}
         options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🗺️</Text> }} />
       <Tab.Screen name="Camara" component={CameraStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📷</Text> }} />
+        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📷</Text> }}
+        listeners={({ navigation }) => ({
+          tabPress: () => { navigation.reset({ index: 0, routes: [{ name: 'Camara' }] }) },
+        })} />
       <Tab.Screen name="Muestras" component={SamplesStackScreen}
         options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📋</Text> }} />
       <Tab.Screen name="AR" component={ARScreen}
