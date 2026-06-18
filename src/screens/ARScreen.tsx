@@ -159,10 +159,12 @@ export function ARScreen() {
     }
   }, [])
 
-  const clickEl = (onPress: () => void, style: any, children: any) =>
-    isWeb
-      ? React.createElement('div', { onClick: onPress, style }, children)
+  const clickEl = (onPress: () => void, style: any, children: any) => {
+    const flatStyle = Array.isArray(style) ? Object.assign({}, ...style) : style
+    return isWeb
+      ? React.createElement('div', { onClick: onPress, style: flatStyle }, children)
       : React.createElement(TouchableOpacity, { onPress, style }, children)
+  }
 
   const formatDistance = (km: number) => {
     if (km < 1) return `${(km * 1000).toFixed(0)} m`
