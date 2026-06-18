@@ -76,36 +76,34 @@ export function RegisterSampleScreen({ route, navigation }: any) {
       }
 
       await saveSample(sample)
-
-      // Intentar guardar directo a Supabase
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const result = await supabaseSaveSample({
-            ...sample,
-            user_id: user.id,
-            photoUri: photos,
-          })
-          if (result) {
-            sample.synced = true
-          }
-        }
-      } catch {
-        // Si falla, se sincronizará después vía sync queue
-        await addToSyncQueue({
-          id: `sync_${sample.id}`,
-          type: 'sample',
-          action: 'create',
-          data: sample,
-          timestamp: Date.now(),
-          retries: 0,
-        })
-      }
-
       addSample(sample)
       Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ])
+
+      // Guardar en Supabase en segundo plano (con timeout)
+      ;(async () => {
+        try {
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+          const { data: { user } } = await Promise.race([supabase.auth.getUser(), timeout]) as any
+          if (user) {
+            await Promise.race([supabaseSaveSample({
+              ...sample,
+              user_id: user.id,
+              photoUri: photos,
+            }), timeout])
+          }
+        } catch {
+          await addToSyncQueue({
+            id: `sync_${sample.id}`,
+            type: 'sample',
+            action: 'create',
+            data: sample,
+            timestamp: Date.now(),
+            retries: 0,
+          }).catch(() => {})
+        }
+      })()
     } catch (err) {
       Alert.alert('Error', 'No se pudo guardar la muestra')
     } finally {
