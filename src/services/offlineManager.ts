@@ -143,7 +143,13 @@ export async function syncOfflinePhotos(): Promise<void> {
 }
 
 export async function clearCache(): Promise<void> {
-  if (!FileSystem || isWeb) return
+  if (isWeb) {
+    try {
+      Object.keys(localStorage).forEach(k => { if (!k.startsWith('caliza_')) localStorage.removeItem(k) })
+    } catch {}
+    return
+  }
+  if (!FileSystem) return
   await FileSystem.deleteAsync(CACHE_DIR, { idempotent: true })
   await initOfflineStorage()
 }

@@ -119,22 +119,20 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   const handleClearCache = () => {
-    Alert.alert(
-      'Limpiar caché',
-      '¿Eliminar todos los datos almacenados? Las muestras no se borrarán.',
-      [
+    const doClean = async () => {
+      await clearCache()
+      loadStatus()
+      if (Platform.OS === 'web') window.alert('Caché limpiada')
+      else Alert.alert('Listo', 'Caché limpiada')
+    }
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Limpiar caché? Las muestras no se borrarán.')) doClean()
+    } else {
+      Alert.alert('Limpiar caché', '¿Eliminar todos los datos almacenados?', [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Limpiar',
-          style: 'destructive',
-          onPress: async () => {
-            await clearCache()
-            loadStatus()
-            Alert.alert('Listo', 'Caché limpiada')
-          },
-        },
-      ],
-    )
+        { text: 'Limpiar', style: 'destructive', onPress: doClean },
+      ])
+    }
   }
 
   const handleExport = () => {
