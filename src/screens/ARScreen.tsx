@@ -11,16 +11,17 @@ const isWeb = Platform.OS === 'web'
 let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
+    const [started, setStarted] = useState(false)
     const containerRef = useRef<any>(null)
-    useEffect(() => {
+    const startCam = () => {
       const el = containerRef.current
-      if (!el) return
-      // make the background transparent so video shows
+      if (!el || started) return
+      setStarted(true)
       el.style.backgroundColor = 'transparent'
       const video = document.createElement('video')
       video.setAttribute('autoplay', '')
       video.setAttribute('playsinline', '')
-      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;border-radius:inherit'
+      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0'
       el.style.position = 'relative'
       el.style.overflow = 'hidden'
       el.prepend(video)
@@ -28,13 +29,18 @@ if (isWeb) {
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
         .then(stream => { video.srcObject = stream })
-        .catch(() => { video.style.display = 'none' })
-      return () => {
-        if (video.srcObject) (video.srcObject as MediaStream).getTracks().forEach(t => t.stop())
-        video.remove()
-      }
-    }, [])
-    return <View ref={containerRef} style={[{ backgroundColor: '#000' }, style]}>{children}</View>
+        .catch(() => { video.style.display = 'none'; setStarted(false) })
+    }
+    return (
+      <TouchableOpacity activeOpacity={1} onPress={startCam} style={[{ backgroundColor: '#000' }, style]}>
+        {!started && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+            <Text style={{ color: '#fff', fontSize: 18 }}>Toca para iniciar AR</Text>
+          </View>
+        )}
+        <View ref={containerRef} style={{ flex: 1 }}>{children}</View>
+      </TouchableOpacity>
+    )
   }
   CameraView = WebCam
 } else {
