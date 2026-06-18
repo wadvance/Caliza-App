@@ -13,17 +13,19 @@ if (isWeb) {
   const WebCam = ({ children, style }: any) => {
     const [started, setStarted] = useState(false)
     const [error, setError] = useState('')
-    const startCam = () => {
+    const btnRef = useRef<any>(null)
+    const startCam = (e: any) => {
       if (started) return
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Tu navegador no soporta la cámara. Usa Chrome o Safari.')
         return
       }
-      setStarted(true)
+      // Don't call setStarted before getUserMedia — DOM changes can invalidate user gesture
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
         .then(stream => {
+          setStarted(true)
           const existing = document.getElementById('ar-video')
           if (existing) existing.remove()
           const video = document.createElement('video')
@@ -39,23 +41,26 @@ if (isWeb) {
         })
         .catch((err) => {
           const msg = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
-            ? 'Permiso de cámara denegado. Toca el candado (🔒) en la barra de direcciones → Cámara → Permitir, y recarga.'
+            ? 'Permiso de cámara denegado. Abre el menú ⋮ → Configuración del sitio → Cámara → Permitir, y recarga.'
             : err.message || 'Error al iniciar cámara'
           setError(msg)
-          setStarted(false)
         })
     }
-    // Use React.createElement to render a plain html div (avoids RN wrapper issues on web)
     return React.createElement('div', {
-      onClick: startCam,
       style: {
         flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden',
         width: '100%', height: '100%',
       }
     },
       !started
-        ? React.createElement('span', {
-            style: { color: '#fff', fontSize: 18, textAlign: 'center', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 10 }
+        ? React.createElement('button', {
+            ref: btnRef,
+            onClick: startCam,
+            style: {
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+              zIndex: 10, background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#fff', fontSize: 18, padding: '20px 40px',
+            }
           }, error || 'Toca para iniciar AR')
         : null,
       React.createElement('div', { style: { flex: 1, width: '100%', height: '100%', position: 'relative' } }, children)
