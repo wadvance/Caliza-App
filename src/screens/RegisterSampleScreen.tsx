@@ -76,11 +76,9 @@ export function RegisterSampleScreen({ route, navigation }: any) {
       await saveSample(sample)
       addSample(sample)
       setSaving(false)
-      window.alert(`Muestra registrada\nCódigo: ${sampleCode}`)
       navigation.goBack()
     } catch (e: any) {
       setSaving(false)
-      window.alert(`Error: ${e?.message || 'desconocido'}`)
     }
   }
 
