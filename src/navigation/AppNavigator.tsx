@@ -83,6 +83,7 @@ function MoreStackScreen() {
   return (
     <MoreStack.Navigator screenOptions={screenOptions} initialRouteName="Settings">
       <MoreStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuración' }} />
+      <MoreStack.Screen name="RegisterSample" component={RegisterSampleScreen} options={{ title: 'Registrar muestra' }} />
       <MoreStack.Screen name="Satellite" component={SatelliteAnalysisScreen} options={{ title: 'Análisis satelital' }} />
       <MoreStack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reportes' }} />
       <MoreStack.Screen name="WorkflowGuide" component={WorkflowGuideScreen} options={{ title: 'Guía de campo' }} />

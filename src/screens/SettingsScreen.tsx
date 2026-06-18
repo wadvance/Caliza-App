@@ -136,6 +136,10 @@ export function SettingsScreen({ navigation }: any) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Configuración</Text>
 
+      <TouchableOpacity style={styles.navBtn} onPress={() => navigation.navigate('RegisterSample')}>
+        <Text style={styles.navBtnText}>+ Registrar muestra</Text>
+      </TouchableOpacity>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Estado offline</Text>
         <View style={styles.statusRow}>
@@ -269,6 +273,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  navBtn: {
+    backgroundColor: COLORS.highlight,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  navBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   sectionTitle: { color: COLORS.accent, fontSize: 16, fontWeight: '700', marginBottom: 12 },
   statusRow: {
     flexDirection: 'row',
