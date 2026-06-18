@@ -12,20 +12,27 @@ let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
     useEffect(() => {
-      const bodyStyle = document.body.style
-      bodyStyle.background = '#000'
+      // Inject style to make root transparent so video behind it shows through
+      const styleEl = document.createElement('style')
+      styleEl.textContent = '#root,body{background:transparent!important}'
+      document.head.appendChild(styleEl)
+
       const video = document.createElement('video')
       video.setAttribute('autoplay', '')
       video.setAttribute('playsinline', '')
       video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none'
       document.body.prepend(video)
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } })
+
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+      })
         .then(stream => { video.srcObject = stream })
         .catch(() => { video.style.display = 'none' })
+
       return () => {
         if (video.srcObject) (video.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         video.remove()
-        bodyStyle.background = ''
+        styleEl.remove()
       }
     }, [])
     return <View style={[{ backgroundColor: 'transparent' }, style]}>{children}</View>
