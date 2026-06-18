@@ -138,32 +138,38 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   const handleExport = async () => {
-    try {
-      if (Platform.OS === 'web') {
-        const exportData = {
-          exportDate: new Date().toISOString(),
-          samples,
-          zones: [],
-          metadata: {
-            appVersion: '1.0.0',
-            totalSamples: samples.length,
-          },
-        }
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `caliza_export_${Date.now()}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        window.alert(`Exportadas ${samples.length} muestras`)
-      } else {
+    if (Platform.OS === 'web') {
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        muestras: samples.map(s => ({
+          codigo: s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8),
+          tipo: s.estimatedRockType,
+          lat: s.latitude,
+          lon: s.longitude,
+          fecha: new Date(s.timestamp).toLocaleDateString(),
+          notas: s.notes,
+          dimensiones: s.rockDimensions,
+          estado: s.status,
+        })),
+        total: samples.length,
+      }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.setAttribute('href', url)
+      a.setAttribute('download', `caliza_${Date.now()}.json`)
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } else {
+      try {
         const path = await exportAllData()
         Alert.alert('Exportación', `Datos exportados a: ${path}`)
+      } catch {
+        Alert.alert('Error', 'No se pudo exportar')
       }
-    } catch {
-      if (Platform.OS === 'web') window.alert('Error al exportar')
-      else Alert.alert('Error', 'No se pudo exportar')
     }
   }
 
