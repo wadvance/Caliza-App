@@ -6,8 +6,29 @@ import { getAllSamples, getAllZones } from '../services/database'
 import { Sample, CalizaZone } from '../types'
 
 const isWeb = Platform.OS === 'web'
+
+// Web camera component using DOM video element
 let CameraView: any = View
-if (!isWeb) {
+if (isWeb) {
+  CameraView = ({ children, style }: any) => {
+    const containerRef = useRef<any>(null)
+    useEffect(() => {
+      const el = containerRef.current as HTMLElement
+      if (!el) return
+      const video = document.createElement('video')
+      video.setAttribute('autoplay', '')
+      video.setAttribute('playsinline', '')
+      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover'
+      el.appendChild(video)
+      const stopStream = () => { if (video.srcObject) { (video.srcObject as MediaStream).getTracks().forEach(t => t.stop()) } }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } })
+        .then(stream => { stopStream(); video.srcObject = stream })
+        .catch(() => { video.style.display = 'none' })
+      return () => { stopStream(); video.remove() }
+    }, [])
+    return <View ref={containerRef} style={style}>{children}</View>
+  }
+} else {
   try {
     CameraView = require('expo-camera').CameraView
   } catch {}
