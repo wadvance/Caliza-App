@@ -159,6 +159,11 @@ export function ARScreen() {
     }
   }, [])
 
+  const clickEl = (onPress: () => void, style: any, children: any) =>
+    isWeb
+      ? React.createElement('div', { onClick: onPress, style }, children)
+      : React.createElement(TouchableOpacity, { onPress, style }, children)
+
   const formatDistance = (km: number) => {
     if (km < 1) return `${(km * 1000).toFixed(0)} m`
     return `${km.toFixed(2)} km`
@@ -189,31 +194,21 @@ export function ARScreen() {
 
           <View style={styles.targetsContainer}>
             {targets.slice(0, 5).map(target => (
-              <TouchableOpacity
-                key={target.id}
-                style={[styles.targetCard, { borderLeftColor: target.color }]}
-                onPress={() => setSelectedTarget(target)}
-              >
-                <View style={styles.targetInfo}>
-                  <Text style={styles.targetName}>{target.name}</Text>
-                  <Text style={styles.targetDist}>
-                    {formatDistance(target.distance)} · {target.bearing.toFixed(0)}°
-                  </Text>
-                </View>
-                <View style={[styles.targetDot, { backgroundColor: target.color }]} />
-              </TouchableOpacity>
+              clickEl(() => setSelectedTarget(target),
+                [styles.targetCard, { borderLeftColor: target.color }],
+                [React.createElement(View, { style: styles.targetInfo, key: 'info' },
+                  React.createElement(Text, { style: styles.targetName }, target.name),
+                  React.createElement(Text, { style: styles.targetDist },
+                    `${formatDistance(target.distance)} · ${target.bearing.toFixed(0)}°`
+                  )
+                ),
+                React.createElement(View, { style: [styles.targetDot, { backgroundColor: target.color }], key: 'dot' })]
+              )
             ))}
           </View>
 
-          {targets.length > 5 && (
-            <TouchableOpacity
-              style={styles.showAllBtn}
-              onPress={() => setShowList(true)}
-            >
-              <Text style={styles.showAllText}>
-                Ver todos ({targets.length})
-              </Text>
-            </TouchableOpacity>
+          {targets.length > 5 && clickEl(() => setShowList(true), styles.showAllBtn,
+            React.createElement(Text, { style: styles.showAllText }, `Ver todos (${targets.length})`)
           )}
 
           {selectedTarget && (
@@ -228,12 +223,9 @@ export function ARScreen() {
               <Text style={styles.detailText}>
                 Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}
               </Text>
-              <TouchableOpacity
-                style={styles.closeDetail}
-                onPress={() => setSelectedTarget(null)}
-              >
-                <Text style={styles.closeDetailText}>Cerrar</Text>
-              </TouchableOpacity>
+              {clickEl(() => setSelectedTarget(null), styles.closeDetail,
+                React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar')
+              )}
             </View>
           )}
         </View>
@@ -246,27 +238,16 @@ export function ARScreen() {
             <FlatList
               data={targets}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.listItem, { borderLeftColor: item.color }]}
-                  onPress={() => {
-                    setSelectedTarget(item)
-                    setShowList(false)
-                  }}
-                >
-                  <Text style={styles.listName}>{item.name}</Text>
-                  <Text style={styles.listDist}>
-                    {formatDistance(item.distance)} · {item.bearing.toFixed(0)}°
-                  </Text>
-                </TouchableOpacity>
+              renderItem={({ item }) => clickEl(() => { setSelectedTarget(item); setShowList(false) },
+                [styles.listItem, { borderLeftColor: item.color }],
+                [React.createElement(Text, { style: styles.listName, key: 'name' }, item.name),
+                 React.createElement(Text, { style: styles.listDist, key: 'dist' },
+                   `${formatDistance(item.distance)} · ${item.bearing.toFixed(0)}°`)]
               )}
             />
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={() => setShowList(false)}
-            >
-              <Text style={styles.closeBtnText}>Cerrar</Text>
-            </TouchableOpacity>
+            {clickEl(() => setShowList(false), styles.closeBtn,
+              React.createElement(Text, { style: styles.closeBtnText }, 'Cerrar')
+            )}
           </View>
         </View>
       </Modal>
