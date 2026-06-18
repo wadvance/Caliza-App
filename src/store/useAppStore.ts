@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Sample, CalizaZone, GeologicalLayer, MLPrediction } from '../types'
+import { Sample, CalizaZone, GeologicalLayer, MLPrediction, AccessRoute } from '../types'
 import { SyncStatus } from '../services/syncService'
 import { COLORS } from '../types/constants'
 
@@ -14,6 +14,7 @@ interface AppState {
   samples: Sample[]
   zones: CalizaZone[]
   layers: GeologicalLayer[]
+  routes: AccessRoute[]
   selectedSample: Sample | null
   lastPrediction: MLPrediction | null
   isOffline: boolean
@@ -28,6 +29,9 @@ interface AppState {
   removeSample: (id: string) => void
   setZones: (zones: CalizaZone[]) => void
   addZone: (zone: CalizaZone) => void
+  setRoutes: (routes: AccessRoute[]) => void
+  addRoute: (route: AccessRoute) => void
+  removeRoute: (id: string) => void
   setSelectedSample: (sample: Sample | null) => void
   setLastPrediction: (prediction: MLPrediction | null) => void
   setIsOffline: (offline: boolean) => void
@@ -48,6 +52,7 @@ export const useAppStore = create<AppState>((set) => ({
     { id: 'samples', name: 'Puntos de muestreo', type: 'sample_point', coordinates: [], color: COLORS.highlight, opacity: 1, visible: true },
     { id: 'routes', name: 'Rutas de acceso', type: 'access_route', coordinates: [], color: '#3498db', opacity: 0.7, visible: false },
   ],
+  routes: [],
   selectedSample: null,
   lastPrediction: null,
   isOffline: true,
@@ -66,6 +71,9 @@ export const useAppStore = create<AppState>((set) => ({
   })),
   setZones: (zones) => set({ zones }),
   addZone: (zone) => set((state) => ({ zones: [...state.zones, zone] })),
+  setRoutes: (routes) => set({ routes }),
+  addRoute: (route) => set((state) => ({ routes: [...state.routes, route] })),
+  removeRoute: (id) => set((state) => ({ routes: state.routes.filter(r => r.id !== id) })),
   setSelectedSample: (sample) => set({ selectedSample: sample }),
   setLastPrediction: (prediction) => set({ lastPrediction: prediction }),
   setIsOffline: (offline) => set({ isOffline: offline }),

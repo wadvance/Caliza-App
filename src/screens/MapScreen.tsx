@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions } from 'react-native'
-import MapView, { Marker, Polygon } from '../components/MapViewWrapper'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert } from 'react-native'
+import MapView, { Marker, Polygon, Polyline } from '../components/MapViewWrapper'
 import { useAppStore } from '../store/useAppStore'
 import { COLORS } from '../types/constants'
 import { LayerToggle } from '../components/LayerToggle'
 import { useCurrentLocation } from '../services/locationService'
-import { getAllZones, getAllSamples } from '../services/database'
-import { Sample, CalizaZone } from '../types'
+import { getAllZones, getAllSamples, webSaveRoutes, webLoadRoutes } from '../services/database'
+import { Sample, CalizaZone, AccessRoute } from '../types'
 
 const { height } = Dimensions.get('window')
 
@@ -329,9 +329,91 @@ export function MapScreen({ navigation }: any) {
     }
   }
 
+  const { routes, setRoutes, addRoute, removeRoute } = useAppStore()
+  const [showRouteNameModal, setShowRouteNameModal] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [recordingPoints, setRecordingPoints] = useState<{ latitude: number; longitude: number }[]>([])
+  const [routeName, setRouteName] = useState('')
+  const watchIdRef = useRef<any>(null)
+  const routeColors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+
+  useEffect(() => {
+    const saved = webLoadRoutes()
+    if (saved.length > 0) setRoutes(saved)
+  }, [])
+
+  useEffect(() => {
+    webSaveRoutes(routes)
+  }, [routes])
+
+  const startRecording = () => {
+    setRecordingPoints([{
+      latitude: currentLocation?.latitude || 8.9824,
+      longitude: currentLocation?.longitude || -79.5199,
+    }])
+    setRecording(true)
+    if ('geolocation' in navigator) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          setRecordingPoints(prev => [...prev, {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }])
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
+  }
+
+  const stopRecording = () => {
+    if (watchIdRef.current && 'geolocation' in navigator) {
+      navigator.geolocation.clearWatch(watchIdRef.current)
+      watchIdRef.current = null
+    }
+    setRecording(false)
+    if (recordingPoints.length > 1) {
+      setRouteName(`Ruta ${routes.length + 1}`)
+      setShowRouteNameModal(true)
+    } else {
+      setRecordingPoints([])
+    }
+  }
+
+  const saveRoute = () => {
+    let dist = 0
+    for (let i = 1; i < recordingPoints.length; i++) {
+      const p1 = recordingPoints[i - 1], p2 = recordingPoints[i]
+      const R = 6371
+      const dLat = (p2.latitude - p1.latitude) * Math.PI / 180
+      const dLon = (p2.longitude - p1.longitude) * Math.PI / 180
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+      dist += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    }
+    const route: AccessRoute = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: routeName.trim() || `Ruta ${routes.length + 1}`,
+      points: recordingPoints,
+      color: routeColors[routes.length % routeColors.length],
+      timestamp: Date.now(),
+      distanceKm: Math.round(dist * 100) / 100,
+    }
+    addRoute(route)
+    setShowRouteNameModal(false)
+    setRecordingPoints([])
+    setRouteName('')
+  }
+
+  const discardRoute = () => {
+    setShowRouteNameModal(false)
+    setRecordingPoints([])
+    setRouteName('')
+  }
+
   const visibleLayers = layers.filter(l => l.visible)
   const showPotentialZones = visibleLayers.some(l => l.id === 'potential')
   const showSamplePoints = visibleLayers.some(l => l.id === 'samples')
+  const showRoutes = visibleLayers.some(l => l.id === 'routes')
 
   const allTownships: (Township & { districtName: string; provinceName: string })[] =
     PANAMA.flatMap(p =>
@@ -456,6 +538,20 @@ export function MapScreen({ navigation }: any) {
             pinColor={sample.status === 'validado' ? COLORS.success : sample.status === 'descartado' ? COLORS.danger : COLORS.warning}
           />
         ))}
+        {showRoutes && routes.map(route => (
+          <Polyline key={route.id}
+            coordinates={route.points}
+            strokeColor={route.color}
+            strokeWidth={4}
+          />
+        ))}
+        {recording && recordingPoints.length > 1 && (
+          <Polyline key="recording"
+            coordinates={recordingPoints}
+            strokeColor="#e74c3c"
+            strokeWidth={4}
+          />
+        )}
       </MapView>
 
       <View style={styles.overlay}>
@@ -465,6 +561,15 @@ export function MapScreen({ navigation }: any) {
               {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
             </Text>
           </View>
+        )}
+        {!recording ? (
+          <TouchableOpacity style={styles.recordBtn} onPress={startRecording}>
+            <Text style={styles.recordBtnText}>⏺ Grabar ruta</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.stopBtn} onPress={stopRecording}>
+            <Text style={styles.stopBtnText}>⏹ Detener ({recordingPoints.length} pts)</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -597,6 +702,45 @@ export function MapScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Route name modal */}
+      <Modal visible={showRouteNameModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Guardar ruta</Text>
+            <Text style={styles.routeDistText}>
+              Distancia: {(() => {
+                let d = 0
+                for (let i = 1; i < recordingPoints.length; i++) {
+                  const p1 = recordingPoints[i - 1], p2 = recordingPoints[i]
+                  const R = 6371
+                  const dLat = (p2.latitude - p1.latitude) * Math.PI / 180
+                  const dLon = (p2.longitude - p1.longitude) * Math.PI / 180
+                  const a = Math.sin(dLat / 2) ** 2 + Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+                  d += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+                }
+                return `${d < 1 ? (d * 1000).toFixed(0) + ' m' : d.toFixed(2) + ' km'}`
+              })()}
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nombre de la ruta"
+              placeholderTextColor={COLORS.textMuted}
+              value={routeName}
+              onChangeText={setRouteName}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity style={[styles.closeBtn, { flex: 1, backgroundColor: COLORS.surfaceLight }]} onPress={discardRoute}>
+                <Text style={[styles.closeBtnText, { color: COLORS.text }]}>Descartar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.closeBtn, { flex: 1 }]} onPress={saveRoute}>
+                <Text style={styles.closeBtnText}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -657,4 +801,15 @@ const styles = StyleSheet.create({
   townshipSub: { color: COLORS.textMuted, fontSize: 11 },
   closeBtn: { backgroundColor: COLORS.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 12 },
   closeBtnText: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
+  recordBtn: {
+    marginTop: 8, backgroundColor: '#e74c3c', paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  recordBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  stopBtn: {
+    marginTop: 8, backgroundColor: '#c0392b', paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  stopBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  routeDistText: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 12 },
 })

@@ -110,7 +110,7 @@ const CalloutComponent = (props: CalloutProps) => {
   return <NativeCallout {...props} />
 }
 
-function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons: PolygonProps[]): string {
+function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons: PolygonProps[], polylines: PolylineProps[]): string {
   const reg = props.initialRegion || props.region || { latitude: 8.9824, longitude: -79.5199, latitudeDelta: 0.05, longitudeDelta: 0.05 }
   const center = [reg.latitude, reg.longitude]
   const zoom = Math.round(Math.log2(360 / Math.max(reg.latitudeDelta || 0.05, reg.longitudeDelta || 0.05)) + 1)
@@ -134,6 +134,17 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     return `
       L.polygon([${coords}], {
         color: '${stroke}', fillColor: '${fill}', fillOpacity: 0.35, weight: ${p.strokeWidth || 2}
+      }).addTo(map);
+    `
+  }).join('\n')
+
+  const polylineScript = polylines.map(p => {
+    const coords = p.coordinates.map(c => `[${c.latitude}, ${c.longitude}]`).join(', ')
+    const stroke = p.strokeColor || '#3498db'
+    const weight = p.strokeWidth || 3
+    return `
+      L.polyline([${coords}], {
+        color: '${stroke}', weight: ${weight}, opacity: 0.8
       }).addTo(map);
     `
   }).join('\n')
@@ -171,6 +182,7 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
 
   ${markerScript}
   ${polygonScript}
+  ${polylineScript}
 </script>
 </body>
 </html>`
@@ -180,6 +192,7 @@ function WebMap({ style, children, ...props }: MapViewProps & { children?: React
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const markers: MarkerProps[] = []
   const polygons: PolygonProps[] = []
+  const polylines: PolylineProps[] = []
 
   const childrenArr = Array.isArray(children) ? children : [children]
   childrenArr.forEach((child: any) => {
@@ -190,11 +203,15 @@ function WebMap({ style, children, ...props }: MapViewProps & { children?: React
     if (child.props?.coordinates && (child.type?.displayName === 'Polygon' || child.type?.name === 'Polygon')) {
       polygons.push(child.props as PolygonProps)
     }
+    if (child.props?.coordinates && (child.type?.displayName === 'Polyline' || child.type?.name === 'Polyline')) {
+      polylines.push(child.props as PolylineProps)
+    }
   })
 
-  const html = useMemo(() => buildLeafletHtml(props, markers, polygons),
+  const html = useMemo(() => buildLeafletHtml(props, markers, polygons, polylines),
     [props.initialRegion?.latitude, props.initialRegion?.longitude,
-     markers.length, polygons.length, JSON.stringify(markers), JSON.stringify(polygons)])
+     markers.length, polygons.length, polylines.length,
+     JSON.stringify(markers), JSON.stringify(polygons), JSON.stringify(polylines)])
 
   const blobUrl = useMemo(() => {
     const blob = new Blob([html], { type: 'text/html' })
@@ -220,6 +237,7 @@ function WebMap({ style, children, ...props }: MapViewProps & { children?: React
 function MobileWebMap({ style, children, ...props }: MapViewProps & { children?: React.ReactNode }) {
   const markers: MarkerProps[] = []
   const polygons: PolygonProps[] = []
+  const polylines: PolylineProps[] = []
 
   const childrenArr = Array.isArray(children) ? children : [children]
   childrenArr.forEach((child: any) => {
@@ -230,11 +248,15 @@ function MobileWebMap({ style, children, ...props }: MapViewProps & { children?:
     if (child.props?.coordinates && (child.type?.displayName === 'Polygon' || child.type?.name === 'Polygon')) {
       polygons.push(child.props as PolygonProps)
     }
+    if (child.props?.coordinates && (child.type?.displayName === 'Polyline' || child.type?.name === 'Polyline')) {
+      polylines.push(child.props as PolylineProps)
+    }
   })
 
-  const html = useMemo(() => buildLeafletHtml(props, markers, polygons),
+  const html = useMemo(() => buildLeafletHtml(props, markers, polygons, polylines),
     [props.initialRegion?.latitude, props.initialRegion?.longitude,
-     markers.length, polygons.length, JSON.stringify(markers), JSON.stringify(polygons)])
+     markers.length, polygons.length, polylines.length,
+     JSON.stringify(markers), JSON.stringify(polygons), JSON.stringify(polylines)])
 
   if (!WebViewModule) {
     return (

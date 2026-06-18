@@ -1,5 +1,5 @@
 import { Platform } from 'react-native'
-import { Sample, CalizaZone, FieldObservation, SyncQueueItem } from '../types'
+import { Sample, CalizaZone, FieldObservation, SyncQueueItem, AccessRoute } from '../types'
 
 const isWeb = Platform.OS === 'web'
 
@@ -134,6 +134,19 @@ export function webSaveSamples(samples: Sample[]): void {
 export function webLoadSamples(): Sample[] {
   try {
     const data = localStorage.getItem('caliza_samples')
+    return data ? JSON.parse(data) : []
+  } catch { return [] }
+}
+
+export function webSaveRoutes(routes: AccessRoute[]): void {
+  try {
+    localStorage.setItem('caliza_routes', JSON.stringify(routes))
+  } catch {}
+}
+
+export function webLoadRoutes(): AccessRoute[] {
+  try {
+    const data = localStorage.getItem('caliza_routes')
     return data ? JSON.parse(data) : []
   } catch { return [] }
 }

@@ -125,6 +125,15 @@ export interface SyncQueueItem {
   retries: number
 }
 
+export interface AccessRoute {
+  id: string
+  name: string
+  points: { latitude: number; longitude: number }[]
+  color: string
+  timestamp: number
+  distanceKm: number
+}
+
 export interface ExplorationReport {
   id: string
   title: string
