@@ -142,7 +142,17 @@ export function ARScreen() {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.alpha != null) setHeading(e.alpha)
     }
-    window.addEventListener('deviceorientation', handleOrientation)
+    const requestOrientation = () => {
+      const api = (window as any).DeviceOrientationEvent
+      if (api?.requestPermission) {
+        api.requestPermission().then((state: string) => {
+          if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation)
+        })
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation)
+      }
+    }
+    requestOrientation()
     return () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId)
       window.removeEventListener('deviceorientation', handleOrientation)
@@ -167,8 +177,13 @@ export function ARScreen() {
 
           <View style={styles.compass}>
             <Text style={styles.compassText}>{heading.toFixed(0)}°</Text>
-            <View style={[styles.compassArrow, { transform: [{ rotate: `${heading}deg` }] }]}>
-              <Text style={styles.arrowUp}>▲</Text>
+            <View style={[styles.compassArrow]}>
+              {isWeb
+                ? React.createElement('span', {
+                    style: { display: 'inline-block', transform: `rotate(${heading}deg)`, color: COLORS.highlight, fontSize: 20 }
+                  }, '▲')
+                : <Text style={styles.arrowUp}>▲</Text>
+              }
             </View>
           </View>
 
