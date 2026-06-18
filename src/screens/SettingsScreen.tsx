@@ -137,40 +137,33 @@ export function SettingsScreen({ navigation }: any) {
     )
   }
 
-  const handleExport = async () => {
-    if (Platform.OS === 'web') {
-      const exportData = {
-        exportDate: new Date().toISOString(),
-        muestras: samples.map(s => ({
-          codigo: s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8),
-          tipo: s.estimatedRockType,
-          lat: s.latitude,
-          lon: s.longitude,
-          fecha: new Date(s.timestamp).toLocaleDateString(),
-          notas: s.notes,
-          dimensiones: s.rockDimensions,
-          estado: s.status,
-        })),
-        total: samples.length,
-      }
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.setAttribute('href', url)
-      a.setAttribute('download', `caliza_${Date.now()}.json`)
-      a.style.display = 'none'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } else {
-      try {
-        const path = await exportAllData()
-        Alert.alert('Exportación', `Datos exportados a: ${path}`)
-      } catch {
-        Alert.alert('Error', 'No se pudo exportar')
-      }
+  const handleExport = () => {
+    if (samples.length === 0) {
+      if (Platform.OS === 'web') window.alert('No hay muestras para exportar')
+      else Alert.alert('Sin datos', 'No hay muestras registradas')
+      return
     }
+    const json = JSON.stringify({
+      exportDate: new Date().toISOString(),
+      muestras: samples.map(s => ({
+        codigo: s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8),
+        tipo: s.estimatedRockType,
+        lat: s.latitude,
+        lon: s.longitude,
+        fecha: new Date(s.timestamp).toLocaleDateString(),
+        notas: s.notes,
+        dimensiones: s.rockDimensions,
+        estado: s.status,
+      })),
+      total: samples.length,
+    }, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `caliza_${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const formatBytes = (bytes: number) => {
