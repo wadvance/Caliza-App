@@ -35,7 +35,7 @@ export function SampleListScreen({ navigation }: any) {
     const data = statusFilter === 'all'
       ? await getAllSamples()
       : await getSamplesByStatus(statusFilter)
-    setSamples(data)
+    if (data.length > 0) setSamples(data)
   }
 
   const filteredSamples = useMemo(() => {
