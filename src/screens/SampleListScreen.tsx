@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { COLORS, ROCK_TYPES } from '../types/constants'
 import { getAllSamples, getSamplesByStatus } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
@@ -23,6 +24,12 @@ export function SampleListScreen({ navigation }: any) {
   useEffect(() => {
     loadSamples()
   }, [statusFilter])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSamples()
+    }, [statusFilter])
+  )
 
   const loadSamples = async () => {
     const data = statusFilter === 'all'
