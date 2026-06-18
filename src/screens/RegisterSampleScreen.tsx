@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity,
-  Image, Alert, ActivityIndicator, Platform,
+  Image, ActivityIndicator, Platform,
 } from 'react-native'
 import { COLORS, ROCK_TYPES, ACID_REACTION_LABELS } from '../types/constants'
 import { getCurrentLocation } from '../services/locationService'
@@ -48,36 +48,40 @@ export function RegisterSampleScreen({ route, navigation }: any) {
 
   const handleSave = async () => {
     setSaving(true)
-    const sample: Sample = {
-      id: `sample_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      photoUri: photos,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      altitude: location.altitude,
-      operatorName,
-      timestamp: Date.now(),
-      notes: `[${sampleCode}] ${notes}`,
-      estimatedRockType: rockType as Sample['estimatedRockType'],
-      quickTestResult: {
-        acidReaction,
-        hardness: parseFloat(hardness) || 0,
-        color,
-        texture,
-        stratification,
-        fossilPresence,
-        estimatedCaCO3: acidReaction === 'vigorosa' ? 90 : acidReaction === 'moderada' ? 70 : acidReaction === 'leve' ? 40 : 0,
-      },
-      confidenceLevel: prediction?.probability || 0.5,
-      status: 'pendiente',
-      synced: false,
-    }
+    try {
+      const sample: Sample = {
+        id: `sample_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        photoUri: photos,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        altitude: location.altitude,
+        operatorName,
+        timestamp: Date.now(),
+        notes: `[${sampleCode}] ${notes}`,
+        estimatedRockType: rockType as Sample['estimatedRockType'],
+        quickTestResult: {
+          acidReaction,
+          hardness: parseFloat(hardness) || 0,
+          color,
+          texture,
+          stratification,
+          fossilPresence,
+          estimatedCaCO3: acidReaction === 'vigorosa' ? 90 : acidReaction === 'moderada' ? 70 : acidReaction === 'leve' ? 40 : 0,
+        },
+        confidenceLevel: prediction?.probability || 0.5,
+        status: 'pendiente',
+        synced: false,
+      }
 
-    await saveSample(sample)
-    addSample(sample)
-    setSaving(false)
-    Alert.alert('Muestra registrada', `Código: ${sampleCode}`, [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ])
+      await saveSample(sample)
+      addSample(sample)
+      setSaving(false)
+      window.alert(`Muestra registrada\nCódigo: ${sampleCode}`)
+      navigation.goBack()
+    } catch (e: any) {
+      setSaving(false)
+      window.alert(`Error: ${e?.message || 'desconocido'}`)
+    }
   }
 
   return (
