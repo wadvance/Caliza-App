@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
-import { getAllSamples, webLoadSamples, webSaveSamples } from '../services/database'
+import { webSaveSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
@@ -73,12 +73,8 @@ export function SettingsScreen({ navigation }: any) {
     const doDelete = () => {
       const removed = samples.filter(s => !s.photoUri?.length)
       if (removed.length === 0) {
-        if (Platform.OS === 'web') {
-          const debug = samples.map(s => `[${s.estimatedRockType}] photoUri: ${JSON.stringify(s.photoUri ?? 'MISSING')}`).join('\n')
-          window.alert(`Total: ${samples.length} muestras\nNinguna sin foto:\n${debug}`)
-        } else {
-          Alert.alert('Sin cambios', 'No hay muestras sin foto')
-        }
+        if (Platform.OS === 'web') window.alert('No hay muestras sin foto para borrar')
+        else Alert.alert('Sin cambios', 'No hay muestras sin foto')
         return
       }
       const kept = samples.filter(s => s.photoUri?.length > 0)

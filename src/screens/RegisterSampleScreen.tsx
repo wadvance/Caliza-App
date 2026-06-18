@@ -43,6 +43,26 @@ export function RegisterSampleScreen({ route, navigation }: any) {
   const [location, setLocation] = useState({ latitude: 0, longitude: 0, altitude: 0 })
   const [locating, setLocating] = useState(true)
 
+  const handleAddPhoto = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.capture = 'environment'
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string
+          if (dataUrl) setPhotos(p => [...p, dataUrl])
+        }
+        reader.readAsDataURL(file)
+      }
+      input.click()
+    }
+  }
+
   useEffect(() => {
     getCurrentLocation()
       .then(loc => { setLocation(loc); setLocating(false) })
@@ -102,7 +122,7 @@ export function RegisterSampleScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <PhotoGrid photos={photos} onAddPhoto={() => {}} onRemovePhoto={(i) => setPhotos(p => p.filter((_, idx) => idx !== i))} />
+      <PhotoGrid photos={photos} onAddPhoto={handleAddPhoto} onRemovePhoto={(i) => setPhotos(p => p.filter((_, idx) => idx !== i))} />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ubicación</Text>

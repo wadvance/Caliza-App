@@ -316,7 +316,6 @@ export function MapScreen({ navigation }: any) {
     const [loadedSamples, loadedZones] = await Promise.all([getAllSamples(), getAllZones()])
     setLocalSamples(loadedSamples)
     setLocalZones(loadedZones)
-    setSamples(loadedSamples)
     setZones(loadedZones)
   }
 
