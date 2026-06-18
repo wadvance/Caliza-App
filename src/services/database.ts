@@ -106,8 +106,26 @@ export async function initDatabase(): Promise<void> {
   `)
 }
 
+function webSaveSamples(samples: Sample[]): void {
+  try { localStorage.setItem('caliza_samples', JSON.stringify(samples)) } catch {}
+}
+
+function webLoadSamples(): Sample[] {
+  try {
+    const data = localStorage.getItem('caliza_samples')
+    return data ? JSON.parse(data) : []
+  } catch { return [] }
+}
+
 export async function saveSample(sample: Sample): Promise<void> {
-  if (!db) return
+  if (!db) {
+    const samples = webLoadSamples()
+    const idx = samples.findIndex(s => s.id === sample.id)
+    if (idx >= 0) samples[idx] = sample
+    else samples.unshift(sample)
+    webSaveSamples(samples)
+    return
+  }
   await db.runAsync(
     `INSERT OR REPLACE INTO samples
      (id, photo_uris, latitude, longitude, altitude, operator_name, timestamp,
@@ -150,7 +168,7 @@ export async function saveSample(sample: Sample): Promise<void> {
 }
 
 export async function getAllSamples(): Promise<Sample[]> {
-  if (!db) return []
+  if (!db) return webLoadSamples()
   const rows = await db.getAllAsync<any>('SELECT * FROM samples ORDER BY timestamp DESC')
   return rows.map(mapRowToSample)
 }
