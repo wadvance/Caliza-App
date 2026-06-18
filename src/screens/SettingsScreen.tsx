@@ -10,7 +10,7 @@ import { isAuthenticated, getUser, logout as authLogout } from '../services/auth
 
 export function SettingsScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
-  const { syncStatus, isOffline, setIsOffline, setAuth, setSamples } = useAppStore()
+  const { samples, syncStatus, isOffline, setIsOffline, setAuth, setSamples } = useAppStore()
   const [cacheSize, setCacheSize] = useState({ total: 0, maps: 0, photos: 0 })
   const [lastMapDownload, setLastMapDownload] = useState<number | null>(null)
   const [lastSync, setLastSync] = useState<number | null>(null)
@@ -71,18 +71,17 @@ export function SettingsScreen({ navigation }: any) {
 
   const handleClearSamplesWithoutPhotos = () => {
     const doDelete = () => {
-      const all = webLoadSamples()
-      const filtered = all.filter(s => s.photoUri?.length > 0)
-      const removed = all.length - filtered.length
-      if (removed === 0) {
+      const removed = samples.filter(s => !s.photoUri?.length)
+      if (removed.length === 0) {
         if (Platform.OS === 'web') window.alert('No hay muestras sin foto para borrar')
         else Alert.alert('Sin cambios', 'No hay muestras sin foto')
         return
       }
-      webSaveSamples(filtered)
-      setSamples(filtered)
-      if (Platform.OS === 'web') window.alert(`${removed} muestras sin foto fueron borradas`)
-      else Alert.alert('Listo', `${removed} muestras sin foto fueron borradas`)
+      const kept = samples.filter(s => s.photoUri?.length > 0)
+      webSaveSamples(kept)
+      setSamples(kept)
+      if (Platform.OS === 'web') window.alert(`${removed.length} muestras sin foto fueron borradas`)
+      else Alert.alert('Listo', `${removed.length} muestras sin foto fueron borradas`)
     }
     if (Platform.OS === 'web') {
       if (window.confirm('¿Eliminar todas las muestras sin foto? No se puede deshacer.')) doDelete()
