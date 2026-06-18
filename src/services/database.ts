@@ -106,8 +106,29 @@ export async function initDatabase(): Promise<void> {
   `)
 }
 
+function compressDataUrl(dataUrl: string, maxW = 400, quality = 0.6): string {
+  try {
+    const img = new Image()
+    img.src = dataUrl
+    const c = document.createElement('canvas')
+    const r = Math.min(maxW / img.width, 1)
+    c.width = img.width * r
+    c.height = img.height * r
+    const ctx = c.getContext('2d')
+    if (!ctx) return dataUrl
+    ctx.drawImage(img, 0, 0, c.width, c.height)
+    return c.toDataURL('image/jpeg', quality)
+  } catch { return dataUrl }
+}
+
 function webSaveSamples(samples: Sample[]): void {
-  try { localStorage.setItem('caliza_samples', JSON.stringify(samples)) } catch {}
+  try {
+    const stored = samples.map(s => ({
+      ...s,
+      photoUri: s.photoUri.map(u => u.startsWith('data:') ? compressDataUrl(u) : u),
+    }))
+    localStorage.setItem('caliza_samples', JSON.stringify(stored))
+  } catch {}
 }
 
 function webLoadSamples(): Sample[] {
