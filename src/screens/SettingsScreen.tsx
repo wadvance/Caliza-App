@@ -139,10 +139,31 @@ export function SettingsScreen({ navigation }: any) {
 
   const handleExport = async () => {
     try {
-      const path = await exportAllData()
-      Alert.alert('Exportación', `Datos exportados a: ${path}`)
+      if (Platform.OS === 'web') {
+        const exportData = {
+          exportDate: new Date().toISOString(),
+          samples,
+          zones: [],
+          metadata: {
+            appVersion: '1.0.0',
+            totalSamples: samples.length,
+          },
+        }
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `caliza_export_${Date.now()}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        window.alert(`Exportadas ${samples.length} muestras`)
+      } else {
+        const path = await exportAllData()
+        Alert.alert('Exportación', `Datos exportados a: ${path}`)
+      }
     } catch {
-      Alert.alert('Error', 'No se pudo exportar')
+      if (Platform.OS === 'web') window.alert('Error al exportar')
+      else Alert.alert('Error', 'No se pudo exportar')
     }
   }
 
