@@ -12,19 +12,22 @@ let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
     const [started, setStarted] = useState(false)
-    const containerRef = useRef<any>(null)
     const startCam = () => {
-      const el = containerRef.current
-      if (!el || started) return
+      if (started) return
       setStarted(true)
-      el.style.backgroundColor = 'transparent'
+      // Create video directly on body so no View ref needed
+      const existing = document.getElementById('ar-video')
+      if (existing) return
       const video = document.createElement('video')
+      video.id = 'ar-video'
       video.setAttribute('autoplay', '')
       video.setAttribute('playsinline', '')
-      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0'
-      el.style.position = 'relative'
-      el.style.overflow = 'hidden'
-      el.prepend(video)
+      video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;pointer-events:none'
+      document.body.prepend(video)
+      // Override app body background so video shows through
+      document.body.style.background = 'transparent'
+      const root = document.getElementById('root')
+      if (root) root.style.background = 'transparent'
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
@@ -38,7 +41,7 @@ if (isWeb) {
             <Text style={{ color: '#fff', fontSize: 18 }}>Toca para iniciar AR</Text>
           </View>
         )}
-        <View ref={containerRef} style={{ flex: 1 }}>{children}</View>
+        <View style={{ flex: 1, backgroundColor: 'transparent' }}>{children}</View>
       </TouchableOpacity>
     )
   }
