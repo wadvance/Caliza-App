@@ -133,14 +133,16 @@ export function ARScreen() {
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
-          if (pos.coords.heading != null) setHeading(pos.coords.heading)
+          if (pos.coords.heading != null && pos.coords.heading > 0) setHeading(pos.coords.heading)
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0 },
       )
     }
+    let sensor: any = null
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.alpha != null) setHeading(e.alpha)
+      const deg = (e as any).webkitCompassHeading ?? e.alpha
+      if (deg != null && deg > 0) setHeading(deg)
     }
     const requestOrientation = () => {
       const api = (window as any).DeviceOrientationEvent
@@ -153,9 +155,26 @@ export function ARScreen() {
       }
     }
     requestOrientation()
+    // Use AbsoluteOrientationSensor as fallback (modern Android Chrome)
+    try {
+      const Sensor = (window as any).AbsoluteOrientationSensor
+      if (Sensor) {
+        sensor = new Sensor({ frequency: 30 })
+        sensor.addEventListener('reading', () => {
+          if (!sensor?.quaternion) return
+          const q = sensor.quaternion // [x, y, z, w]
+          const siny = 2 * (q[3] * q[2] + q[0] * q[1])
+          const cosy = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
+          const h = Math.atan2(siny, cosy) * 180 / Math.PI
+          setHeading((h + 360) % 360)
+        })
+        sensor.start()
+      }
+    } catch {}
     return () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId)
       window.removeEventListener('deviceorientation', handleOrientation)
+      if (sensor) sensor.stop()
     }
   }, [])
 
@@ -183,7 +202,7 @@ export function ARScreen() {
           </View>
 
           <View style={styles.compass}>
-            <Text style={styles.compassText}>{heading.toFixed(0)}°</Text>
+            <Text style={styles.compassText}>{heading.toFixed(1)}°</Text>
             <View style={[styles.compassArrow]}>
               {isWeb
                 ? React.createElement('span', {
