@@ -88,7 +88,7 @@ export function SettingsScreen({ navigation }: any) {
 
   const handleClearSamplesWithoutPhotos = () => {
     const doDelete = () => {
-      const removed = samples.filter(s => !s.photoUri?.length)
+      const removed = samples.filter(s => !s.photoUri?.length && !(s as any).photoCount)
       if (removed.length === 0) {
         if (Platform.OS === 'web') {
           const info = samples.map((s,i) => `#${i+1} uris=${s.photoUri?.length??0}`).join('\n')
@@ -98,7 +98,7 @@ export function SettingsScreen({ navigation }: any) {
         }
         return
       }
-      const kept = samples.filter(s => s.photoUri?.length > 0)
+      const kept = samples.filter(s => s.photoUri?.length > 0 || (s as any).photoCount > 0)
       webSaveSamples(kept)
       setSamples(kept)
       if (Platform.OS === 'web') {

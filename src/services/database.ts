@@ -122,15 +122,20 @@ function compressDataUrl(dataUrl: string, maxW = 400, quality = 0.6): string {
 }
 
 export function webSaveSamples(samples: Sample[]): void {
+  const stored = samples.map(s => ({
+    ...s,
+    photoUri: (Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : [])).map(
+      u => u?.startsWith('data:') ? compressDataUrl(u) : u
+    ),
+  }))
   try {
-    const stored = samples.map(s => ({
-      ...s,
-      photoUri: (Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : [])).map(
-        u => u?.startsWith('data:') ? compressDataUrl(u) : u
-      ),
-    }))
     localStorage.setItem('caliza_samples', JSON.stringify(stored))
-  } catch (e) { console.warn('webSaveSamples error:', e) }
+  } catch {
+    try {
+      const meta = stored.map(s => ({ ...s, photoCount: s.photoUri.length, photoUri: [] }))
+      localStorage.setItem('caliza_samples', JSON.stringify(meta))
+    } catch {}
+  }
 }
 
 export function webLoadSamples(): Sample[] {
