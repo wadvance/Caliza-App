@@ -142,30 +142,23 @@ export function SettingsScreen({ navigation }: any) {
       window.alert('No hay muestras para exportar')
       return
     }
-    const json = JSON.stringify({
-      exportDate: new Date().toISOString(),
-      muestras: samples.map(s => ({
-        codigo: s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8),
-        tipo: s.estimatedRockType,
-        lat: s.latitude,
-        lon: s.longitude,
-        fecha: new Date(s.timestamp).toLocaleDateString(),
-        notas: s.notes,
-        dimensiones: s.rockDimensions,
-        estado: s.status,
-      })),
-      total: samples.length,
-    }, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `caliza_${Date.now()}.json`
-    a.rel = 'noopener'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    const line = (k: string, v: any) => `${k}: ${v}`
+    const rows = samples.map((s, i) => {
+      const codigo = s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8)
+      return `--- Muestra ${i + 1} ---\n${line('Código', codigo)}\n${line('Tipo', s.estimatedRockType)}\n${line('Lat', s.latitude.toFixed(6))}\n${line('Lon', s.longitude.toFixed(6))}\n${line('Dims', s.rockDimensions ? `${s.rockDimensions.width}x${s.rockDimensions.height}x${s.rockDimensions.depth} cm` : '-' )}\n${line('Estado', s.status)}\n${line('Notas', s.notes || '-')}`
+    })
+    const text = `Exportación: ${new Date().toLocaleString()}\nTotal: ${samples.length} muestras\n\n${rows.join('\n\n')}`
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        window.alert(`${samples.length} muestras copiadas al portapapeles`)
+      }).catch(() => {
+        const w = window.open('', '_blank')
+        if (w) { w.document.write(`<pre>${text}</pre>`); w.document.close() }
+      })
+    } else {
+      const w = window.open('', '_blank')
+      if (w) { w.document.write(`<pre>${text}</pre>`); w.document.close() }
+    }
   }
 
   const formatBytes = (bytes: number) => {
