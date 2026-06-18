@@ -89,6 +89,7 @@ export function ARScreen() {
   const [targets, setTargets] = useState<ARTarget[]>([])
   const [selectedTarget, setSelectedTarget] = useState<ARTarget | null>(null)
   const [showList, setShowList] = useState(false)
+  const [heading, setHeading] = useState(0)
 
   useEffect(() => {
     if (!currentLocation) return
@@ -126,6 +127,28 @@ export function ARScreen() {
     loadTargets()
   }, [currentLocation, samples])
 
+  useEffect(() => {
+    if (!isWeb) return
+    let watchId: number | null = null
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (pos.coords.heading != null) setHeading(pos.coords.heading)
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0 },
+      )
+    }
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.alpha != null) setHeading(e.alpha)
+    }
+    window.addEventListener('deviceorientation', handleOrientation)
+    return () => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId)
+      window.removeEventListener('deviceorientation', handleOrientation)
+    }
+  }, [])
+
   const formatDistance = (km: number) => {
     if (km < 1) return `${(km * 1000).toFixed(0)} m`
     return `${km.toFixed(2)} km`
@@ -143,8 +166,8 @@ export function ARScreen() {
           </View>
 
           <View style={styles.compass}>
-            <Text style={styles.compassText}>N</Text>
-            <View style={styles.compassArrow}>
+            <Text style={styles.compassText}>{heading.toFixed(0)}°</Text>
+            <View style={[styles.compassArrow, { transform: [{ rotate: `${heading}deg` }] }]}>
               <Text style={styles.arrowUp}>▲</Text>
             </View>
           </View>
