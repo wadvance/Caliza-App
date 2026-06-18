@@ -125,16 +125,23 @@ export function webSaveSamples(samples: Sample[]): void {
   try {
     const stored = samples.map(s => ({
       ...s,
-      photoUri: s.photoUri.map(u => u.startsWith('data:') ? compressDataUrl(u) : u),
+      photoUri: (Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : [])).map(
+        u => u?.startsWith('data:') ? compressDataUrl(u) : u
+      ),
     }))
     localStorage.setItem('caliza_samples', JSON.stringify(stored))
-  } catch {}
+  } catch (e) { console.warn('webSaveSamples error:', e) }
 }
 
 export function webLoadSamples(): Sample[] {
   try {
     const data = localStorage.getItem('caliza_samples')
-    return data ? JSON.parse(data) : []
+    if (!data) return []
+    const parsed = JSON.parse(data)
+    return parsed.map((s: any) => ({
+      ...s,
+      photoUri: Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : []),
+    }))
   } catch { return [] }
 }
 
