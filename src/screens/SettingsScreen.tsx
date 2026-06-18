@@ -156,12 +156,16 @@ export function SettingsScreen({ navigation }: any) {
       })),
       total: samples.length,
     }, null, 2)
-    const w = window.open('', '_blank')
-    if (w) {
-      w.document.write(`<pre>${json}</pre>`)
-      w.document.title = `caliza_${Date.now()}.json`
-      w.document.close()
-    }
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `caliza_${Date.now()}.json`
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   const formatBytes = (bytes: number) => {
