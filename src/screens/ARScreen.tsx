@@ -72,6 +72,22 @@ if (isWeb) {
   } catch {}
 }
 
+// Smooth heading with exponential moving average
+let smoothedHeading = 0
+let headingInitialized = false
+function smoothHeading(raw: number, alpha = 0.25): number {
+  if (!headingInitialized) {
+    smoothedHeading = raw
+    headingInitialized = true
+    return raw
+  }
+  let diff = raw - smoothedHeading
+  if (diff > 180) diff -= 360
+  if (diff < -180) diff += 360
+  smoothedHeading = ((smoothedHeading + diff * alpha) % 360 + 360) % 360
+  return smoothedHeading
+}
+
 interface ARTarget {
   id: string
   name: string
@@ -133,7 +149,7 @@ export function ARScreen() {
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
-          if (pos.coords.heading != null && pos.coords.heading > 0) setHeading(pos.coords.heading)
+          if (pos.coords.heading != null && pos.coords.heading > 0) setHeading(smoothHeading(pos.coords.heading))
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0 },
@@ -142,7 +158,7 @@ export function ARScreen() {
     let sensor: any = null
     const handleOrientation = (e: DeviceOrientationEvent) => {
       const deg = (e as any).webkitCompassHeading ?? e.alpha
-      if (deg != null && deg > 0) setHeading(deg)
+      if (deg != null && deg > 0) setHeading(smoothHeading(deg))
     }
     const requestOrientation = () => {
       const api = (window as any).DeviceOrientationEvent
@@ -159,14 +175,14 @@ export function ARScreen() {
     try {
       const Sensor = (window as any).AbsoluteOrientationSensor
       if (Sensor) {
-        sensor = new Sensor({ frequency: 30 })
+        sensor = new Sensor({ frequency: 10 })
         sensor.addEventListener('reading', () => {
           if (!sensor?.quaternion) return
           const q = sensor.quaternion // [x, y, z, w]
           const siny = 2 * (q[3] * q[2] + q[0] * q[1])
           const cosy = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
           const h = Math.atan2(siny, cosy) * 180 / Math.PI
-          setHeading((h + 360) % 360)
+          setHeading(smoothHeading((h + 360) % 360))
         })
         sensor.start()
       }
