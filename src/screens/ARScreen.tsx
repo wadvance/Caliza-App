@@ -213,16 +213,26 @@ export function ARScreen() {
 
           {selectedTarget && (
             <View style={styles.targetDetail}>
-              <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
-              <Text style={styles.detailText}>
-                Distancia: {formatDistance(selectedTarget.distance)}
-              </Text>
-              <Text style={styles.detailText}>
-                Rumbo: {selectedTarget.bearing.toFixed(1)}°
-              </Text>
-              <Text style={styles.detailText}>
-                Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ width: 100, height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                  {isWeb
+                    ? React.createElement('span', {
+                        style: { display: 'inline-block', fontSize: 60, transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
+                      }, '▲')
+                    : <Text style={{ fontSize: 60, color: COLORS.highlight, transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }] }}>▲</Text>
+                  }
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
+                  <Text style={styles.detailText}>
+                    {formatDistance(selectedTarget.distance)} · {selectedTarget.bearing.toFixed(0)}°
+                  </Text>
+                  <Text style={[styles.detailText, { fontSize: 12 }]}>
+                    Gira {(selectedTarget.bearing - heading + 360) % 360 > 180 ? 'izquierda' : 'derecha'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.detailText}>Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}</Text>
               {clickEl(() => setSelectedTarget(null), styles.closeDetail,
                 React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar')
               )}
