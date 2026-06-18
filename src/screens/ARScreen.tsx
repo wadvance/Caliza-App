@@ -11,31 +11,30 @@ const isWeb = Platform.OS === 'web'
 let CameraView: any = View
 if (isWeb) {
   const WebCam = ({ children, style }: any) => {
+    const containerRef = useRef<any>(null)
     useEffect(() => {
-      // Inject style to make root transparent so video behind it shows through
-      const styleEl = document.createElement('style')
-      styleEl.textContent = '#root,body{background:transparent!important}'
-      document.head.appendChild(styleEl)
-
+      const el = containerRef.current
+      if (!el) return
+      // make the background transparent so video shows
+      el.style.backgroundColor = 'transparent'
       const video = document.createElement('video')
       video.setAttribute('autoplay', '')
       video.setAttribute('playsinline', '')
-      video.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none'
-      document.body.prepend(video)
-
+      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;border-radius:inherit'
+      el.style.position = 'relative'
+      el.style.overflow = 'hidden'
+      el.prepend(video)
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
         .then(stream => { video.srcObject = stream })
         .catch(() => { video.style.display = 'none' })
-
       return () => {
         if (video.srcObject) (video.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         video.remove()
-        styleEl.remove()
       }
     }, [])
-    return <View style={[{ backgroundColor: 'transparent' }, style]}>{children}</View>
+    return <View ref={containerRef} style={[{ backgroundColor: '#000' }, style]}>{children}</View>
   }
   CameraView = WebCam
 } else {
