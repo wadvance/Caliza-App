@@ -15,6 +15,10 @@ if (isWeb) {
     const [error, setError] = useState('')
     const startCam = () => {
       if (started) return
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Tu navegador no soporta la cámara. Usa Chrome o Safari.')
+        return
+      }
       setStarted(true)
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -34,7 +38,10 @@ if (isWeb) {
           if (root) root.style.background = 'transparent'
         })
         .catch((err) => {
-          setError(err.message || 'Error al iniciar cámara')
+          const msg = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
+            ? 'Permiso de cámara denegado. Toca el candado (🔒) en la barra de direcciones → Cámara → Permitir, y recarga.'
+            : err.message || 'Error al iniciar cámara'
+          setError(msg)
           setStarted(false)
         })
     }
