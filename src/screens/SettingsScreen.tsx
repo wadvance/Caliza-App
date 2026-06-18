@@ -69,6 +69,23 @@ export function SettingsScreen({ navigation }: any) {
     loadStatus()
   }
 
+  const handleClearAllSamples = () => {
+    const doDelete = () => {
+      webSaveSamples([])
+      setSamples([])
+      if (Platform.OS === 'web') window.alert('Todas las muestras fueron borradas')
+      else Alert.alert('Listo', 'Todas las muestras fueron borradas')
+    }
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Eliminar TODAS las muestras? No se puede deshacer.')) doDelete()
+    } else {
+      Alert.alert('Borrar todas las muestras', '¿Eliminar todas las muestras?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Borrar todo', style: 'destructive', onPress: doDelete },
+      ])
+    }
+  }
+
   const handleClearSamplesWithoutPhotos = () => {
     const doDelete = () => {
       const removed = samples.filter(s => !s.photoUri?.length)
@@ -252,6 +269,9 @@ export function SettingsScreen({ navigation }: any) {
         </TouchableOpacity>
         <TouchableOpacity style={[styles.dangerBtn, { borderColor: COLORS.warning, marginTop: 8 }]} onPress={handleClearSamplesWithoutPhotos}>
           <Text style={[styles.dangerBtnText, { color: COLORS.warning }]}>Borrar muestras sin foto</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.dangerBtn, { borderColor: COLORS.danger }]} onPress={handleClearAllSamples}>
+          <Text style={styles.dangerBtnText}>Borrar TODAS las muestras</Text>
         </TouchableOpacity>
       </View>
 
