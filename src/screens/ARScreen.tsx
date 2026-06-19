@@ -237,22 +237,8 @@ export function ARScreen() {
             </View>
           </View>
 
-          {targets.length > 0 && !selectedTarget && (
-            <View style={{ position: 'absolute', top: '35%', left: 0, right: 0, alignItems: 'center' }}>
-              <View style={{ alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 60, padding: 16, width: 130, height: 130, justifyContent: 'center' }}>
-                {isWeb
-                  ? React.createElement('span', {
-                      style: { display: 'inline-block', fontSize: 50, transform: `rotate(${(targets[0].bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
-                    }, '▲')
-                  : React.createElement(Text, { style: { fontSize: 50, color: COLORS.highlight, transform: [{ rotate: `${(targets[0].bearing - heading + 360) % 360}deg` }] } }, '▲')
-                }
-                <Text style={{ color: '#fff', fontSize: 13, marginTop: 4 }}>{dirLabel(targets[0].bearing)}</Text>
-              </View>
-            </View>
-          )}
-
           <View style={styles.targetsContainer}>
-            {targets.slice(0, 5).map(target => (
+            {targets.length > 0 && targets.slice(0, 5).map(target => (
               clickEl(() => setSelectedTarget(target),
                 [styles.targetCard, { borderLeftColor: target.color }],
                 [React.createElement(View, { style: styles.targetInfo, key: 'info' },
