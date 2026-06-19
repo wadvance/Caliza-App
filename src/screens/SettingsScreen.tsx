@@ -61,14 +61,13 @@ export function SettingsScreen({ navigation }: any) {
     try {
       await downloadMapRegion(region)
       loadStatus()
-      Alert.alert(
-        'Mapa descargado',
-        'El área ha sido guardada. Revisa el mapa para ver la zona descargada.',
-        Platform.OS === 'web'
-          ? [{ text: 'Ir al mapa', onPress: () => navigation.navigate('Mapa', { screen: 'MapMain' } as any) },
-             { text: 'Cerrar' }]
-          : [{ text: 'OK' }],
-      )
+      if (Platform.OS === 'web') {
+        if (window.confirm('Mapa del área guardado. ¿Abrir el mapa ahora?')) {
+          navigation.navigate('Mapa', { screen: 'MapMain' } as any)
+        }
+      } else {
+        Alert.alert('Éxito', 'Mapas descargados para uso offline')
+      }
     } catch (err) {
       Alert.alert('Error', 'No se pudieron descargar los mapas')
     } finally {
