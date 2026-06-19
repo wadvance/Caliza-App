@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
 import { COLORS } from '../types/constants'
 
 const STEPS = [
@@ -54,9 +54,12 @@ const STEPS = [
   },
 ]
 
-export function WorkflowGuideScreen() {
+export function WorkflowGuideScreen({ navigation }: any) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Text style={styles.backBtnText}>← Atrás</Text>
+      </TouchableOpacity>
       <View style={styles.header}>
         <Text style={styles.emoji}>⛰️</Text>
         <Text style={styles.title}>Flujo de trabajo en campo</Text>
@@ -91,6 +94,17 @@ export function WorkflowGuideScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  backBtn: {
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    zIndex: 100,
+    backgroundColor: COLORS.surfaceLight,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  backBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   content: { paddingBottom: 40 },
   header: {
     alignItems: 'center',
