@@ -226,15 +226,54 @@ export function ARScreen() {
           </View>
 
           <View style={styles.compass}>
-            <Text style={styles.compassText}>{heading.toFixed(1)}°</Text>
-            <View style={[styles.compassArrow]}>
+            <View style={styles.compassCircle}>
               {isWeb
-                ? React.createElement('span', {
-                    style: { display: 'inline-block', transform: `rotate(${heading}deg)`, color: COLORS.highlight, fontSize: 20 }
-                  }, '▲')
-                : <Text style={styles.arrowUp}>▲</Text>
+                ? React.createElement('div', {
+                    style: { width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+                  }, [
+                    React.createElement('span', { key:'n', style:{position:'absolute',top:3,color:'#fff',fontSize:10,fontWeight:'700',lineHeight:'10px'} }, 'N'),
+                    React.createElement('span', { key:'e', style:{position:'absolute',right:4,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'E'),
+                    React.createElement('span', { key:'s', style:{position:'absolute',bottom:3,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'S'),
+                    React.createElement('span', { key:'w', style:{position:'absolute',left:4,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'W'),
+                    React.createElement('div', {
+                      key:'ndl',
+                      style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
+                    }, [
+                      React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
+                      React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
+                    ]),
+                    React.createElement('div', { key:'ct', style:{position:'absolute',width:5,height:5,borderRadius:'50%',backgroundColor:'#fff'} }),
+                    ...(selectedTarget ? [React.createElement('div', {
+                      key:'mk',
+                      style:{
+                        position:'absolute',top:'50%',left:'50%',
+                        width:0,height:0,
+                        borderLeft:'3px solid transparent',
+                        borderRight:'3px solid transparent',
+                        borderTop:`5px solid ${COLORS.highlight}`,
+                        transform:`translate(-50%,-50%) rotate(${selectedTarget.bearing}deg) translateY(-23px)`,
+                      }
+                    })] : []),
+                  ])
+                : (
+                  <View style={{ width:'100%',height:'100%',alignItems:'center',justifyContent:'center' }}>
+                    <Text style={{position:'absolute',top:3,color:'#fff',fontSize:10,fontWeight:'700'}}>N</Text>
+                    <Text style={{position:'absolute',right:4,color:'rgba(255,255,255,0.4)',fontSize:8}}>E</Text>
+                    <Text style={{position:'absolute',bottom:3,color:'rgba(255,255,255,0.4)',fontSize:8}}>S</Text>
+                    <Text style={{position:'absolute',left:4,color:'rgba(255,255,255,0.4)',fontSize:8}}>W</Text>
+                    <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
+                      <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
+                      <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
+                    </View>
+                    <View style={{position:'absolute',width:5,height:5,borderRadius:2.5,backgroundColor:'#fff'}} />
+                    {selectedTarget && (
+                      <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,borderLeftWidth:3,borderLeftColor:'transparent',borderRightWidth:3,borderRightColor:'transparent',borderTopWidth:5,borderTopColor:COLORS.highlight,transform:[{translateX:-3},{translateY:-26},{rotate:`${selectedTarget.bearing}deg`}]}} />
+                    )}
+                  </View>
+                )
               }
             </View>
+            <Text style={styles.compassText}>{heading.toFixed(0)}°</Text>
           </View>
 
           <View style={styles.targetsContainer}>
@@ -332,9 +371,16 @@ const styles = StyleSheet.create({
     right: 20,
     alignItems: 'center',
   },
-  compassText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  compassArrow: { marginTop: -4 },
-  arrowUp: { color: COLORS.highlight, fontSize: 20 },
+  compassCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    overflow: 'hidden',
+  },
+  compassText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
   targetsContainer: { padding: 16, gap: 8 },
   targetCard: {
     flexDirection: 'row',
