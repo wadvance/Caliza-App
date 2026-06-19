@@ -161,19 +161,27 @@ async function fetchAndCacheTile(url: string): Promise<void> {
       const resp = await fetch(url)
       if (resp.ok) await cache.put(url, resp.clone())
     } catch {}
-    return
+  } else {
+    try {
+      const resp = await fetch(url)
+      if (!resp.ok) return
+      const blob = await resp.blob()
+      const reader = new FileReader()
+      const b64 = await new Promise<string>(resolve => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(blob)
+      })
+      const key = `geocaliza_tile_${url.replace(/[^a-z0-9]/g, '_')}`
+      localStorage.setItem(key, b64)
+    } catch {}
   }
+  preloadTileImage(url)
+}
+
+function preloadTileImage(url: string): void {
   try {
-    const resp = await fetch(url)
-    if (!resp.ok) return
-    const blob = await resp.blob()
-    const reader = new FileReader()
-    const b64 = await new Promise<string>(resolve => {
-      reader.onload = () => resolve(reader.result as string)
-      reader.readAsDataURL(blob)
-    })
-    const key = `geocaliza_tile_${url.replace(/[^a-z0-9]/g, '_')}`
-    localStorage.setItem(key, b64)
+    const img = new Image()
+    img.src = url
   } catch {}
 }
 
