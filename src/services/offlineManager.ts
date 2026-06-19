@@ -40,7 +40,10 @@ export async function initOfflineStorage(): Promise<void> {
 }
 
 export async function getCacheSize(): Promise<{ total: number; maps: number; photos: number }> {
-  if (!FileSystem || isWeb) return { total: 0, maps: 0, photos: 0 }
+  if (isWeb) {
+    return getWebCacheSize()
+  }
+  if (!FileSystem) return { total: 0, maps: 0, photos: 0 }
 
   const getDirSize = async (dir: string): Promise<number> => {
     try {
@@ -65,12 +68,29 @@ export async function getCacheSize(): Promise<{ total: number; maps: number; pho
   }
 }
 
+function getWebCacheSize(): { total: number; maps: number; photos: number } {
+  let maps = 0; let total = 0
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k) continue
+      const size = localStorage.getItem(k)?.length ?? 0
+      total += size
+      if (k.startsWith('geocaliza_map_')) maps += size
+    }
+  } catch {}
+  return { total, maps, photos: 0 }
+}
+
 export async function downloadMapRegion(
   region: { latMin: number; latMax: number; lonMin: number; lonMax: number },
   zoomLevels: number[] = [10, 12, 14],
   onProgress?: (progress: number) => void,
 ): Promise<void> {
-  if (!FileSystem || isWeb) return
+  if (isWeb) {
+    return downloadMapRegionWeb(region, zoomLevels, onProgress)
+  }
+  if (!FileSystem) return
 
   const totalTiles = zoomLevels.length * 100
   let completed = 0
@@ -92,6 +112,23 @@ export async function downloadMapRegion(
   await setSetting('map_download_region', JSON.stringify(region))
 }
 
+async function downloadMapRegionWeb(
+  region: { latMin: number; latMax: number; lonMin: number; lonMax: number },
+  zoomLevels: number[],
+  onProgress?: (progress: number) => void,
+): Promise<void> {
+  const prefix = `geocaliza_map_`
+  for (let i = 0; i < zoomLevels.length; i++) {
+    const zoom = zoomLevels[i]
+    const key = `${prefix}zoom_${zoom}_${region.latMin.toFixed(2)}_${region.lonMin.toFixed(2)}`
+    const data = { region, zoom, timestamp: Date.now(), tiles: generateTileUrls(region, zoom) }
+    try { localStorage.setItem(key, JSON.stringify(data)) } catch {}
+    onProgress?.((i + 1) / zoomLevels.length)
+  }
+  await setSetting('last_map_download', Date.now().toString())
+  await setSetting('map_download_region', JSON.stringify(region))
+}
+
 function generateTileUrls(
   region: { latMin: number; latMax: number; lonMin: number; lonMax: number },
   zoom: number,
@@ -106,7 +143,12 @@ function generateTileUrls(
 }
 
 export async function hasMapRegion(region: { latMin: number; latMax: number; lonMin: number; lonMax: number }): Promise<boolean> {
-  if (!FileSystem || isWeb) return false
+  if (isWeb) {
+    const prefix = `geocaliza_map_`
+    const key = `${prefix}zoom_10_${region.latMin.toFixed(2)}_${region.lonMin.toFixed(2)}`
+    try { return localStorage.getItem(key) !== null } catch { return false }
+  }
+  if (!FileSystem) return false
   try {
     const files = await FileSystem.readDirectoryAsync(MAP_CACHE_DIR)
     return files.some(f =>
