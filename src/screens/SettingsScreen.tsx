@@ -51,16 +51,21 @@ export function SettingsScreen({ navigation }: any) {
       Alert.alert('Error', 'No hay ubicación disponible. Activa el GPS o espera unos segundos.')
       return
     }
+    const region = {
+      latMin: loc.latitude - 0.1,
+      latMax: loc.latitude + 0.1,
+      lonMin: loc.longitude - 0.1,
+      lonMax: loc.longitude + 0.1,
+    }
     setDownloading(true)
     try {
-      await downloadMapRegion({
-        latMin: loc.latitude - 0.1,
-        latMax: loc.latitude + 0.1,
-        lonMin: loc.longitude - 0.1,
-        lonMax: loc.longitude + 0.1,
-      })
-      Alert.alert('Éxito', 'Mapas descargados para uso offline')
+      await downloadMapRegion(region)
       loadStatus()
+      if (Platform.OS === 'web') {
+        navigation.navigate('Mapa', { screen: 'MapMain', params: { region } } as any)
+      } else {
+        Alert.alert('Éxito', 'Mapas descargados para uso offline')
+      }
     } catch (err) {
       Alert.alert('Error', 'No se pudieron descargar los mapas')
     } finally {

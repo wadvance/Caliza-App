@@ -76,7 +76,7 @@ function getWebCacheSize(): { total: number; maps: number; photos: number } {
       if (!k) continue
       const size = localStorage.getItem(k)?.length ?? 0
       total += size
-      if (k.startsWith('geocaliza_map_') || k.startsWith('geocaliza_tile_')) maps += size
+      if (k.startsWith('geocaliza_map_')) maps += size
     }
   } catch {}
   return { total, maps, photos: 0 }
@@ -118,93 +118,12 @@ async function downloadMapRegionWeb(
   onProgress?: (progress: number) => void,
 ): Promise<void> {
   const prefix = `geocaliza_map_`
-  let totalFetched = 0
-  let totalTiles = 0
-  for (const z of zoomLevels) {
-    const { xMin, xMax, yMin, yMax } = tileBounds(region, z)
-    totalTiles += (xMax - xMin + 1) * (yMax - yMin + 1)
-  }
-
-  for (let i = 0; i < zoomLevels.length; i++) {
-    const zoom = zoomLevels[i]
-    const { xMin, xMax, yMin, yMax } = tileBounds(region, zoom)
-    const urls: string[] = []
-
-    for (let x = xMin; x <= xMax; x++) {
-      for (let y = yMin; y <= yMax; y++) {
-        urls.push(`https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`)
-      }
-    }
-
-    for (const url of urls) {
-      try {
-        await fetchAndCacheTile(url)
-      } catch {}
-      totalFetched++
-      onProgress?.(totalFetched / totalTiles)
-    }
-
-    const metaKey = `${prefix}zoom_${zoom}_${region.latMin.toFixed(2)}_${region.lonMin.toFixed(2)}`
-    const data = { region, zoom, timestamp: Date.now(), tiles: urls }
-    try { localStorage.setItem(metaKey, JSON.stringify(data)) } catch {}
-  }
+  const zoom = zoomLevels[0]
+  const metaKey = `${prefix}zoom_${zoom}_${region.latMin.toFixed(2)}_${region.lonMin.toFixed(2)}`
+  const data = { region, zoom, timestamp: Date.now() }
+  try { localStorage.setItem(metaKey, JSON.stringify(data)) } catch {}
   await setSetting('last_map_download', Date.now().toString())
   await setSetting('map_download_region', JSON.stringify(region))
-}
-
-async function fetchAndCacheTile(url: string): Promise<void> {
-  if (typeof caches !== 'undefined') {
-    const cache = await caches.open('geocaliza-map-tiles')
-    const cached = await cache.match(url)
-    if (cached) return
-    try {
-      const resp = await fetch(url)
-      if (resp.ok) await cache.put(url, resp.clone())
-    } catch {}
-  } else {
-    try {
-      const resp = await fetch(url)
-      if (!resp.ok) return
-      const blob = await resp.blob()
-      const reader = new FileReader()
-      const b64 = await new Promise<string>(resolve => {
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(blob)
-      })
-      const key = `geocaliza_tile_${url.replace(/[^a-z0-9]/g, '_')}`
-      localStorage.setItem(key, b64)
-    } catch {}
-  }
-  preloadTileImage(url)
-}
-
-function preloadTileImage(url: string): void {
-  try {
-    const img = new Image()
-    img.src = url
-  } catch {}
-}
-
-function latLonToTile(lat: number, lon: number, zoom: number): { x: number; y: number } {
-  const n = Math.pow(2, zoom)
-  const latRad = lat * Math.PI / 180
-  const x = Math.floor((lon + 180) / 360 * n)
-  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n)
-  return { x, y }
-}
-
-function tileBounds(
-  region: { latMin: number; latMax: number; lonMin: number; lonMax: number },
-  zoom: number,
-): { xMin: number; xMax: number; yMin: number; yMax: number } {
-  const nw = latLonToTile(region.latMax, region.lonMin, zoom)
-  const se = latLonToTile(region.latMin, region.lonMax, zoom)
-  return {
-    xMin: Math.min(nw.x, se.x),
-    xMax: Math.max(nw.x, se.x),
-    yMin: Math.min(nw.y, se.y),
-    yMax: Math.max(nw.y, se.y),
-  }
 }
 
 export async function hasMapRegion(region: { latMin: number; latMax: number; lonMin: number; lonMax: number }): Promise<boolean> {
@@ -253,10 +172,9 @@ export async function clearCache(): Promise<void> {
   if (isWeb) {
     try {
       Object.keys(localStorage).forEach(k => {
-        if (!k.startsWith('caliza_')) localStorage.removeItem(k)
+        if (k.startsWith('geocaliza_map_') || k.startsWith('geocaliza_tile_')) localStorage.removeItem(k)
       })
     } catch {}
-    try { caches.delete('geocaliza-map-tiles') } catch {}
     return
   }
   if (!FileSystem) return
