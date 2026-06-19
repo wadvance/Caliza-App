@@ -41,7 +41,7 @@ export async function initOfflineStorage(): Promise<void> {
 
 export async function getCacheSize(): Promise<{ total: number; maps: number; photos: number }> {
   if (isWeb) {
-    return getWebCacheSize()
+    return await getWebCacheSize()
   }
   if (!FileSystem) return { total: 0, maps: 0, photos: 0 }
 
@@ -68,7 +68,7 @@ export async function getCacheSize(): Promise<{ total: number; maps: number; pho
   }
 }
 
-function getWebCacheSize(): { total: number; maps: number; photos: number } {
+async function getWebCacheSize(): Promise<{ total: number; maps: number; photos: number }> {
   let maps = 0; let total = 0
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -79,6 +79,21 @@ function getWebCacheSize(): { total: number; maps: number; photos: number } {
       if (k.startsWith('geocaliza_map_')) maps += size
     }
   } catch {}
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open('geocaliza-tiles-v1')
+      const keys = await cache.keys()
+      for (const req of keys) {
+        const res = await cache.match(req)
+        if (res) {
+          const blob = await res.blob()
+          const size = blob.size
+          maps += size
+          total += size
+        }
+      }
+    } catch {}
+  }
   return { total, maps, photos: 0 }
 }
 
@@ -117,13 +132,64 @@ async function downloadMapRegionWeb(
   zoomLevels: number[],
   onProgress?: (progress: number) => void,
 ): Promise<void> {
+  const tileUrls: string[] = []
+  for (const zoom of zoomLevels) {
+    const xMin = lonToTileX(region.lonMin, zoom)
+    const xMax = lonToTileX(region.lonMax, zoom)
+    const yMin = latToTileY(region.latMax, zoom)
+    const yMax = latToTileY(region.latMin, zoom)
+    for (let x = xMin; x <= xMax; x++) {
+      for (let y = yMin; y <= yMax; y++) {
+        tileUrls.push(`https://a.basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${x}/${y}.png`)
+      }
+    }
+  }
+
+  let completed = 0
+  const total = tileUrls.length
+
+  if (total === 0) {
+    onProgress?.(1)
+    return
+  }
+
+  const cache = typeof caches !== 'undefined' ? await caches.open('geocaliza-tiles-v1').catch(() => null) : null
+
+  const batchSize = 8
+  for (let i = 0; i < tileUrls.length; i += batchSize) {
+    const batch = tileUrls.slice(i, i + batchSize)
+    await Promise.all(batch.map(async (url) => {
+      if (cache) {
+        const existing = await cache.match(url)
+        if (existing) { completed++; return }
+      }
+      try {
+        const res = await fetch(url)
+        if (res.ok && cache) {
+          await cache.put(url, res.clone())
+        }
+        res.body?.cancel()
+      } catch {}
+      completed++
+    }))
+    onProgress?.(completed / total)
+  }
+
   const prefix = `geocaliza_map_`
   const zoom = zoomLevels[0]
   const metaKey = `${prefix}zoom_${zoom}_${region.latMin.toFixed(2)}_${region.lonMin.toFixed(2)}`
-  const data = { region, zoom, timestamp: Date.now() }
+  const data = { region, zoom, timestamp: Date.now(), tileCount: total }
   try { localStorage.setItem(metaKey, JSON.stringify(data)) } catch {}
   await setSetting('last_map_download', Date.now().toString())
   await setSetting('map_download_region', JSON.stringify(region))
+}
+
+function lonToTileX(lon: number, zoom: number): number {
+  return Math.floor((lon + 180) / 360 * Math.pow(2, zoom))
+}
+
+function latToTileY(lat: number, zoom: number): number {
+  return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom))
 }
 
 export async function hasMapRegion(region: { latMin: number; latMax: number; lonMin: number; lonMax: number }): Promise<boolean> {
@@ -175,6 +241,9 @@ export async function clearCache(): Promise<void> {
         if (k.startsWith('geocaliza_map_') || k.startsWith('geocaliza_tile_')) localStorage.removeItem(k)
       })
     } catch {}
+    if (typeof caches !== 'undefined') {
+      try { await caches.delete('geocaliza-tiles-v1') } catch {}
+    }
     return
   }
   if (!FileSystem) return

@@ -149,6 +149,8 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     `
   }).join('\n')
 
+  const tileUrl = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -169,17 +171,43 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
 <body>
 <div id="map"></div>
 <script>
+  ;(function() {
+    var origLoadTile = L.TileLayer.prototype._loadTile;
+    L.TileLayer.prototype._loadTile = function(tile, tilePoint) {
+      tile._layer = this;
+      tile._tilePoint = tilePoint;
+      this._adjustTilePoint(tilePoint);
+      var src = this.getTileUrl(tilePoint);
+      this.fire('tileloadstart', { tile: tile, url: src });
+      if (typeof caches !== 'undefined') {
+        caches.open('geocaliza-tiles-v1').then(function(cache) {
+          cache.match(src).then(function(response) {
+            if (response) {
+              response.blob().then(function(blob) {
+                tile.src = URL.createObjectURL(blob);
+              });
+            } else {
+              tile.src = src;
+            }
+          });
+        }).catch(function() {
+          tile.src = src;
+        });
+      } else {
+        tile.src = src;
+      }
+    };
+  })();
   var map = L.map('map', {
     center: [${center[0]}, ${center[1]}],
     zoom: ${zoom},
     zoomControl: true,
     attributionControl: true,
   });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('${tileUrl}', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
   }).addTo(map);
-
   ${markerScript}
   ${polygonScript}
   ${polylineScript}

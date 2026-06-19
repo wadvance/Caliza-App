@@ -16,6 +16,7 @@ export function SettingsScreen({ navigation }: any) {
   const [lastSync, setLastSync] = useState<number | null>(null)
   const [pendingSamples, setPendingSamples] = useState(0)
   const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
@@ -58,8 +59,9 @@ export function SettingsScreen({ navigation }: any) {
       lonMax: loc.longitude + 0.1,
     }
     setDownloading(true)
+    setDownloadProgress(0)
     try {
-      await downloadMapRegion(region)
+      await downloadMapRegion(region, [10, 12, 14], (p) => setDownloadProgress(p))
       loadStatus()
       if (Platform.OS === 'web') {
         if (window.confirm('Mapa del área guardado. ¿Abrir el mapa ahora?')) {
@@ -72,6 +74,7 @@ export function SettingsScreen({ navigation }: any) {
       Alert.alert('Error', 'No se pudieron descargar los mapas')
     } finally {
       setDownloading(false)
+      setDownloadProgress(0)
     }
   }
 
@@ -236,7 +239,10 @@ export function SettingsScreen({ navigation }: any) {
           disabled={downloading}
         >
           {downloading ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.actionBtnText}>{Math.round(downloadProgress * 100)}%</Text>
+            </View>
           ) : (
             <Text style={styles.actionBtnText}>Descargar mapas del área</Text>
           )}
