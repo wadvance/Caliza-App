@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
-import { webSaveSamples, webLoadSamples, getAllSamples } from '../services/database'
+import { webSaveSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
@@ -105,43 +105,6 @@ export function SettingsScreen({ navigation }: any) {
       Alert.alert('Borrar todas las muestras', '¿Eliminar todas las muestras?', [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Borrar todo', style: 'destructive', onPress: doDelete },
-      ])
-    }
-  }
-
-  const handleClearSamplesWithoutPhotos = () => {
-    const doDelete = async () => {
-      let current = samples
-      if (current.length === 0) {
-        const loaded = Platform.OS === 'web' ? webLoadSamples() : await getAllSamples()
-        if (loaded.length > 0) { setSamples(loaded); current = loaded }
-      }
-      const removed = current.filter(s => !s.photoUri?.length && !(s as any).photoCount)
-      if (removed.length === 0) {
-        if (Platform.OS === 'web') {
-          const info = current.map((s,i) => `#${i+1} uris=${s.photoUri?.length??0}`).join('\n')
-          window.alert(`Store: ${current.length} muestras\nNinguna sin foto:\n${info}`)
-        } else {
-          Alert.alert('Sin cambios', 'No hay muestras sin foto')
-        }
-        return
-      }
-      const kept = current.filter(s => s.photoUri?.length > 0 || (s as any).photoCount > 0)
-      webSaveSamples(kept)
-      setSamples(kept)
-      if (Platform.OS === 'web') {
-        const ids = kept.map(s => s.id.slice(-6)).join(', ')
-        window.alert(`${removed.length} borradas, ${kept.length} quedan\nIDs: ${ids}`)
-      } else {
-        Alert.alert('Listo', `${removed.length} muestras sin foto fueron borradas`)
-      }
-    }
-    if (Platform.OS === 'web') {
-      if (window.confirm('¿Eliminar todas las muestras sin foto? No se puede deshacer.')) doDelete()
-    } else {
-      Alert.alert('Borrar muestras sin foto', '¿Eliminar todas las muestras sin foto?', [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Borrar', style: 'destructive', onPress: doDelete },
       ])
     }
   }
@@ -315,9 +278,6 @@ export function SettingsScreen({ navigation }: any) {
         </View>
         <TouchableOpacity style={styles.dangerBtn} onPress={handleClearCache}>
           <Text style={styles.dangerBtnText}>Limpiar caché</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.dangerBtn, { borderColor: COLORS.warning, marginTop: 8 }]} onPress={handleClearSamplesWithoutPhotos}>
-          <Text style={[styles.dangerBtnText, { color: COLORS.warning }]}>Borrar muestras sin foto</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.dangerBtn, { borderColor: COLORS.danger }]} onPress={handleClearAllSamples}>
           <Text style={styles.dangerBtnText}>Borrar TODAS las muestras</Text>

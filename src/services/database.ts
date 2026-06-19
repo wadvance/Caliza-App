@@ -124,9 +124,7 @@ function compressDataUrl(dataUrl: string, maxW = 400, quality = 0.6): string {
 export function webSaveSamples(samples: Sample[]): void {
   const stored = samples.map(s => ({
     ...s,
-    photoUri: (Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : [])).map(
-      u => u?.startsWith('data:') ? compressDataUrl(u) : u
-    ),
+    photoUri: Array.isArray(s.photoUri) ? s.photoUri : (s.photoUri ? [s.photoUri] : []),
   }))
   try {
     localStorage.setItem('caliza_samples', JSON.stringify(stored))
@@ -336,6 +334,15 @@ export async function getSyncQueue(): Promise<SyncQueueItem[]> {
 export async function removeFromSyncQueue(id: string): Promise<void> {
   if (!db) return
   await db.runAsync('DELETE FROM sync_queue WHERE id = ?', [id])
+}
+
+export async function deleteSample(id: string): Promise<void> {
+  if (!db) {
+    const samples = webLoadSamples()
+    webSaveSamples(samples.filter(s => s.id !== id))
+    return
+  }
+  await db.runAsync('DELETE FROM samples WHERE id = ?', [id])
 }
 
 export async function clearSyncQueue(): Promise<void> {
