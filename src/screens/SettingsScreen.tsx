@@ -10,7 +10,7 @@ import { isAuthenticated, getUser, logout as authLogout } from '../services/auth
 
 export function SettingsScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
-  const { samples, syncStatus, isOffline, setIsOffline, setAuth, setSamples } = useAppStore()
+  const { samples, syncStatus, isOffline, setIsOffline, setAuth, setSamples, setSyncStatus } = useAppStore()
   const [cacheSize, setCacheSize] = useState({ total: 0, maps: 0, photos: 0 })
   const [lastMapDownload, setLastMapDownload] = useState<number | null>(null)
   const [lastSync, setLastSync] = useState<number | null>(null)
@@ -22,6 +22,7 @@ export function SettingsScreen({ navigation }: any) {
     loadStatus()
     const unsub = onSyncStatus(status => {
       setSyncing(status.syncing)
+      setSyncStatus(status)
     })
     checkConnectivity()
     return unsub
@@ -67,6 +68,14 @@ export function SettingsScreen({ navigation }: any) {
     setSyncing(true)
     await syncNow()
     loadStatus()
+    const { error, lastSync } = useAppStore.getState().syncStatus
+    if (error) {
+      if (Platform.OS === 'web') window.alert(error)
+      else Alert.alert('Error de sincronización', error)
+    } else if (lastSync) {
+      if (Platform.OS === 'web') window.alert('Sincronización completada')
+      else Alert.alert('Sincronización', 'Completada exitosamente')
+    }
   }
 
   const handleClearAllSamples = () => {
