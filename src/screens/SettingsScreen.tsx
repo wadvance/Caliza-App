@@ -5,7 +5,7 @@ import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCach
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
 import { webSaveSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
-import { useCurrentLocation } from '../services/locationService'
+import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
 
 export function SettingsScreen({ navigation }: any) {
@@ -43,17 +43,21 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   const handleDownloadMaps = async () => {
-    if (!currentLocation) {
-      Alert.alert('Error', 'No hay ubicación disponible')
+    let loc = currentLocation
+    if (!loc) {
+      try { loc = await getCurrentLocation() } catch {}
+    }
+    if (!loc) {
+      Alert.alert('Error', 'No hay ubicación disponible. Activa el GPS o espera unos segundos.')
       return
     }
     setDownloading(true)
     try {
       await downloadMapRegion({
-        latMin: currentLocation.latitude - 0.1,
-        latMax: currentLocation.latitude + 0.1,
-        lonMin: currentLocation.longitude - 0.1,
-        lonMax: currentLocation.longitude + 0.1,
+        latMin: loc.latitude - 0.1,
+        latMax: loc.latitude + 0.1,
+        lonMin: loc.longitude - 0.1,
+        lonMax: loc.longitude + 0.1,
       })
       Alert.alert('Éxito', 'Mapas descargados para uso offline')
       loadStatus()
