@@ -146,43 +146,46 @@ export function ARScreen() {
   useEffect(() => {
     if (!isWeb) return
     let watchId: number | null = null
+    let sensor: any = null
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      const deg = (e as any).webkitCompassHeading ?? e.alpha
+      if (deg != null && deg >= 0) setHeading(smoothHeading(deg))
+    }
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
-          if (pos.coords.heading != null && pos.coords.heading > 0) setHeading(smoothHeading(pos.coords.heading))
+          if (pos.coords.heading != null && pos.coords.heading >= 0) setHeading(smoothHeading(pos.coords.heading))
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0 },
       )
     }
-    let sensor: any = null
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const deg = (e as any).webkitCompassHeading ?? e.alpha
-      if (deg != null && deg > 0) setHeading(smoothHeading(deg))
-    }
     const requestOrientation = () => {
       const api = (window as any).DeviceOrientationEvent
       if (api?.requestPermission) {
         api.requestPermission().then((state: string) => {
-          if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation)
+          if (state === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation)
+            window.addEventListener('deviceorientationabsolute', handleOrientation)
+          }
         })
       } else {
         window.addEventListener('deviceorientation', handleOrientation)
+        window.addEventListener('deviceorientationabsolute', handleOrientation)
       }
     }
     requestOrientation()
-    // Use AbsoluteOrientationSensor as fallback (modern Android Chrome)
     try {
       const Sensor = (window as any).AbsoluteOrientationSensor
       if (Sensor) {
-        sensor = new Sensor({ frequency: 10 })
+        sensor = new Sensor({ frequency: 30 })
         sensor.addEventListener('reading', () => {
           if (!sensor?.quaternion) return
-          const q = sensor.quaternion // [x, y, z, w]
+          const q = sensor.quaternion
           const siny = 2 * (q[3] * q[2] + q[0] * q[1])
           const cosy = 1 - 2 * (q[1] * q[1] + q[2] * q[2])
           const h = Math.atan2(siny, cosy) * 180 / Math.PI
-          setHeading(smoothHeading((h + 360) % 360))
+          setHeading(smoothHeading((h + 360) % 360, 0.3))
         })
         sensor.start()
       }
@@ -190,6 +193,7 @@ export function ARScreen() {
     return () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId)
       window.removeEventListener('deviceorientation', handleOrientation)
+      window.removeEventListener('deviceorientationabsolute', handleOrientation)
       if (sensor) sensor.stop()
     }
   }, [])
