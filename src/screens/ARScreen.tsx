@@ -420,7 +420,11 @@ export function ARScreen({ navigation }: any) {
               renderItem={({ item }) => {
                 const zoneLabel = item.type === 'zone' ? 'Zona' : 'Muestra'
                 const zoneColor = item.type === 'zone' ? item.color : COLORS.textMuted
-                return clickEl(() => { setSelectedTarget(item); setShowList(false) },
+                return clickEl(() => { 
+                  console.log('Zona seleccionada:', item.name, 'Bearing:', item.bearing);
+                  setSelectedTarget(item); 
+                  setShowList(false); 
+                },
                   [styles.listItem, { borderLeftColor: item.color }],
                   [
                     React.createElement(View, { style: styles.listItemLeft, key: 'left' },
