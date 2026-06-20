@@ -107,9 +107,9 @@ function MainTabs() {
       <Tab.Screen name="Inicio" component={HomeStackScreen}
         options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🏠</Text> }} />
       <Tab.Screen name="Mapa" component={MapStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🗺️</Text> }} />
+        options={{ headerShown: false, tabBarButton: () => null }} />
       <Tab.Screen name="Camara" component={CameraStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📷</Text> }}
+        options={{ headerShown: false, tabBarButton: () => null }}
         listeners={({ navigation }) => ({
           tabPress: () => { navigation.reset({ index: 0, routes: [{ name: 'Camara' }] }) },
         })} />
