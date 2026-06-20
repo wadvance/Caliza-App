@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import MapView, { Polygon, Marker } from '../components/MapViewWrapper'
 import { COLORS } from '../types/constants'
@@ -11,6 +11,8 @@ export function CalizaScreen() {
   const currentLocation = useCurrentLocation()
   const { zones, setZones } = useAppStore()
   const [loading, setLoading] = useState(false)
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null)
+  const mapRef = useRef<any>(null)
 
   useMemo(() => {
     if (zones.length === 0) {
@@ -25,6 +27,21 @@ export function CalizaScreen() {
       case 'media': return COLORS.probabilityMedium
       case 'baja': return COLORS.probabilityLow
       default: return COLORS.probabilityPending
+    }
+  }
+
+  const centerOnZone = (zone: CalizaZone) => {
+    setSelectedZoneId(zone.id)
+    const lats = zone.coordinates.map(c => c.latitude)
+    const lngs = zone.coordinates.map(c => c.longitude)
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+    const midLat = (minLat + maxLat) / 2
+    const midLng = (minLng + maxLng) / 2
+    const latDelta = (maxLat - minLat) * 1.8 || 0.05
+    const lngDelta = (maxLng - minLng) * 1.8 || 0.05
+    if (mapRef.current?.animateToRegion) {
+      mapRef.current.animateToRegion({ latitude: midLat, longitude: midLng, latitudeDelta: latDelta, longitudeDelta: lngDelta }, 600)
     }
   }
 
@@ -58,7 +75,7 @@ export function CalizaScreen() {
         <Text style={styles.empty}>No hay zonas de caliza registradas</Text>
       ) : (
         <>
-          <MapView style={styles.map}
+          <MapView ref={mapRef} style={styles.map}
             initialRegion={{
               latitude: 8.4500, longitude: -82.4000,
               latitudeDelta: 0.6, longitudeDelta: 0.6,
@@ -67,7 +84,8 @@ export function CalizaScreen() {
             {zones.map(zone => (
               <Polygon key={zone.id} coordinates={zone.coordinates}
                 fillColor={getColor(zone.probability) + '40'}
-                strokeColor={getColor(zone.probability)} strokeWidth={2}
+                strokeColor={selectedZoneId === zone.id ? '#fff' : getColor(zone.probability)}
+                strokeWidth={selectedZoneId === zone.id ? 4 : 2}
               />
             ))}
           </MapView>
@@ -84,8 +102,11 @@ export function CalizaScreen() {
           <Text style={styles.sectionTitle}>Zonas identificadas</Text>
           {zones.map(zone => {
             const info = zoneInfo[zone.id]
+            const isSelected = selectedZoneId === zone.id
             return (
-              <View key={zone.id} style={[styles.zoneCard, { borderLeftColor: getColor(zone.probability) }]}>
+              <TouchableOpacity key={zone.id} onPress={() => centerOnZone(zone)}
+                style={[styles.zoneCard, { borderLeftColor: getColor(zone.probability), borderColor: isSelected ? getColor(zone.probability) : COLORS.border }]}
+              >
                 <Text style={styles.zoneTitle}>
                   Zona {zone.probability.charAt(0).toUpperCase() + zone.probability.slice(1)}
                 </Text>
@@ -97,7 +118,7 @@ export function CalizaScreen() {
                 ) : (
                   <Text style={styles.zoneDetail}>Confianza: {(zone.confidence * 100).toFixed(0)}%</Text>
                 )}
-              </View>
+              </TouchableOpacity>
             )
           })}
         </>
