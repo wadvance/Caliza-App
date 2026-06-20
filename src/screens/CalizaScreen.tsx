@@ -1,39 +1,42 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import MapView, { Polygon, Marker } from '../components/MapViewWrapper'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation } from '../services/locationService'
-import { getAllZones, seedDefaultZones } from '../services/database'
 import { CalizaZone } from '../types'
-import { useAppStore } from '../store/useAppStore'
 
 const PROB_LEVELS = ['alta', 'media', 'baja'] as const
 const PROB_LABELS: Record<string, string> = { alta: 'Alta', media: 'Media', baja: 'Baja' }
 const PROB_COLORS: Record<string, string> = { alta: COLORS.probabilityHigh, media: COLORS.probabilityMedium, baja: COLORS.probabilityLow }
 
+const ZONES: CalizaZone[] = [
+  { id: 'chiriqui-david-cerro-pelado', probability: 'alta', confidence: 0.82, source: 'geological_map', coordinates: [{ latitude: 8.4600, longitude: -82.4600 }, { latitude: 8.4600, longitude: -82.4000 }, { latitude: 8.4000, longitude: -82.4000 }, { latitude: 8.4000, longitude: -82.4600 }] },
+  { id: 'chiriqui-gualaca', probability: 'alta', confidence: 0.78, source: 'geological_map', coordinates: [{ latitude: 8.5600, longitude: -82.3300 }, { latitude: 8.5600, longitude: -82.2700 }, { latitude: 8.5000, longitude: -82.2700 }, { latitude: 8.5000, longitude: -82.3300 }] },
+  { id: 'chiriqui-bugaba', probability: 'media', confidence: 0.65, source: 'geological_map', coordinates: [{ latitude: 8.5100, longitude: -82.6500 }, { latitude: 8.5100, longitude: -82.5800 }, { latitude: 8.4500, longitude: -82.5800 }, { latitude: 8.4500, longitude: -82.6500 }] },
+  { id: 'chiriqui-boqueron', probability: 'media', confidence: 0.60, source: 'geological_map', coordinates: [{ latitude: 8.5300, longitude: -82.5800 }, { latitude: 8.5300, longitude: -82.5300 }, { latitude: 8.4800, longitude: -82.5300 }, { latitude: 8.4800, longitude: -82.5800 }] },
+  { id: 'chiriqui-dolega', probability: 'media', confidence: 0.55, source: 'geological_map', coordinates: [{ latitude: 8.6500, longitude: -82.4400 }, { latitude: 8.6500, longitude: -82.3900 }, { latitude: 8.6000, longitude: -82.3900 }, { latitude: 8.6000, longitude: -82.4400 }] },
+  { id: 'chiriqui-alanje', probability: 'media', confidence: 0.58, source: 'geological_map', coordinates: [{ latitude: 8.4200, longitude: -82.5800 }, { latitude: 8.4200, longitude: -82.5400 }, { latitude: 8.3800, longitude: -82.5400 }, { latitude: 8.3800, longitude: -82.5800 }] },
+  { id: 'chiriqui-paso-canoas', probability: 'media', confidence: 0.52, source: 'geological_map', coordinates: [{ latitude: 8.5800, longitude: -82.8600 }, { latitude: 8.5800, longitude: -82.8000 }, { latitude: 8.5200, longitude: -82.8000 }, { latitude: 8.5200, longitude: -82.8600 }] },
+  { id: 'chiriqui-tole', probability: 'baja', confidence: 0.40, source: 'geological_map', coordinates: [{ latitude: 8.2800, longitude: -81.7000 }, { latitude: 8.2800, longitude: -81.6400 }, { latitude: 8.2200, longitude: -81.6400 }, { latitude: 8.2200, longitude: -81.7000 }] },
+  { id: 'chiriqui-san-felix', probability: 'baja', confidence: 0.35, source: 'geological_map', coordinates: [{ latitude: 8.3200, longitude: -81.8900 }, { latitude: 8.3200, longitude: -81.8400 }, { latitude: 8.2700, longitude: -81.8400 }, { latitude: 8.2700, longitude: -81.8900 }] },
+]
+
+const ZONE_INFO: Record<string, { depth: string; type: string }> = {
+  'chiriqui-david-cerro-pelado': { depth: '15–40 m', type: 'Caliza masiva cristalina' },
+  'chiriqui-gualaca': { depth: '10–30 m', type: 'Caliza estratificada' },
+  'chiriqui-bugaba': { depth: '8–25 m', type: 'Caliza arcillosa' },
+  'chiriqui-boqueron': { depth: '5–20 m', type: 'Caliza margosa' },
+  'chiriqui-dolega': { depth: '6–18 m', type: 'Caliza detrítica' },
+  'chiriqui-alanje': { depth: '4–15 m', type: 'Caliza arenosa' },
+  'chiriqui-paso-canoas': { depth: '3–12 m', type: 'Caliza arrecifal' },
+  'chiriqui-tole': { depth: '3–10 m', type: 'Caliza lutítica' },
+  'chiriqui-san-felix': { depth: '2–8 m', type: 'Caliza conglomerádica' },
+}
+
 export function CalizaScreen() {
   const currentLocation = useCurrentLocation()
-  const { zones, setZones } = useAppStore()
-  const [loading, setLoading] = useState(true)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const mapRef = useRef<any>(null)
-
-  useEffect(() => {
-    getAllZones().then(z => {
-      const altaCount = z.filter((x: CalizaZone) => x.probability === 'alta').length
-      const mediaCount = z.filter((x: CalizaZone) => x.probability === 'media').length
-      const bajaCount = z.filter((x: CalizaZone) => x.probability === 'baja').length
-      if (altaCount !== 2 || mediaCount !== 4 || bajaCount !== 2) {
-        if (typeof localStorage !== 'undefined') localStorage.removeItem('caliza_zones')
-        seedDefaultZones().then(() => {
-          getAllZones().then(fresh => { setZones(fresh); setLoading(false) })
-        })
-      } else {
-        setZones(z)
-        setLoading(false)
-      }
-    })
-  }, [])
 
   const toggleIdx = (idx: number) => {
     const next = selectedIdx === idx ? null : idx
@@ -45,7 +48,7 @@ export function CalizaScreen() {
       return
     }
     const prob = PROB_LEVELS[next]
-    const matched = zones.filter(z => z.probability === prob)
+    const matched = ZONES.filter(z => z.probability === prob)
     if (matched.length === 0) return
     const allLats = matched.flatMap(z => z.coordinates.map(c => c.latitude))
     const allLngs = matched.flatMap(z => z.coordinates.map(c => c.longitude))
@@ -58,17 +61,6 @@ export function CalizaScreen() {
     if (mapRef.current?.animateToRegion) {
       mapRef.current.animateToRegion({ latitude: midLat, longitude: midLng, latitudeDelta: latDelta, longitudeDelta: lngDelta }, 600)
     }
-  }
-
-  const zoneInfo: Record<string, { depth: string; type: string }> = {
-    'chiriqui-david-cerro-pelado': { depth: '15–40 m', type: 'Caliza masiva cristalina' },
-    'chiriqui-gualaca': { depth: '10–30 m', type: 'Caliza estratificada' },
-    'chiriqui-bugaba': { depth: '8–25 m', type: 'Caliza arcillosa' },
-    'chiriqui-boqueron': { depth: '5–20 m', type: 'Caliza margosa' },
-    'chiriqui-dolega': { depth: '6–18 m', type: 'Caliza detrítica' },
-    'chiriqui-alanje': { depth: '4–15 m', type: 'Caliza arenosa' },
-    'chiriqui-tole': { depth: '3–10 m', type: 'Caliza lutítica' },
-    'chiriqui-san-felix': { depth: '2–8 m', type: 'Caliza conglomerádica' },
   }
 
   return (
@@ -84,79 +76,73 @@ export function CalizaScreen() {
         </View>
       )}
 
-      {loading ? (
-        <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />
-      ) : zones.length === 0 ? (
-        <Text style={styles.empty}>No hay zonas de caliza registradas</Text>
-      ) : (
-        <>
-          <MapView ref={mapRef} style={styles.map}
-            initialRegion={{
-              latitude: 8.4500, longitude: -82.4000,
-              latitudeDelta: 0.6, longitudeDelta: 0.6,
-            }}
-          >
-            {zones.map(zone => {
-              const zi = PROB_LEVELS.indexOf(zone.probability as typeof PROB_LEVELS[number])
-              const isHighlighted = selectedIdx !== null && zi === selectedIdx
-              return (
-                <Polygon key={zone.id} coordinates={zone.coordinates}
-                  fillColor={PROB_COLORS[zone.probability] + '40'}
-                  strokeColor={isHighlighted ? '#fff' : PROB_COLORS[zone.probability]}
-                  strokeWidth={isHighlighted ? 4 : 2}
-                />
-              )
-            })}
-          </MapView>
-
-          <View style={styles.legendRow}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityHigh }]} />
-            <Text style={styles.legendLabel}>Alta</Text>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityMedium }]} />
-            <Text style={styles.legendLabel}>Media</Text>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityLow }]} />
-            <Text style={styles.legendLabel}>Baja</Text>
-          </View>
-
-          <Text style={styles.sectionTitle}>Zonas identificadas</Text>
-          {PROB_LEVELS.map((prob, idx) => {
-            const probZones = zones.filter(z => z.probability === prob)
-            if (probZones.length === 0) return null
-            const isSelected = selectedIdx === idx
-            const color = PROB_COLORS[prob]
+      <>
+        <MapView ref={mapRef} style={styles.map}
+          initialRegion={{
+            latitude: 8.4500, longitude: -82.4000,
+            latitudeDelta: 0.6, longitudeDelta: 0.6,
+          }}
+        >
+          {ZONES.map(zone => {
+            const zi = PROB_LEVELS.indexOf(zone.probability as 'alta' | 'media' | 'baja')
+            const isHighlighted = selectedIdx !== null && zi === selectedIdx
             return (
-              <TouchableOpacity key={prob} onPress={() => toggleIdx(idx)}
-                style={[styles.zoneCard, {
-                  borderLeftColor: isSelected ? color : COLORS.border,
-                  borderColor: isSelected ? color : COLORS.border,
-                  backgroundColor: isSelected ? color + '18' : COLORS.surface,
-                }]}
-              >
-                <View style={styles.titleRow}>
-                  <Text style={[styles.zoneTitle, isSelected && { color }]}>Zona {PROB_LABELS[prob]}</Text>
-                  <Text style={[styles.selectionBadge, isSelected && { color: '#fff', backgroundColor: color }]}>
-                    {isSelected ? '✓' : ''}
-                  </Text>
-                </View>
-                {probZones.map(zone => {
-                  const info = zoneInfo[zone.id]
-                  return (
-                    <View key={zone.id} style={styles.zoneItem}>
-                      <Text style={styles.zoneName}>{zone.id.replace('chiriqui-', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
-                      <Text style={styles.zoneDebug}>prob={zone.probability}</Text>
-                      {info ? (
-                        <Text style={styles.zoneDetail}>📏 {info.depth} · 🪨 {info.type}</Text>
-                      ) : (
-                        <Text style={styles.zoneDetail}>Confianza: {(zone.confidence * 100).toFixed(0)}%</Text>
-                      )}
-                    </View>
-                  )
-                })}
-              </TouchableOpacity>
+              <Polygon key={zone.id} coordinates={zone.coordinates}
+                fillColor={PROB_COLORS[zone.probability] + '40'}
+                strokeColor={isHighlighted ? '#fff' : PROB_COLORS[zone.probability]}
+                strokeWidth={isHighlighted ? 4 : 2}
+              />
             )
           })}
-        </>
-      )}
+        </MapView>
+
+        <View style={styles.legendRow}>
+          <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityHigh }]} />
+          <Text style={styles.legendLabel}>Alta</Text>
+          <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityMedium }]} />
+          <Text style={styles.legendLabel}>Media</Text>
+          <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityLow }]} />
+          <Text style={styles.legendLabel}>Baja</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Zonas identificadas</Text>
+        {PROB_LEVELS.map((prob, idx) => {
+          const probZones = ZONES.filter(z => z.probability === prob)
+          if (probZones.length === 0) return null
+          const isSelected = selectedIdx === idx
+          const color = PROB_COLORS[prob]
+          return (
+            <TouchableOpacity key={prob} onPress={() => toggleIdx(idx)}
+              style={[styles.zoneCard, {
+                borderLeftColor: isSelected ? color : COLORS.border,
+                borderColor: isSelected ? color : COLORS.border,
+                backgroundColor: isSelected ? color + '18' : COLORS.surface,
+              }]}
+            >
+              <View style={styles.titleRow}>
+                <Text style={[styles.zoneTitle, isSelected && { color }]}>Zona {PROB_LABELS[prob]}</Text>
+                <Text style={[styles.selectionBadge, isSelected && { color: '#fff', backgroundColor: color }]}>
+                  {isSelected ? '✓' : ''}
+                </Text>
+              </View>
+              {probZones.map(zone => {
+                const info = ZONE_INFO[zone.id]
+                return (
+                  <View key={zone.id} style={styles.zoneItem}>
+                    <Text style={styles.zoneName}>{zone.id.replace('chiriqui-', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
+                    <Text style={styles.zoneDebug}>prob={zone.probability}</Text>
+                    {info ? (
+                      <Text style={styles.zoneDetail}>📏 {info.depth} · 🪨 {info.type}</Text>
+                    ) : (
+                      <Text style={styles.zoneDetail}>Confianza: {(zone.confidence * 100).toFixed(0)}%</Text>
+                    )}
+                  </View>
+                )
+              })}
+            </TouchableOpacity>
+          )
+        })}
+      </>
     </ScrollView>
   )
 }
