@@ -20,11 +20,6 @@
         "NSLocationWhenInUseUsageDescription": "Se necesita el GPS para registrar coordenadas de muestras y mostrar mapa.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Se necesita ubicación en segundo plano para tracking en campo.",
         "NSPhotoLibraryUsageDescription": "Para guardar fotos de muestras."
-      },
-      "config": {
-        "googleMaps": {
-          "apiKey": "TU_API_KEY_GOOGLE_MAPS"
-        }
       }
     },
     "android": {
@@ -43,12 +38,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "TU_API_KEY_GOOGLE_MAPS"
-        }
-      }
+      ]
     },
     "plugins": [
       [

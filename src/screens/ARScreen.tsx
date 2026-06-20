@@ -298,26 +298,24 @@ export function ARScreen({ navigation }: any) {
                     React.createElement('span', { key:'s', style:{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8} }, 'S'),
                     React.createElement('span', { key:'e', style:{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'E'),
                     React.createElement('span', { key:'w', style:{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'W'),
-                    ...(!selectedTarget
-                      ? [React.createElement('div', {
-                          key:'ndl',
-                          style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
-                        }, [
-                          React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
-                          React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
-                        ])]
-                      : [React.createElement('div', {
-                          key:'tgt',
-                          style:{
-                            position:'absolute',top:'50%',left:'50%',
-                            width:0,height:0,
-                            borderLeft:'4px solid transparent',
-                            borderRight:'4px solid transparent',
-                            borderTop:`8px solid ${selectedTarget.color}`,
-                            transform:`translate(-50%,-50%) rotate(${selectedTarget.bearing}deg) translateY(-20px)`,
-                          }
-                        })]
-                    ),
+                    React.createElement('div', {
+                      key:'ndl',
+                      style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
+                    }, [
+                      React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
+                      React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
+                    ]),
+                    selectedTarget && React.createElement('div', {
+                      key:'tgt',
+                      style:{
+                        position:'absolute',top:'50%',left:'50%',
+                        width:0,height:0,
+                        borderLeft:'5px solid transparent',
+                        borderRight:'5px solid transparent',
+                        borderTop:`10px solid ${selectedTarget.color}`,
+                        transform:`translate(-50%,-50%) rotate(${(selectedTarget.bearing - heading + 360) % 360}deg) translateY(-22px)`,
+                      }
+                    }),
                     React.createElement('div', { key:'ct', style:{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:'50%',backgroundColor:'#fff'} }),
                   ])
                 : (
@@ -326,17 +324,16 @@ export function ARScreen({ navigation }: any) {
                     <Text style={{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8}}>S</Text>
                     <Text style={{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>E</Text>
                     <Text style={{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>W</Text>
-                    {!selectedTarget ? (
-                      <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
-                        <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
-                        <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
-                      </View>
-                    ) : (
+                    <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
+                      <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
+                      <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
+                    </View>
+                    {selectedTarget && (
                       <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,
-                        borderLeftWidth:4,borderLeftColor:'transparent',
-                        borderRightWidth:4,borderRightColor:'transparent',
-                        borderTopWidth:8,borderTopColor:selectedTarget.color,
-                        transform:[{translateX:-4},{translateY:-24},{rotate:`${selectedTarget.bearing}deg`}]
+                        borderLeftWidth:5,borderLeftColor:'transparent',
+                        borderRightWidth:5,borderRightColor:'transparent',
+                        borderTopWidth:10,borderTopColor:selectedTarget.color,
+                        transform:[{translateX:-5},{translateY:-28},{rotate:`${(selectedTarget.bearing - heading + 360) % 360}deg`}]
                       }} />
                     )}
                     <View style={{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:2.5,backgroundColor:'#fff'}} />
@@ -348,7 +345,7 @@ export function ARScreen({ navigation }: any) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.compassText}>
                   {selectedTarget
-                    ? `${selectedTarget.bearing.toFixed(0)}° ${selectedTarget.name}`
+                    ? `${selectedTarget.name}`
                     : `${heading.toFixed(0)}°`}
                 </Text>
                 {selectedTarget && (() => {
@@ -360,17 +357,22 @@ export function ARScreen({ navigation }: any) {
                     : diff < 270 ? '↖ Izquierda'
                     : '← Izquierda'
                   return (
-                    <Text style={{
-                      color: '#4ecdc4', fontSize: 14, fontWeight: '700',
-                      marginTop: 2,
-                    }}>
+                    <Text style={{ color: '#4ecdc4', fontSize: 13, fontWeight: '700', marginTop: 2 }}>
                       {dirText} · {formatDistance(selectedTarget.distance)}
                     </Text>
                   )
                 })()}
               </View>
-              {selectedTarget && clickEl(() => setSelectedTarget(null), [styles.compassCloseX, isWeb ? { cursor: 'pointer' } : {}],
-                React.createElement(Text, { style: styles.compassCloseXText }, '✕')
+              {selectedTarget && (
+                isWeb
+                  ? React.createElement('div', {
+                      onClick: () => setSelectedTarget(null),
+                      onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
+                      style: { ...styles.compassCloseBtn, cursor: 'pointer', zIndex: 999 },
+                    }, React.createElement('span', { style: { color: '#fff', fontSize: 18, fontWeight: '700' } }, '✕'))
+                  : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.compassCloseBtn },
+                      React.createElement(Text, { style: styles.compassCloseBtnText }, '✕')
+                    )
               )}
             </View>
           </View>
@@ -400,9 +402,16 @@ export function ARScreen({ navigation }: any) {
 
           {selectedTarget && (
             <View style={styles.targetDetail}>
-              {clickEl(() => setSelectedTarget(null), [styles.closeX, isWeb ? { cursor: 'pointer' } : {}],
-                React.createElement(Text, { style: styles.closeXText }, '✕')
-              )}
+              {isWeb
+                ? React.createElement('div', {
+                    onClick: () => setSelectedTarget(null),
+                    onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
+                    style: { ...styles.closeX, cursor: 'pointer' },
+                  }, React.createElement('span', { style: { color: '#fff', fontSize: 20, fontWeight: '800' } }, '✕'))
+                : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.closeX },
+                    React.createElement(Text, { style: styles.closeXText }, '✕')
+                  )
+              }
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   {isWeb
@@ -447,9 +456,16 @@ export function ARScreen({ navigation }: any) {
                 </View>
               </View>
               <Text style={styles.detailText}>Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}</Text>
-              {clickEl(() => setSelectedTarget(null), [styles.closeDetail, isWeb ? { cursor: 'pointer' } : {}],
-                React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar panel')
-              )}
+              {isWeb
+                ? React.createElement('div', {
+                    onClick: () => setSelectedTarget(null),
+                    onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
+                    style: { ...styles.closeDetail, cursor: 'pointer' },
+                  }, React.createElement('span', { style: { color: COLORS.accent, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 } }, 'Cerrar panel'))
+                : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.closeDetail },
+                    React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar panel')
+                  )
+              }
             </View>
           )}
         </View>
@@ -510,9 +526,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   compassText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  compassBottom: { flexDirection: 'row', alignItems: 'center', width: 160 },
-  compassCloseX: { marginLeft: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  compassCloseXText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  compassBottom: { flexDirection: 'row', alignItems: 'center', width: 180 },
+  compassCloseBtn: { marginLeft: 8, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,80,80,0.5)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  compassCloseBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   targetsContainer: { padding: 16, gap: 8 },
   targetCard: {
     flexDirection: 'row',
