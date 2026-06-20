@@ -288,94 +288,7 @@ export function ARScreen({ navigation }: any) {
             </Text>
           </View>
 
-          <View style={styles.compass}>
-            <View style={styles.compassCircle}>
-              {isWeb
-                ? React.createElement('div', {
-                    style: { width: '100%', height: '100%', position: 'relative' }
-                  }, [
-                    React.createElement('span', { key:'n', style:{position:'absolute',top:3,left:'50%',marginLeft:-4,color:'#fff',fontSize:9,fontWeight:'700'} }, 'N'),
-                    React.createElement('span', { key:'s', style:{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8} }, 'S'),
-                    React.createElement('span', { key:'e', style:{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'E'),
-                    React.createElement('span', { key:'w', style:{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'W'),
-                    React.createElement('div', {
-                      key:'ndl',
-                      style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
-                    }, [
-                      React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
-                      React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
-                    ]),
-                    selectedTarget && React.createElement('div', {
-                      key:'tgt',
-                      style:{
-                        position:'absolute',top:'50%',left:'50%',
-                        width:0,height:0,
-                        borderLeft:'5px solid transparent',
-                        borderRight:'5px solid transparent',
-                        borderTop:`10px solid ${selectedTarget.color}`,
-                        transform:`translate(-50%,-50%) rotate(${(selectedTarget.bearing - heading + 360) % 360}deg) translateY(-22px)`,
-                      }
-                    }),
-                    React.createElement('div', { key:'ct', style:{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:'50%',backgroundColor:'#fff'} }),
-                  ])
-                : (
-                  <View style={{ width:'100%',height:'100%' }}>
-                    <Text style={{position:'absolute',top:3,left:'50%',marginLeft:-4,color:'#fff',fontSize:9,fontWeight:'700'}}>N</Text>
-                    <Text style={{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8}}>S</Text>
-                    <Text style={{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>E</Text>
-                    <Text style={{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>W</Text>
-                    <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
-                      <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
-                      <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
-                    </View>
-                    {selectedTarget && (
-                      <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,
-                        borderLeftWidth:5,borderLeftColor:'transparent',
-                        borderRightWidth:5,borderRightColor:'transparent',
-                        borderTopWidth:10,borderTopColor:selectedTarget.color,
-                        transform:[{translateX:-5},{translateY:-28},{rotate:`${(selectedTarget.bearing - heading + 360) % 360}deg`}]
-                      }} />
-                    )}
-                    <View style={{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:2.5,backgroundColor:'#fff'}} />
-                  </View>
-                )
-              }
-            </View>
-            <View style={styles.compassBottom}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.compassText}>
-                  {selectedTarget
-                    ? `${selectedTarget.name}`
-                    : `${heading.toFixed(0)}°`}
-                </Text>
-                {selectedTarget && (() => {
-                  const diff = ((selectedTarget.bearing - heading) % 360 + 360) % 360
-                  const dirText = diff < 20 || diff > 340 ? '✅ Adelante'
-                    : diff < 90 ? '→ Derecha'
-                    : diff < 160 ? '↗ Derecha'
-                    : diff < 200 ? '⬅ Atrás'
-                    : diff < 270 ? '↖ Izquierda'
-                    : '← Izquierda'
-                  return (
-                    <Text style={{ color: '#4ecdc4', fontSize: 13, fontWeight: '700', marginTop: 2 }}>
-                      {dirText} · {formatDistance(selectedTarget.distance)}
-                    </Text>
-                  )
-                })()}
-              </View>
-              {selectedTarget && (
-                isWeb
-                  ? React.createElement('div', {
-                      onClick: () => setSelectedTarget(null),
-                      onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
-                      style: { ...styles.compassCloseBtn, cursor: 'pointer', zIndex: 999 },
-                    }, React.createElement('span', { style: { color: '#fff', fontSize: 18, fontWeight: '700' } }, '✕'))
-                  : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.compassCloseBtn },
-                      React.createElement(Text, { style: styles.compassCloseBtnText }, '✕')
-                    )
-              )}
-            </View>
-          </View>
+
 
           <View style={styles.targetsContainer}>
             {targets.length > 0 && targets.slice(0, 5).map(target => (
@@ -510,25 +423,6 @@ const styles = StyleSheet.create({
   backBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   title: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
   subtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, textAlign: 'center' },
-  compass: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    alignItems: 'center',
-  },
-  compassCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    overflow: 'hidden',
-  },
-  compassText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  compassBottom: { flexDirection: 'row', alignItems: 'center', width: 180 },
-  compassCloseBtn: { marginLeft: 8, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,80,80,0.5)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  compassCloseBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   targetsContainer: { padding: 16, gap: 8 },
   targetCard: {
     flexDirection: 'row',
