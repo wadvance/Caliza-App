@@ -351,6 +351,41 @@ export function ARScreen({ navigation }: any) {
             </Text>
           </View>
 
+          {selectedTarget && (
+            <View style={styles.dirIndicator}>
+              {isWeb
+                ? React.createElement('div', {
+                    style: {
+                      fontSize: 48, color: '#fff', fontWeight: '700',
+                      transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`,
+                      marginBottom: 4, textShadow: '0 0 20px rgba(0,0,0,0.8)',
+                    }
+                  }, '▲')
+                : React.createElement(Text, {
+                    style: {
+                      fontSize: 48, color: '#fff', fontWeight: '700', marginBottom: 4,
+                      transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }],
+                      textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 20,
+                    }
+                  }, '▲')
+              }
+              <Text style={{
+                color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center',
+                textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8,
+              }}>
+                {(() => {
+                  const diff = ((selectedTarget.bearing - heading) % 360 + 360) % 360
+                  if (diff < 20 || diff > 340) return '✅ Adelante'
+                  if (diff < 90) return '→ Gira a la derecha'
+                  if (diff < 160) return '↗ Gira a la derecha'
+                  if (diff < 200) return '⬅ Da la vuelta'
+                  if (diff < 270) return '↖ Gira a la izquierda'
+                  return '← Gira a la izquierda'
+                })()}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.targetsContainer}>
             {targets.length > 0 && targets.slice(0, 5).map(target => (
               clickEl(() => setSelectedTarget(target),
@@ -499,6 +534,7 @@ const styles = StyleSheet.create({
   targetName: { color: '#fff', fontSize: 15, fontWeight: '600' },
   targetDist: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
   targetDot: { width: 12, height: 12, borderRadius: 6 },
+  dirIndicator: { alignItems: 'center', paddingVertical: 8, marginBottom: 4 },
   showAllBtn: {
     alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)',
