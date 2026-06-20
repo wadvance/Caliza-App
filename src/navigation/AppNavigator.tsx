@@ -15,12 +15,14 @@ import { ARScreen } from '../screens/ARScreen'
 import { ReportsScreen } from '../screens/ReportsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
 import { WorkflowGuideScreen } from '../screens/WorkflowGuideScreen'
+import { CalizaScreen } from '../screens/CalizaScreen'
 
 const RootStack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 const HomeStack = createNativeStackNavigator()
 const MapStack = createNativeStackNavigator()
 const CameraStack = createNativeStackNavigator()
+const CalizaStack = createNativeStackNavigator()
 const SamplesStack = createNativeStackNavigator()
 const MoreStack = createNativeStackNavigator()
 
@@ -70,6 +72,14 @@ function CameraStackScreen() {
   )
 }
 
+function CalizaStackScreen() {
+  return (
+    <CalizaStack.Navigator screenOptions={{ headerShown: false }}>
+      <CalizaStack.Screen name="CalizaMain" component={CalizaScreen} />
+    </CalizaStack.Navigator>
+  )
+}
+
 function SamplesStackScreen() {
   return (
     <SamplesStack.Navigator screenOptions={screenOptions}>
@@ -93,6 +103,8 @@ function MoreStackScreen() {
 
 const VISIBLE_TABS = [
   { name: 'Inicio', icon: '🏠', label: 'Inicio' },
+  { name: 'Mapa', icon: '🗺️', label: 'Mapa' },
+  { name: 'Caliza', icon: '⛰️', label: 'Caliza' },
   { name: 'Muestras', icon: '📋', label: 'Muestras' },
   { name: 'AR', icon: '🪄', label: 'Realidad' },
   { name: 'Más', icon: '⚙️', label: 'Más' },
@@ -142,6 +154,8 @@ function MainTabs() {
         listeners={({ navigation }) => ({
           tabPress: () => { navigation.reset({ index: 0, routes: [{ name: 'Camara' }] }) },
         })} />
+      <Tab.Screen name="Caliza" component={CalizaStackScreen}
+        options={{ headerShown: false }} />
       <Tab.Screen name="Muestras" component={SamplesStackScreen}
         options={{ headerShown: false }} />
       <Tab.Screen name="AR" component={ARScreen}
