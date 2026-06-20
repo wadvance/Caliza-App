@@ -344,47 +344,36 @@ export function ARScreen({ navigation }: any) {
                 )
               }
             </View>
-            <Text style={styles.compassText}>
-              {selectedTarget
-                ? `${selectedTarget.bearing.toFixed(0)}° →`
-                : `${heading.toFixed(0)}°`}
-            </Text>
-          </View>
-
-          {selectedTarget && (
-            <View style={styles.dirIndicator}>
-              {isWeb
-                ? React.createElement('div', {
-                    style: {
-                      fontSize: 48, color: '#fff', fontWeight: '700',
-                      transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`,
-                      marginBottom: 4, textShadow: '0 0 20px rgba(0,0,0,0.8)',
-                    }
-                  }, '▲')
-                : React.createElement(Text, {
-                    style: {
-                      fontSize: 48, color: '#fff', fontWeight: '700', marginBottom: 4,
-                      transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }],
-                      textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 20,
-                    }
-                  }, '▲')
-              }
-              <Text style={{
-                color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center',
-                textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8,
-              }}>
-                {(() => {
+            <View style={styles.compassBottom}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.compassText}>
+                  {selectedTarget
+                    ? `${selectedTarget.bearing.toFixed(0)}° ${selectedTarget.name}`
+                    : `${heading.toFixed(0)}°`}
+                </Text>
+                {selectedTarget && (() => {
                   const diff = ((selectedTarget.bearing - heading) % 360 + 360) % 360
-                  if (diff < 20 || diff > 340) return '✅ Adelante'
-                  if (diff < 90) return '→ Gira a la derecha'
-                  if (diff < 160) return '↗ Gira a la derecha'
-                  if (diff < 200) return '⬅ Da la vuelta'
-                  if (diff < 270) return '↖ Gira a la izquierda'
-                  return '← Gira a la izquierda'
+                  const dirText = diff < 20 || diff > 340 ? '✅ Adelante'
+                    : diff < 90 ? '→ Derecha'
+                    : diff < 160 ? '↗ Derecha'
+                    : diff < 200 ? '⬅ Atrás'
+                    : diff < 270 ? '↖ Izquierda'
+                    : '← Izquierda'
+                  return (
+                    <Text style={{
+                      color: '#4ecdc4', fontSize: 14, fontWeight: '700',
+                      marginTop: 2,
+                    }}>
+                      {dirText} · {formatDistance(selectedTarget.distance)}
+                    </Text>
+                  )
                 })()}
-              </Text>
+              </View>
+              {selectedTarget && clickEl(() => setSelectedTarget(null), [styles.compassCloseX, isWeb ? { cursor: 'pointer' } : {}],
+                React.createElement(Text, { style: styles.compassCloseXText }, '✕')
+              )}
             </View>
-          )}
+          </View>
 
           <View style={styles.targetsContainer}>
             {targets.length > 0 && targets.slice(0, 5).map(target => (
@@ -521,6 +510,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   compassText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  compassBottom: { flexDirection: 'row', alignItems: 'center', width: 160 },
+  compassCloseX: { marginLeft: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  compassCloseXText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   targetsContainer: { padding: 16, gap: 8 },
   targetCard: {
     flexDirection: 'row',
@@ -534,7 +526,6 @@ const styles = StyleSheet.create({
   targetName: { color: '#fff', fontSize: 15, fontWeight: '600' },
   targetDist: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
   targetDot: { width: 12, height: 12, borderRadius: 6 },
-  dirIndicator: { alignItems: 'center', paddingVertical: 8, marginBottom: 4 },
   showAllBtn: {
     alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)',
