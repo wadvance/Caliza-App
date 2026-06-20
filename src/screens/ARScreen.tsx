@@ -292,51 +292,63 @@ export function ARScreen({ navigation }: any) {
             <View style={styles.compassCircle}>
               {isWeb
                 ? React.createElement('div', {
-                    style: { width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+                    style: { width: '100%', height: '100%', position: 'relative' }
                   }, [
-                    React.createElement('span', { key:'n', style:{position:'absolute',top:3,color:'#fff',fontSize:10,fontWeight:'700',lineHeight:'10px'} }, 'N'),
-                    React.createElement('span', { key:'e', style:{position:'absolute',right:4,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'E'),
-                    React.createElement('span', { key:'s', style:{position:'absolute',bottom:3,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'S'),
-                    React.createElement('span', { key:'w', style:{position:'absolute',left:4,color:'rgba(255,255,255,0.4)',fontSize:8,lineHeight:'8px'} }, 'W'),
-                    React.createElement('div', {
-                      key:'ndl',
-                      style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
-                    }, [
-                      React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
-                      React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
-                    ]),
-                    React.createElement('div', { key:'ct', style:{position:'absolute',width:5,height:5,borderRadius:'50%',backgroundColor:'#fff'} }),
-                    ...(selectedTarget ? [React.createElement('div', {
-                      key:'mk',
-                      style:{
-                        position:'absolute',top:'50%',left:'50%',
-                        width:0,height:0,
-                        borderLeft:'3px solid transparent',
-                        borderRight:'3px solid transparent',
-                        borderTop:`5px solid ${COLORS.highlight}`,
-                        transform:`translate(-50%,-50%) rotate(${selectedTarget.bearing}deg) translateY(-23px)`,
-                      }
-                    })] : []),
+                    React.createElement('span', { key:'n', style:{position:'absolute',top:3,left:'50%',marginLeft:-4,color:'#fff',fontSize:9,fontWeight:'700'} }, 'N'),
+                    React.createElement('span', { key:'s', style:{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8} }, 'S'),
+                    React.createElement('span', { key:'e', style:{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'E'),
+                    React.createElement('span', { key:'w', style:{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8} }, 'W'),
+                    ...(!selectedTarget
+                      ? [React.createElement('div', {
+                          key:'ndl',
+                          style:{position:'absolute',width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',paddingTop:10,transform:`rotate(${heading}deg)`}
+                        }, [
+                          React.createElement('div', { key:'nh', style:{width:3,height:18,backgroundColor:'#ff3333',borderRadius:'1px 1px 0 0'} }),
+                          React.createElement('div', { key:'sh', style:{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)',borderRadius:'0 0 1px 1px'} }),
+                        ])]
+                      : [React.createElement('div', {
+                          key:'tgt',
+                          style:{
+                            position:'absolute',top:'50%',left:'50%',
+                            width:0,height:0,
+                            borderLeft:'4px solid transparent',
+                            borderRight:'4px solid transparent',
+                            borderTop:`8px solid ${selectedTarget.color}`,
+                            transform:`translate(-50%,-50%) rotate(${selectedTarget.bearing}deg) translateY(-20px)`,
+                          }
+                        })]
+                    ),
+                    React.createElement('div', { key:'ct', style:{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:'50%',backgroundColor:'#fff'} }),
                   ])
                 : (
-                  <View style={{ width:'100%',height:'100%',alignItems:'center',justifyContent:'center' }}>
-                    <Text style={{position:'absolute',top:3,color:'#fff',fontSize:10,fontWeight:'700'}}>N</Text>
-                    <Text style={{position:'absolute',right:4,color:'rgba(255,255,255,0.4)',fontSize:8}}>E</Text>
-                    <Text style={{position:'absolute',bottom:3,color:'rgba(255,255,255,0.4)',fontSize:8}}>S</Text>
-                    <Text style={{position:'absolute',left:4,color:'rgba(255,255,255,0.4)',fontSize:8}}>W</Text>
-                    <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
-                      <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
-                      <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
-                    </View>
-                    <View style={{position:'absolute',width:5,height:5,borderRadius:2.5,backgroundColor:'#fff'}} />
-                    {selectedTarget && (
-                      <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,borderLeftWidth:3,borderLeftColor:'transparent',borderRightWidth:3,borderRightColor:'transparent',borderTopWidth:5,borderTopColor:COLORS.highlight,transform:[{translateX:-3},{translateY:-26},{rotate:`${selectedTarget.bearing}deg`}]}} />
+                  <View style={{ width:'100%',height:'100%' }}>
+                    <Text style={{position:'absolute',top:3,left:'50%',marginLeft:-4,color:'#fff',fontSize:9,fontWeight:'700'}}>N</Text>
+                    <Text style={{position:'absolute',bottom:3,left:'50%',marginLeft:-3,color:'#fff',fontSize:8}}>S</Text>
+                    <Text style={{position:'absolute',right:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>E</Text>
+                    <Text style={{position:'absolute',left:3,top:'50%',marginTop:-5,color:'#fff',fontSize:8}}>W</Text>
+                    {!selectedTarget ? (
+                      <View style={{position:'absolute',width:'100%',height:'100%',alignItems:'center',paddingTop:10,transform:[{rotate:`${heading}deg`}]}}>
+                        <View style={{width:3,height:18,backgroundColor:'#ff3333'}} />
+                        <View style={{width:3,height:18,backgroundColor:'rgba(255,255,255,0.2)'}} />
+                      </View>
+                    ) : (
+                      <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,
+                        borderLeftWidth:4,borderLeftColor:'transparent',
+                        borderRightWidth:4,borderRightColor:'transparent',
+                        borderTopWidth:8,borderTopColor:selectedTarget.color,
+                        transform:[{translateX:-4},{translateY:-24},{rotate:`${selectedTarget.bearing}deg`}]
+                      }} />
                     )}
+                    <View style={{position:'absolute',top:'50%',left:'50%',width:5,height:5,marginTop:-2.5,marginLeft:-2.5,borderRadius:2.5,backgroundColor:'#fff'}} />
                   </View>
                 )
               }
             </View>
-            <Text style={styles.compassText}>{heading.toFixed(0)}°</Text>
+            <Text style={styles.compassText}>
+              {selectedTarget
+                ? `${selectedTarget.bearing.toFixed(0)}° →`
+                : `${heading.toFixed(0)}°`}
+            </Text>
           </View>
 
           <View style={styles.targetsContainer}>
@@ -349,7 +361,11 @@ export function ARScreen({ navigation }: any) {
                     `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
                   )
                 ),
-                React.createElement(View, { style: [styles.targetDot, { backgroundColor: target.color }], key: 'dot' })]
+                React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
+                  isWeb
+                    ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing}deg)`, color: target.color } }, '▲')
+                    : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing}deg` }] } }, '▲')
+                )]
               )
             ))}
           </View>
