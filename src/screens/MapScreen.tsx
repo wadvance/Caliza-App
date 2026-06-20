@@ -584,29 +584,31 @@ export function MapScreen({ navigation }: any) {
         )}
       </MapView>
 
-      <View style={styles.overlay}>
-        {currentLocation && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={styles.coords}>
-              <Text style={styles.coordsText}>
-                {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
-              </Text>
+      {!showContext && (
+        <View style={styles.overlay}>
+          {currentLocation && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.coords}>
+                <Text style={styles.coordsText}>
+                  {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.ctxBtn} onPress={handleLocationContext}>
+                <Text style={styles.ctxBtnText}>🌍</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.ctxBtn} onPress={handleLocationContext}>
-              <Text style={styles.ctxBtnText}>🌍</Text>
+          )}
+          {!recording ? (
+            <TouchableOpacity style={styles.recordBtn} onPress={startRecording}>
+              <Text style={styles.recordBtnText}>⏺ Grabar ruta</Text>
             </TouchableOpacity>
-          </View>
-        )}
-        {!recording ? (
-          <TouchableOpacity style={styles.recordBtn} onPress={startRecording}>
-            <Text style={styles.recordBtnText}>⏺ Grabar ruta</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.stopBtn} onPress={stopRecording}>
-            <Text style={styles.stopBtnText}>⏹ Detener ({recordingPoints.length} pts)</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          ) : (
+            <TouchableOpacity style={styles.stopBtn} onPress={stopRecording}>
+              <Text style={styles.stopBtnText}>⏹ Detener ({recordingPoints.length} pts)</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {showContext && (
         <View style={styles.contextCard}>
@@ -858,10 +860,10 @@ const styles = StyleSheet.create({
   ctxBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.highlight, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   ctxBtnText: { fontSize: 16 },
   contextCard: {
-    position: 'absolute', top: 165, left: 16, right: 16,
+    position: 'absolute', top: 100, left: 16, right: 16,
     backgroundColor: COLORS.surface + 'F2', borderRadius: 14,
     padding: 14, borderWidth: 1, borderColor: COLORS.border,
-    maxHeight: height * 0.6,
+    maxHeight: height * 0.65,
   },
   ctxCloseBtn: { padding: 4 },
   ctxBackBtn: { marginTop: 12, backgroundColor: COLORS.accent, padding: 10, borderRadius: 10, alignItems: 'center' },
