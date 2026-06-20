@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Pla
 import { useFocusEffect } from '@react-navigation/native'
 import { COLORS } from '../types/constants'
 import { classifyImage, getConfidenceLabel } from '../services/mlService'
+import { getCurrentLocation, calculateDistance } from '../services/locationService'
 import { useAppStore } from '../store/useAppStore'
 
 const isWeb = Platform.OS === 'web'
@@ -72,8 +73,11 @@ export function CameraScreen({ navigation }: any) {
   const [capturedUri, setCapturedUri] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [prediction, setPrediction] = useState<any>(null)
+  const [scanLocation, setScanLocation] = useState<any>(null)
+  const [nearbyCount, setNearbyCount] = useState(0)
   const cameraRef = useRef<any>(null)
-  const { setLastPrediction } = useAppStore()
+  const { setLastPrediction, samples } = useAppStore()
+  const isCaliza = prediction?.className?.toLowerCase() === 'caliza'
 
   useFocusEffect(
     useCallback(() => {
@@ -81,9 +85,26 @@ export function CameraScreen({ navigation }: any) {
         setCapturedUri(null)
         setPrediction(null)
         setAnalyzing(false)
+        setScanLocation(null)
+        setNearbyCount(0)
       }
     }, [])
   )
+
+  const afterClassify = useCallback(async (result: any) => {
+    setPrediction(result)
+    setLastPrediction(result)
+    setAnalyzing(false)
+    const loc = await getCurrentLocation()
+    setScanLocation(loc)
+    if (result?.className?.toLowerCase() === 'caliza') {
+      const count = samples.filter(s =>
+        s.estimatedRockType === 'caliza' &&
+        calculateDistance(loc.latitude, loc.longitude, s.latitude, s.longitude) < 1
+      ).length
+      setNearbyCount(count)
+    }
+  }, [samples])
 
   const takePhoto = useCallback(async () => {
     if (isWeb) return
@@ -93,11 +114,9 @@ export function CameraScreen({ navigation }: any) {
       setCapturedUri(photo.uri)
       setAnalyzing(true)
       const result = await classifyImage(photo.uri)
-      setPrediction(result)
-      setLastPrediction(result)
-      setAnalyzing(false)
+      afterClassify(result)
     }
-  }, [])
+  }, [afterClassify])
 
   const registerSample = () => {
     if (capturedUri && prediction) {
@@ -111,6 +130,8 @@ export function CameraScreen({ navigation }: any) {
   const retakePhoto = () => {
     setCapturedUri(null)
     setPrediction(null)
+    setScanLocation(null)
+    setNearbyCount(0)
   }
 
   if (capturedUri) {
@@ -159,6 +180,30 @@ export function CameraScreen({ navigation }: any) {
               <Text key={i} style={styles.recommendation}>• {r}</Text>
             ))}
 
+            {isCaliza && scanLocation && (
+              <View style={styles.calizaInfo}>
+                <Text style={styles.calizaInfoTitle}>📍 Información de caliza</Text>
+                <View style={styles.calizaInfoRow}>
+                  <Text style={styles.calizaInfoLabel}>Calidad estimada:</Text>
+                  <Text style={[
+                    styles.calizaInfoValue,
+                    { color: prediction.probability >= 0.7 ? '#4ecdc4' : prediction.probability >= 0.4 ? '#f39c12' : '#e74c3c' }
+                  ]}>
+                    {prediction.probability >= 0.7 ? 'Alta' : prediction.probability >= 0.4 ? 'Media' : 'Baja'}
+                    {' · '}{(prediction.probability * 100).toFixed(0)}%
+                  </Text>
+                </View>
+                <View style={styles.calizaInfoRow}>
+                  <Text style={styles.calizaInfoLabel}>Elevación:</Text>
+                  <Text style={styles.calizaInfoValue}>{scanLocation.altitude.toFixed(1)} m s.n.m.</Text>
+                </View>
+                <View style={styles.calizaInfoRow}>
+                  <Text style={styles.calizaInfoLabel}>Calizas cercanas:</Text>
+                  <Text style={styles.calizaInfoValue}>{nearbyCount} en ≤1 km</Text>
+                </View>
+              </View>
+            )}
+
             <View style={styles.actionRow}>
               <TouchableOpacity style={styles.retakeBtn} onPress={retakePhoto}>
                 <Text style={styles.retakeText}>Repetir</Text>
@@ -183,9 +228,7 @@ export function CameraScreen({ navigation }: any) {
           setCapturedUri(uri)
           setAnalyzing(true)
           classifyImage(uri).then(result => {
-            setPrediction(result)
-            setLastPrediction(result)
-            setAnalyzing(false)
+            afterClassify(result)
           })
         }} />
       </View>
@@ -240,6 +283,11 @@ const styles = StyleSheet.create({
   breakdownValue: { color: COLORS.text, fontSize: 12, fontWeight: '600', width: 36, textAlign: 'right' },
   recommendationTitle: { color: COLORS.accent, fontSize: 13, fontWeight: '700', marginBottom: 4, marginTop: 4 },
   recommendation: { color: COLORS.textSecondary, fontSize: 12, marginVertical: 1 },
+  calizaInfo: { marginTop: 12, backgroundColor: 'rgba(78,205,196,0.1)', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: 'rgba(78,205,196,0.25)' },
+  calizaInfoTitle: { color: '#4ecdc4', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  calizaInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 3 },
+  calizaInfoLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  calizaInfoValue: { color: '#fff', fontSize: 13, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
   retakeBtn: { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   retakeText: { color: COLORS.text, fontWeight: '600' },
