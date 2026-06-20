@@ -311,7 +311,7 @@ export function ARScreen({ navigation }: any) {
 
          <View style={styles.modeSelector}>
            {['basic', 'scan', 'struct', 'model'].map(mode => (
-             <TouchableOpacity key={mode} onPress={() => setArMode(mode as any)} style={[styles.modeBtn, arMode === mode && styles.modeBtnActive]}>
+             <TouchableOpacity key={mode} onPress={() => { console.log('Mode pressed:', mode); setArMode(mode as any); }} style={[styles.modeBtn, arMode === mode && styles.modeBtnActive]}>
                <Text style={styles.modeBtnText}>{mode === 'basic' ? '📍' : mode === 'scan' ? '🔍' : mode === 'struct' ? '📐' : '🏗️'}</Text>
              </TouchableOpacity>
            ))}
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   closeBtnText: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
-  modeSelector: { flexDirection: 'row', justifyContent: 'center', gap: 10, padding: 10 },
+  modeSelector: { flexDirection: 'row', justifyContent: 'center', gap: 10, padding: 10, zIndex: 100 },
   modeBtn: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 20 },
   modeBtnActive: { backgroundColor: COLORS.accent },
   modeBtnText: { fontSize: 20 },
