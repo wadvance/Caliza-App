@@ -658,9 +658,9 @@ export function MapScreen({ navigation }: any) {
       )}
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Camara', { screen: 'CameraMain' })}>
-          <Text style={styles.actionIcon}>📷</Text>
-          <Text style={styles.actionLabel}>Escanear</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowSearch(true)}>
+          <Text style={styles.actionIcon}>🔍</Text>
+          <Text style={styles.actionLabel}>Buscar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Camara', { screen: 'RegisterSample' })}>
           <Text style={styles.actionIcon}>📋</Text>

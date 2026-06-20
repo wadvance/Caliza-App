@@ -183,7 +183,7 @@ export function DashboardScreen({ navigation }: any) {
 
   const validatedCount = samples.filter(s => s.status === 'validado').length
   const pendingCount = samples.filter(s => s.status === 'pendiente').length
-  const highProbZones = zones.filter(z => z.probability === 'alta').length
+  const totalZones = zones.length
   const avgConf = samples.length > 0
     ? (samples.reduce((a, s) => a + s.confidenceLevel, 0) / samples.length * 100).toFixed(0)
     : '0'
@@ -267,7 +267,7 @@ export function DashboardScreen({ navigation }: any) {
         {/* Animated counters row */}
         <View style={styles.countersRow}>
           <AnimatedCounter to={samples.length} label="Muestras" color={COLORS.highlight} />
-          <AnimatedCounter to={highProbZones} label="Zonas alta prob." color={COLORS.success} suffix="zonas" />
+          <AnimatedCounter to={totalZones} label="Zonas caliza" color={COLORS.success} suffix="zonas" />
           <AnimatedCounter to={parseInt(avgConf)} label="Confianza media" color={COLORS.warning} suffix="%" />
         </View>
 
@@ -279,7 +279,7 @@ export function DashboardScreen({ navigation }: any) {
             onPress={() => handleQuickAction('Mapa', { screen: 'MapMain' })} />
           <StatCard icon="📊" title="Generar reporte" value="Reportes" color={COLORS.warning}
             onPress={() => handleQuickAction('Más', { screen: 'Reports' })} />
-          <StatCard icon={syncStatus.syncing ? '⏳' : '📡'} title={syncStatus.syncing ? 'Sincronizando...' : 'Sincronizar ahora'} value={syncStatus.syncing ? `${syncStatus.progress}/${syncStatus.total}` : 'Sincronizar'} color={COLORS.probabilityPending}
+          <StatCard icon={syncStatus.syncing ? '⏳' : '📡'} title={syncStatus.syncing ? 'Sincronizando...' : 'Toca para sinc.'} value={syncStatus.syncing ? `${syncStatus.progress}/${syncStatus.total}` : 'Sincronizar'} color={COLORS.probabilityPending}
             onPress={async () => { await syncNow(); loadData() }} />
         </View>
 
