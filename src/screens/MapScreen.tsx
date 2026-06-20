@@ -612,7 +612,7 @@ export function MapScreen({ navigation }: any) {
         <View style={styles.contextCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <Text style={styles.contextTitle}>📍 Ubicación</Text>
-            <TouchableOpacity onPress={() => setShowContext(false)}>
+            <TouchableOpacity onPress={() => setShowContext(false)} style={styles.ctxCloseBtn}>
               <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -649,6 +649,9 @@ export function MapScreen({ navigation }: any) {
           ) : (
             <Text style={styles.contextSub}>No se pudo obtener información del lugar</Text>
           )}
+          <TouchableOpacity style={styles.ctxBackBtn} onPress={() => setShowContext(false)}>
+            <Text style={styles.ctxBackBtnText}>← Volver al mapa</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -849,16 +852,20 @@ const styles = StyleSheet.create({
   layerBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.surfaceLight },
   layerBtnText: { color: COLORS.text, fontSize: 13, fontWeight: '600' },
   map: { flex: 1 },
-  overlay: { position: 'absolute', top: 100, left: 16, right: 16, alignItems: 'center', zIndex: 20 },
+  overlay: { position: 'absolute', top: 115, left: 16, right: 16, alignItems: 'center', zIndex: 20 },
   coords: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   coordsText: { color: '#fff', fontSize: 11, fontFamily: 'monospace' },
   ctxBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.highlight, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   ctxBtnText: { fontSize: 16 },
   contextCard: {
-    position: 'absolute', top: 140, left: 16, right: 16,
+    position: 'absolute', top: 165, left: 16, right: 16,
     backgroundColor: COLORS.surface + 'F2', borderRadius: 14,
     padding: 14, borderWidth: 1, borderColor: COLORS.border,
+    maxHeight: height * 0.6,
   },
+  ctxCloseBtn: { padding: 4 },
+  ctxBackBtn: { marginTop: 12, backgroundColor: COLORS.accent, padding: 10, borderRadius: 10, alignItems: 'center' },
+  ctxBackBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   contextTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
   contextPlace: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   contextSub: { color: COLORS.textSecondary, fontSize: 12, marginVertical: 1 },
