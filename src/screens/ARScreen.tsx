@@ -118,6 +118,7 @@ export function ARScreen({ navigation }: any) {
   const [showList, setShowList] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [heading, setHeading] = useState(0)
+  const [arMode, setArMode] = useState<'basic' | 'scan' | 'struct' | 'model'>('basic')
 
   useEffect(() => {
     if (!currentLocation) return
@@ -302,39 +303,56 @@ export function ARScreen({ navigation }: any) {
               )}
               <Text style={styles.title}>Realidad Aumentada</Text>
               <View style={{ width: 60 }} />
-            </View>
-            <Text style={styles.subtitle}>
-              {targets.length} puntos de interés cercanos
-            </Text>
-          </View>
+           </View>
+           <Text style={styles.subtitle}>
+             {targets.length} puntos de interés cercanos
+           </Text>
+         </View>
 
+         <View style={styles.modeSelector}>
+           {['basic', 'scan', 'struct', 'model'].map(mode => (
+             <TouchableOpacity key={mode} onPress={() => setArMode(mode as any)} style={[styles.modeBtn, arMode === mode && styles.modeBtnActive]}>
+               <Text style={styles.modeBtnText}>{mode === 'basic' ? '📍' : mode === 'scan' ? '🔍' : mode === 'struct' ? '📐' : '🏗️'}</Text>
+             </TouchableOpacity>
+           ))}
+         </View>
 
+         {arMode === 'basic' ? (
+           <View style={styles.targetsContainer}>
+           {targets.length > 0 && targets.slice(0, 5).map(target => (
+             clickEl(() => {
+               console.log('Tocaste zona inline:', target.name, 'Bearing:', target.bearing);
+               setSelectedTarget(target);
+             },
+               [styles.targetCard, { borderLeftColor: target.color }],
+               [React.createElement(View, { style: styles.targetInfo, key: 'info' },
+                 React.createElement(Text, { style: styles.targetName }, target.name),
+                 React.createElement(Text, { style: styles.targetDist },
+                   `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
+                 )
+               ),
+               React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
+                 isWeb
+                   ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing - heading}deg)`, color: target.color } }, '▲')
+                   : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing - heading}deg` }] } }, '▲')
+               )]
+             )
+           ))}
+           </View>
+         ) : (
+           <View style={styles.modePlaceholder}>
+             <Text style={styles.placeholderText}>
+               {arMode === 'scan' ? '🔍 Escaneo de muestras activo...' :
+                arMode === 'struct' ? '📐 Proyectando estructuras geológicas...' :
+                '🏗️ Cargando modelo 3D de yacimiento...'}
+             </Text>
+           </View>
+         )}
 
-          <View style={styles.targetsContainer}>
-          {targets.length > 0 && targets.slice(0, 5).map(target => (
-            clickEl(() => {
-              console.log('Tocaste zona inline:', target.name, 'Bearing:', target.bearing);
-              setSelectedTarget(target);
-            },
-              [styles.targetCard, { borderLeftColor: target.color }],
-              [React.createElement(View, { style: styles.targetInfo, key: 'info' },
-                React.createElement(Text, { style: styles.targetName }, target.name),
-                React.createElement(Text, { style: styles.targetDist },
-                  `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
-                )
-              ),
-              React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
-                isWeb
-                  ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing - heading}deg)`, color: target.color } }, '▲')
-                  : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing - heading}deg` }] } }, '▲')
-              )]
-            )
-          ))}
-          </View>
+         {targets.length > 5 && arMode === 'basic' && clickEl(() => setShowList(true), styles.showAllBtn,
+           React.createElement(Text, { style: styles.showAllText }, `Ver todos (${targets.length})`)
+         )}
 
-          {targets.length > 5 && clickEl(() => setShowList(true), styles.showAllBtn,
-            React.createElement(Text, { style: styles.showAllText }, `Ver todos (${targets.length})`)
-          )}
 
           {selectedTarget && (() => {
             const diff = ((selectedTarget.bearing - heading) % 360 + 360) % 360
@@ -479,6 +497,8 @@ export function ARScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  modePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  placeholderText: { color: '#fff', fontSize: 16, textAlign: 'center' },
   camera: { flex: 1 },
   overlay: {
     flex: 1,
@@ -608,4 +628,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   closeBtnText: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
+  modeSelector: { flexDirection: 'row', justifyContent: 'center', gap: 10, padding: 10 },
+  modeBtn: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 20 },
+  modeBtnActive: { backgroundColor: COLORS.accent },
+  modeBtnText: { fontSize: 20 },
 })
