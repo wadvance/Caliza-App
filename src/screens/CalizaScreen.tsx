@@ -11,7 +11,7 @@ export function CalizaScreen() {
   const currentLocation = useCurrentLocation()
   const { zones, setZones } = useAppStore()
   const [loading, setLoading] = useState(false)
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null)
+  const [selectedProbability, setSelectedProbability] = useState<string | null>(null)
   const mapRef = useRef<any>(null)
 
   useMemo(() => {
@@ -30,16 +30,25 @@ export function CalizaScreen() {
     }
   }
 
-  const centerOnZone = (zone: CalizaZone) => {
-    setSelectedZoneId(zone.id)
-    const lats = zone.coordinates.map(c => c.latitude)
-    const lngs = zone.coordinates.map(c => c.longitude)
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+  const centerOnProbability = (probability: string) => {
+    const next = selectedProbability === probability ? null : probability
+    setSelectedProbability(next)
+    if (!next) {
+      if (mapRef.current?.animateToRegion) {
+        mapRef.current.animateToRegion({ latitude: 8.4500, longitude: -82.4000, latitudeDelta: 0.6, longitudeDelta: 0.6 }, 600)
+      }
+      return
+    }
+    const matched = zones.filter(z => z.probability === next)
+    if (matched.length === 0) return
+    const allLats = matched.flatMap(z => z.coordinates.map(c => c.latitude))
+    const allLngs = matched.flatMap(z => z.coordinates.map(c => c.longitude))
+    const minLat = Math.min(...allLats), maxLat = Math.max(...allLats)
+    const minLng = Math.min(...allLngs), maxLng = Math.max(...allLngs)
     const midLat = (minLat + maxLat) / 2
     const midLng = (minLng + maxLng) / 2
-    const latDelta = (maxLat - minLat) * 1.8 || 0.05
-    const lngDelta = (maxLng - minLng) * 1.8 || 0.05
+    const latDelta = (maxLat - minLat) * 1.8 || 0.1
+    const lngDelta = (maxLng - minLng) * 1.8 || 0.1
     if (mapRef.current?.animateToRegion) {
       mapRef.current.animateToRegion({ latitude: midLat, longitude: midLng, latitudeDelta: latDelta, longitudeDelta: lngDelta }, 600)
     }
@@ -84,8 +93,8 @@ export function CalizaScreen() {
             {zones.map(zone => (
               <Polygon key={zone.id} coordinates={zone.coordinates}
                 fillColor={getColor(zone.probability) + '40'}
-                strokeColor={selectedZoneId === zone.id ? '#fff' : getColor(zone.probability)}
-                strokeWidth={selectedZoneId === zone.id ? 4 : 2}
+                strokeColor={selectedProbability === zone.probability ? '#fff' : getColor(zone.probability)}
+                strokeWidth={selectedProbability === zone.probability ? 4 : 2}
               />
             ))}
           </MapView>
@@ -100,24 +109,29 @@ export function CalizaScreen() {
           </View>
 
           <Text style={styles.sectionTitle}>Zonas identificadas</Text>
-          {zones.map(zone => {
-            const info = zoneInfo[zone.id]
-            const isSelected = selectedZoneId === zone.id
+          {(['alta', 'media', 'baja'] as const).map(prob => {
+            const probZones = zones.filter(z => z.probability === prob)
+            if (probZones.length === 0) return null
+            const isSelected = selectedProbability === prob
+            const label = prob.charAt(0).toUpperCase() + prob.slice(1)
             return (
-              <TouchableOpacity key={zone.id} onPress={() => centerOnZone(zone)}
-                style={[styles.zoneCard, { borderLeftColor: getColor(zone.probability), borderColor: isSelected ? getColor(zone.probability) : COLORS.border }]}
+              <TouchableOpacity key={prob} onPress={() => centerOnProbability(prob)}
+                style={[styles.zoneCard, { borderLeftColor: getColor(prob), borderColor: isSelected ? getColor(prob) : COLORS.border }]}
               >
-                <Text style={styles.zoneTitle}>
-                  Zona {zone.probability.charAt(0).toUpperCase() + zone.probability.slice(1)}
-                </Text>
-                {info ? (
-                  <>
-                    <Text style={styles.zoneDetail}>📏 Profundidad: {info.depth}</Text>
-                    <Text style={styles.zoneDetail}>🪨 Tipo: {info.type}</Text>
-                  </>
-                ) : (
-                  <Text style={styles.zoneDetail}>Confianza: {(zone.confidence * 100).toFixed(0)}%</Text>
-                )}
+                <Text style={styles.zoneTitle}>Zona {label}</Text>
+                {probZones.map(zone => {
+                  const info = zoneInfo[zone.id]
+                  return (
+                    <View key={zone.id} style={styles.zoneItem}>
+                      <Text style={styles.zoneName}>{zone.id.replace('chiriqui-', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
+                      {info ? (
+                        <Text style={styles.zoneDetail}>📏 {info.depth} · 🪨 {info.type}</Text>
+                      ) : (
+                        <Text style={styles.zoneDetail}>Confianza: {(zone.confidence * 100).toFixed(0)}%</Text>
+                      )}
+                    </View>
+                  )
+                })}
               </TouchableOpacity>
             )
           })}
@@ -145,6 +159,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: 12,
     padding: 14, borderLeftWidth: 3, borderWidth: 1, borderColor: COLORS.border,
   },
-  zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: 6 },
-  zoneDetail: { color: COLORS.textSecondary, fontSize: 13, marginVertical: 2 },
+  zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  zoneItem: { marginBottom: 8, paddingLeft: 4 },
+  zoneName: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  zoneDetail: { color: COLORS.textSecondary, fontSize: 13, marginVertical: 1 },
 })
