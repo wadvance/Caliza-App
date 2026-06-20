@@ -116,9 +116,13 @@ export function CalizaScreen() {
             const label = prob.charAt(0).toUpperCase() + prob.slice(1)
             return (
               <TouchableOpacity key={prob} onPress={() => centerOnProbability(prob)}
-                style={[styles.zoneCard, { borderLeftColor: getColor(prob), borderColor: isSelected ? getColor(prob) : COLORS.border }]}
+                style={[styles.zoneCard, {
+                  borderLeftColor: isSelected ? getColor(prob) : COLORS.border,
+                  borderColor: isSelected ? getColor(prob) : COLORS.border,
+                  backgroundColor: isSelected ? getColor(prob) + '18' : COLORS.surface,
+                }]}
               >
-                <Text style={styles.zoneTitle}>Zona {label}</Text>
+                <Text style={[styles.zoneTitle, isSelected && { color: getColor(prob) }]}>Zona {label}</Text>
                 {probZones.map(zone => {
                   const info = zoneInfo[zone.id]
                   return (
