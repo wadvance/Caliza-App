@@ -201,6 +201,9 @@ export function CameraScreen({ navigation }: any) {
                   <Text style={styles.calizaInfoLabel}>Calizas cercanas:</Text>
                   <Text style={styles.calizaInfoValue}>{nearbyCount} en ≤1 km</Text>
                 </View>
+                <TouchableOpacity style={styles.calizaSearchBtn} onPress={() => navigation?.navigate('AR')}>
+                  <Text style={styles.calizaSearchBtnText}>Buscar caliza cercana en AR →</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -288,6 +291,8 @@ const styles = StyleSheet.create({
   calizaInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 3 },
   calizaInfoLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
   calizaInfoValue: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  calizaSearchBtn: { marginTop: 10, backgroundColor: '#4ecdc4', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  calizaSearchBtnText: { color: '#1a1a2e', fontSize: 14, fontWeight: '700' },
   actionRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
   retakeBtn: { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   retakeText: { color: COLORS.text, fontWeight: '600' },
