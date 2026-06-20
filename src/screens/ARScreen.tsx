@@ -377,14 +377,37 @@ export function ARScreen({ navigation }: any) {
           {selectedTarget && (
             <View style={styles.targetDetail}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <View style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   {isWeb
-                    ? React.createElement('span', {
-                        style: { display: 'inline-block', fontSize: 50, transform: `rotate(${(selectedTarget.bearing - heading + 360) % 360}deg)`, color: COLORS.highlight }
-                      }, '▲')
-                    : <Text style={{ fontSize: 50, color: COLORS.highlight, transform: [{ rotate: `${(selectedTarget.bearing - heading + 360) % 360}deg` }] }}>▲</Text>
+                    ? React.createElement('div', { style: { width: '100%', height: '100%', position: 'relative' } }, [
+                        React.createElement('span', { key:'n', style: { position:'absolute', top: 1, left:'50%', marginLeft: -4, color:'#fff', fontSize: 8, fontWeight:'700' } }, 'N'),
+                        React.createElement('span', { key:'s', style: { position:'absolute', bottom: 1, left:'50%', marginLeft: -3, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'S'),
+                        React.createElement('span', { key:'e', style: { position:'absolute', right: 1, top:'50%', marginTop: -4, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'E'),
+                        React.createElement('span', { key:'w', style: { position:'absolute', left: 1, top:'50%', marginTop: -4, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'W'),
+                        React.createElement('div', { key:'arrow', style: {
+                          position:'absolute', top:'50%', left:'50%',
+                          width:0, height:0,
+                          borderLeft:'3px solid transparent',
+                          borderRight:'3px solid transparent',
+                          borderTop:`6px solid ${selectedTarget.color}`,
+                          transform: `translate(-50%,-50%) rotate(${(selectedTarget.bearing - heading + 360) % 360}deg) translateY(-14px)`,
+                        }}),
+                      ])
+                    : (
+                      <View style={{ width:'100%',height:'100%' }}>
+                        <Text style={{position:'absolute',top:1,left:'50%',marginLeft:-4,color:'#fff',fontSize:8,fontWeight:'700'}}>N</Text>
+                        <Text style={{position:'absolute',bottom:1,left:'50%',marginLeft:-3,color:'rgba(255,255,255,0.5)',fontSize:7}}>S</Text>
+                        <Text style={{position:'absolute',right:1,top:'50%',marginTop:-4,color:'rgba(255,255,255,0.5)',fontSize:7}}>E</Text>
+                        <Text style={{position:'absolute',left:1,top:'50%',marginTop:-4,color:'rgba(255,255,255,0.5)',fontSize:7}}>W</Text>
+                        <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,
+                          borderLeftWidth:3,borderLeftColor:'transparent',
+                          borderRightWidth:3,borderRightColor:'transparent',
+                          borderTopWidth:6,borderTopColor:selectedTarget.color,
+                          transform:[{translateX:-3},{translateY:-17},{rotate:`${(selectedTarget.bearing - heading + 360) % 360}deg`}]
+                        }} />
+                      </View>
+                    )
                   }
-                  <Text style={{ color: COLORS.highlight, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{dirLabel(selectedTarget.bearing)}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
@@ -392,10 +415,7 @@ export function ARScreen({ navigation }: any) {
                     {formatDistance(selectedTarget.distance)}
                   </Text>
                   <Text style={styles.detailText}>
-                    Rumbo: {selectedTarget.bearing.toFixed(0)}° · Tú: {heading.toFixed(0)}°
-                  </Text>
-                  <Text style={[styles.detailText, { fontSize: 12, color: COLORS.highlight }]}>
-                    {dirLabel(selectedTarget.bearing)} — gira {(selectedTarget.bearing - heading + 360) % 360 > 180 ? 'izquierda' : 'derecha'}
+                    {selectedTarget.bearing.toFixed(0)}° · {dirLabel(selectedTarget.bearing)}
                   </Text>
                 </View>
               </View>
