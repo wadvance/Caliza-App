@@ -313,61 +313,52 @@ export function ARScreen({ navigation }: any) {
             React.createElement(Text, { style: styles.showAllText }, `Ver todos (${targets.length})`)
           )}
 
-          {selectedTarget && (
+          {selectedTarget && (() => {
+            const diff = ((selectedTarget.bearing - heading) % 360 + 360) % 360
+            const dirText = diff < 20 || diff > 340 ? 'Adelante'
+              : diff < 90 ? 'Derecha'
+              : diff < 160 ? 'Derecha'
+              : diff < 200 ? 'Atrás'
+              : diff < 270 ? 'Izquierda'
+              : 'Izquierda'
+            const dirArrow = diff < 20 || diff > 340 ? '↑'
+              : diff < 90 ? '↗'
+              : diff < 160 ? '→'
+              : diff < 200 ? '↓'
+              : diff < 270 ? '↙'
+              : '←'
+
+            return (
             <View style={styles.targetDetail}>
-              {isWeb
-                ? React.createElement('div', {
-                    onClick: () => setSelectedTarget(null),
-                    onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
-                    style: { ...styles.closeX, cursor: 'pointer' },
-                  }, React.createElement('span', { style: { color: '#fff', fontSize: 20, fontWeight: '800' } }, '✕'))
-                : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.closeX },
-                    React.createElement(Text, { style: styles.closeXText }, '✕')
-                  )
-              }
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {isWeb
-                    ? React.createElement('div', { style: { width: '100%', height: '100%', position: 'relative' } }, [
-                        React.createElement('span', { key:'n', style: { position:'absolute', top: 1, left:'50%', marginLeft: -4, color:'#fff', fontSize: 8, fontWeight:'700' } }, 'N'),
-                        React.createElement('span', { key:'s', style: { position:'absolute', bottom: 1, left:'50%', marginLeft: -3, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'S'),
-                        React.createElement('span', { key:'e', style: { position:'absolute', right: 1, top:'50%', marginTop: -4, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'E'),
-                        React.createElement('span', { key:'w', style: { position:'absolute', left: 1, top:'50%', marginTop: -4, color:'rgba(255,255,255,0.5)', fontSize: 7 } }, 'W'),
-                        React.createElement('div', { key:'arrow', style: {
-                          position:'absolute', top:'50%', left:'50%',
-                          width:0, height:0,
-                          borderLeft:'3px solid transparent',
-                          borderRight:'3px solid transparent',
-                          borderTop:`6px solid ${selectedTarget.color}`,
-                          transform: `translate(-50%,-50%) rotate(${(selectedTarget.bearing - heading + 360) % 360}deg) translateY(-14px)`,
-                        }}),
-                      ])
-                    : (
-                      <View style={{ width:'100%',height:'100%' }}>
-                        <Text style={{position:'absolute',top:1,left:'50%',marginLeft:-4,color:'#fff',fontSize:8,fontWeight:'700'}}>N</Text>
-                        <Text style={{position:'absolute',bottom:1,left:'50%',marginLeft:-3,color:'rgba(255,255,255,0.5)',fontSize:7}}>S</Text>
-                        <Text style={{position:'absolute',right:1,top:'50%',marginTop:-4,color:'rgba(255,255,255,0.5)',fontSize:7}}>E</Text>
-                        <Text style={{position:'absolute',left:1,top:'50%',marginTop:-4,color:'rgba(255,255,255,0.5)',fontSize:7}}>W</Text>
-                        <View style={{position:'absolute',top:'50%',left:'50%',width:0,height:0,
-                          borderLeftWidth:3,borderLeftColor:'transparent',
-                          borderRightWidth:3,borderRightColor:'transparent',
-                          borderTopWidth:6,borderTopColor:selectedTarget.color,
-                          transform:[{translateX:-3},{translateY:-17},{rotate:`${(selectedTarget.bearing - heading + 360) % 360}deg`}]
-                        }} />
-                      </View>
-                    )
-                  }
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
-                  <Text style={styles.detailText}>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
                     {formatDistance(selectedTarget.distance)}
                   </Text>
-                  <Text style={styles.detailText}>
-                    {selectedTarget.bearing.toFixed(0)}° · {dirLabel(selectedTarget.bearing)}
+                </View>
+                {isWeb
+                  ? React.createElement('div', {
+                      onClick: () => setSelectedTarget(null),
+                      onTouchEnd: (e: any) => { e.preventDefault(); setSelectedTarget(null) },
+                      style: { ...styles.closeX, cursor: 'pointer' },
+                    }, React.createElement('span', { style: { color: '#fff', fontSize: 20, fontWeight: '800' } }, '✕'))
+                  : React.createElement(TouchableOpacity, { onPress: () => setSelectedTarget(null), style: styles.closeX },
+                      React.createElement(Text, { style: styles.closeXText }, '✕')
+                    )
+                }
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, gap: 16 }}>
+                <Text style={{ fontSize: 48, color: selectedTarget.color }}>{dirArrow}</Text>
+                <View>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>{dirText}</Text>
+                  <Text style={{ fontSize: 14, color: selectedTarget.color }}>
+                    Gira el celular para actualizar la dirección
                   </Text>
                 </View>
               </View>
+
               <Text style={styles.detailText}>Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}</Text>
               {isWeb
                 ? React.createElement('div', {
@@ -380,7 +371,8 @@ export function ARScreen({ navigation }: any) {
                   )
               }
             </View>
-          )}
+            )
+          })()}
         </View>
       </CameraView>
 
