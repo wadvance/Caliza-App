@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import MapView, { Polygon, Marker } from '../components/MapViewWrapper'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation } from '../services/locationService'
-import { getAllZones } from '../services/database'
+import { getAllZones, seedDefaultZones } from '../services/database'
 import { CalizaZone } from '../types'
 import { useAppStore } from '../store/useAppStore'
 
@@ -14,15 +14,25 @@ const PROB_COLORS: Record<string, string> = { alta: COLORS.probabilityHigh, medi
 export function CalizaScreen() {
   const currentLocation = useCurrentLocation()
   const { zones, setZones } = useAppStore()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const mapRef = useRef<any>(null)
 
-  useMemo(() => {
-    if (zones.length === 0) {
-      setLoading(true)
-      getAllZones().then(z => { setZones(z); setLoading(false) })
-    }
+  useEffect(() => {
+    getAllZones().then(z => {
+      const altaCount = z.filter((x: CalizaZone) => x.probability === 'alta').length
+      const mediaCount = z.filter((x: CalizaZone) => x.probability === 'media').length
+      const bajaCount = z.filter((x: CalizaZone) => x.probability === 'baja').length
+      if (altaCount !== 2 || mediaCount !== 4 || bajaCount !== 2) {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('caliza_zones')
+        seedDefaultZones().then(() => {
+          getAllZones().then(fresh => { setZones(fresh); setLoading(false) })
+        })
+      } else {
+        setZones(z)
+        setLoading(false)
+      }
+    })
   }, [])
 
   const toggleIdx = (idx: number) => {
