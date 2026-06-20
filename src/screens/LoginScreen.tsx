@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   switchLink: {
-    color: COLORS.highlight,
+    color: '#ff6b81',
     fontSize: 14,
     fontWeight: '600',
   },
