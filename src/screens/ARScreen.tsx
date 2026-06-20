@@ -376,6 +376,9 @@ export function ARScreen({ navigation }: any) {
 
           {selectedTarget && (
             <View style={styles.targetDetail}>
+              {clickEl(() => setSelectedTarget(null), styles.closeX,
+                React.createElement(Text, { style: styles.closeXText }, '✕')
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   {isWeb
@@ -515,6 +518,8 @@ const styles = StyleSheet.create({
   },
   detailTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
   detailText: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginVertical: 2 },
+  closeX: { position: 'absolute', top: 8, right: 12, zIndex: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  closeXText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   closeDetail: { marginTop: 12, alignSelf: 'center' },
   closeDetailText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
   modalOverlay: {
