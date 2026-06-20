@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator } from 'react-native'
 import MapView, { Marker, Polygon, Polyline } from '../components/MapViewWrapper'
 import { useAppStore } from '../store/useAppStore'
 import { COLORS } from '../types/constants'
@@ -7,6 +7,7 @@ import { LayerToggle } from '../components/LayerToggle'
 import { useCurrentLocation } from '../services/locationService'
 import { getAllZones, getAllSamples, webSaveRoutes, webLoadRoutes } from '../services/database'
 import { Sample, CalizaZone, AccessRoute } from '../types'
+import { getLocationContext, LocationContext } from '../services/locationContextService'
 
 const { height } = Dimensions.get('window')
 
@@ -309,6 +310,9 @@ export function MapScreen({ navigation }: any) {
   const [districtTownships, setDistrictTownships] = useState<(Township & { districtName: string; provinceName: string })[] | null>(null)
   const [samples, setLocalSamples] = useState<Sample[]>([])
   const [zones, setLocalZones] = useState<CalizaZone[]>([])
+  const [locationCtx, setLocationCtx] = useState<LocationContext | null>(null)
+  const [ctxLoading, setCtxLoading] = useState(false)
+  const [showContext, setShowContext] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -483,6 +487,33 @@ export function MapScreen({ navigation }: any) {
     setSearchText('')
   }
 
+  const handleLocationContext = useCallback(async () => {
+    if (!currentLocation) return
+    setCtxLoading(true)
+    setShowContext(true)
+    try {
+      const ctx = await getLocationContext(currentLocation.latitude, currentLocation.longitude)
+      setLocationCtx(ctx)
+    } catch {
+      setLocationCtx(null)
+    } finally {
+      setCtxLoading(false)
+    }
+  }, [currentLocation])
+
+  const ctxIcon = (type: string) => {
+    switch (type) {
+      case 'montaña': return '⛰️'
+      case 'rio': return '💧'
+      case 'carretera': return '🛣️'
+      case 'bosque': return '🌲'
+      case 'lago': return '🌊'
+      case 'playa': return '🏖️'
+      case 'pueblo': return '🏘️'
+      default: return '📍'
+    }
+  }
+
   const handleCloseSearch = () => {
     setShowSearch(false)
     setSelectedProvince(null)
@@ -555,10 +586,15 @@ export function MapScreen({ navigation }: any) {
 
       <View style={styles.overlay}>
         {currentLocation && (
-          <View style={styles.coords}>
-            <Text style={styles.coordsText}>
-              {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={styles.coords}>
+              <Text style={styles.coordsText}>
+                {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.ctxBtn} onPress={handleLocationContext}>
+              <Text style={styles.ctxBtnText}>🌍</Text>
+            </TouchableOpacity>
           </View>
         )}
         {!recording ? (
@@ -571,6 +607,50 @@ export function MapScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
+
+      {showContext && (
+        <View style={styles.contextCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={styles.contextTitle}>📍 Ubicación</Text>
+            <TouchableOpacity onPress={() => setShowContext(false)}>
+              <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          {ctxLoading ? (
+            <ActivityIndicator color={COLORS.accent} size="small" />
+          ) : locationCtx ? (
+            <>
+              <Text style={styles.contextPlace}>{locationCtx.place}</Text>
+              {locationCtx.road || locationCtx.city ? (
+                <Text style={styles.contextSub}>
+                  {[locationCtx.road, locationCtx.city].filter(Boolean).join(', ')}
+                </Text>
+              ) : null}
+              {locationCtx.state && (
+                <Text style={styles.contextSub}>{locationCtx.state}, {locationCtx.country}</Text>
+              )}
+              {locationCtx.nearby.length > 0 && (
+                <>
+                  <Text style={[styles.contextSub, { marginTop: 8, fontWeight: '600', color: COLORS.text }]}>
+                    Cerca de aquí:
+                  </Text>
+                  {locationCtx.nearby.map((f, i) => (
+                    <View key={i} style={styles.nearbyRow}>
+                      <Text style={{ fontSize: 14 }}>{ctxIcon(f.type)}</Text>
+                      <Text style={styles.nearbyName}>{f.name}</Text>
+                      <Text style={styles.nearbyDist}>
+                        {f.distance < 1000 ? `${f.distance} m` : `${(f.distance / 1000).toFixed(1)} km`}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            <Text style={styles.contextSub}>No se pudo obtener información del lugar</Text>
+          )}
+        </View>
+      )}
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Camara', { screen: 'CameraMain' })}>
@@ -772,6 +852,19 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 100, left: 16, right: 16, alignItems: 'center' },
   coords: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   coordsText: { color: '#fff', fontSize: 11, fontFamily: 'monospace' },
+  ctxBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.accent, justifyContent: 'center', alignItems: 'center' },
+  ctxBtnText: { fontSize: 14 },
+  contextCard: {
+    position: 'absolute', top: 140, left: 16, right: 16,
+    backgroundColor: COLORS.surface + 'F2', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: COLORS.border,
+  },
+  contextTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
+  contextPlace: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  contextSub: { color: COLORS.textSecondary, fontSize: 12, marginVertical: 1 },
+  nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  nearbyName: { color: COLORS.text, fontSize: 13, flex: 1 },
+  nearbyDist: { color: COLORS.textMuted, fontSize: 11 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'space-around',
