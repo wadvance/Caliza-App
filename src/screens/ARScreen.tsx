@@ -303,19 +303,6 @@ export function ARScreen({ navigation }: any) {
               <Text style={styles.title}>Realidad Aumentada</Text>
               <View style={{ width: 60 }} />
             </View>
-            <View style={{ alignItems: 'center', marginTop: 10 }}>
-              <View style={{
-                width: 60, height: 60, borderRadius: 30,
-                borderWidth: 2, borderColor: '#fff',
-                justifyContent: 'center', alignItems: 'center',
-                transform: [{ rotate: `-${heading}deg` }]
-              }}>
-                <Text style={{color: '#fff', position: 'absolute', top: 2, fontSize: 12, fontWeight: 'bold'}}>N</Text>
-                <Text style={{color: '#fff', position: 'absolute', bottom: 2, fontSize: 12, fontWeight: 'bold'}}>S</Text>
-                <Text style={{color: '#fff', position: 'absolute', left: 5, fontSize: 12, fontWeight: 'bold'}}>O</Text>
-                <Text style={{color: '#fff', position: 'absolute', right: 5, fontSize: 12, fontWeight: 'bold'}}>E</Text>
-              </View>
-            </View>
             <Text style={styles.subtitle}>
               {targets.length} puntos de interés cercanos
             </Text>
