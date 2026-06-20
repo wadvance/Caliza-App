@@ -376,7 +376,7 @@ export function ARScreen({ navigation }: any) {
 
           {selectedTarget && (
             <View style={styles.targetDetail}>
-              {clickEl(() => setSelectedTarget(null), styles.closeX,
+              {clickEl(() => setSelectedTarget(null), [styles.closeX, isWeb ? { cursor: 'pointer' } : {}],
                 React.createElement(Text, { style: styles.closeXText }, '✕')
               )}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -423,8 +423,8 @@ export function ARScreen({ navigation }: any) {
                 </View>
               </View>
               <Text style={styles.detailText}>Tipo: {selectedTarget.type === 'sample' ? 'Muestra' : 'Zona'}</Text>
-              {clickEl(() => setSelectedTarget(null), styles.closeDetail,
-                React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar')
+              {clickEl(() => setSelectedTarget(null), [styles.closeDetail, isWeb ? { cursor: 'pointer' } : {}],
+                React.createElement(Text, { style: styles.closeDetailText }, 'Cerrar panel')
               )}
             </View>
           )}
@@ -518,10 +518,10 @@ const styles = StyleSheet.create({
   },
   detailTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
   detailText: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginVertical: 2 },
-  closeX: { position: 'absolute', top: 8, right: 12, zIndex: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  closeXText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  closeDetail: { marginTop: 12, alignSelf: 'center' },
-  closeDetailText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
+  closeX: { position: 'absolute', top: 8, right: 12, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  closeXText: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  closeDetail: { marginTop: 12, alignSelf: 'stretch', alignItems: 'center', backgroundColor: COLORS.accent + '30', borderRadius: 12, paddingVertical: 12 },
+  closeDetailText: { color: COLORS.accent, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
