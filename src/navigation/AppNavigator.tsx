@@ -1,4 +1,4 @@
-import { Text } from 'react-native'
+import { Text, View, TouchableOpacity } from 'react-native'
 import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -91,34 +91,63 @@ function MoreStackScreen() {
   )
 }
 
+const VISIBLE_TABS = [
+  { name: 'Inicio', icon: '🏠', label: 'Inicio' },
+  { name: 'Muestras', icon: '📋', label: 'Muestras' },
+  { name: 'AR', icon: '🪄', label: 'Realidad' },
+  { name: 'Más', icon: '⚙️', label: 'Más' },
+]
+
+function MyTabBar({ state, descriptors, navigation }: any) {
+  const visibleNames = VISIBLE_TABS.map(t => t.name)
+  const visibleRoutes = state.routes.filter((r: any) => visibleNames.includes(r.name))
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border, paddingBottom: 4 }}>
+      {visibleRoutes.map((route: any, index: number) => {
+        const tab = VISIBLE_TABS.find(t => t.name === route.name)
+        const isFocused = state.index === state.routes.indexOf(route)
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key })
+          if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name)
+        }
+        return (
+          <TouchableOpacity key={route.key} onPress={onPress}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}
+          >
+            <Text style={{ fontSize: 20, opacity: isFocused ? 1 : 0.5 }}>{tab?.icon}</Text>
+            <Text style={{ fontSize: 10, color: isFocused ? COLORS.highlight : COLORS.textMuted, marginTop: 2, fontWeight: isFocused ? '700' : '400' }}>
+              {tab?.label}
+            </Text>
+          </TouchableOpacity>
+        )
+      })}
+    </View>
+  )
+}
+
 function MainTabs() {
   return (
-    <Tab.Navigator
+    <Tab.Navigator tabBar={props => <MyTabBar {...props} />}
       screenOptions={{
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-        },
         tabBarActiveTintColor: COLORS.highlight,
         tabBarInactiveTintColor: COLORS.textMuted,
       }}
     >
       <Tab.Screen name="Inicio" component={HomeStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>🏠</Text> }} />
+        options={{ headerShown: false }} />
       <Tab.Screen name="Mapa" component={MapStackScreen}
-        options={{ headerShown: false, tabBarButton: () => null }} />
+        options={{ headerShown: false }} />
       <Tab.Screen name="Camara" component={CameraStackScreen}
-        options={{ headerShown: false, tabBarButton: () => null }}
+        options={{ headerShown: false }}
         listeners={({ navigation }) => ({
           tabPress: () => { navigation.reset({ index: 0, routes: [{ name: 'Camara' }] }) },
         })} />
       <Tab.Screen name="Muestras" component={SamplesStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>📋</Text> }} />
+        options={{ headerShown: false }} />
       <Tab.Screen name="AR" component={ARScreen}
-        options={{ title: 'Realidad aumentada', tabBarIcon: () => <Text style={{ fontSize: 20 }}>🪄</Text> }} />
+        options={{ title: 'Realidad aumentada' }} />
       <Tab.Screen name="Más" component={MoreStackScreen}
-        options={{ headerShown: false, tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text> }} />
+        options={{ headerShown: false }} />
     </Tab.Navigator>
   )
 }
