@@ -122,7 +122,12 @@ export function CalizaScreen() {
                   backgroundColor: isSelected ? getColor(prob) + '18' : COLORS.surface,
                 }]}
               >
-                <Text style={[styles.zoneTitle, isSelected && { color: getColor(prob) }]}>Zona {label}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.zoneTitle, isSelected && { color: getColor(prob) }]}>Zona {label}</Text>
+                  <Text style={[styles.selectionBadge, isSelected && { color: '#fff', backgroundColor: getColor(prob) }]}>
+                    {isSelected ? '✓' : ''}
+                  </Text>
+                </View>
                 {probZones.map(zone => {
                   const info = zoneInfo[zone.id]
                   return (
@@ -163,7 +168,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: 12,
     padding: 14, borderLeftWidth: 3, borderWidth: 1, borderColor: COLORS.border,
   },
-  zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  selectionBadge: { fontSize: 14, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
+  zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   zoneItem: { marginBottom: 8, paddingLeft: 4 },
   zoneName: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 2 },
   zoneDetail: { color: COLORS.textSecondary, fontSize: 13, marginVertical: 1 },
