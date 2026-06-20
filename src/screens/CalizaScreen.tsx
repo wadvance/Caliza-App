@@ -17,6 +17,9 @@ const ZONES: CalizaZone[] = [
   { id: 'chiriqui-dolega', probability: 'media', confidence: 0.55, source: 'geological_map', coordinates: [{ latitude: 8.6500, longitude: -82.4400 }, { latitude: 8.6500, longitude: -82.3900 }, { latitude: 8.6000, longitude: -82.3900 }, { latitude: 8.6000, longitude: -82.4400 }] },
   { id: 'chiriqui-alanje', probability: 'media', confidence: 0.58, source: 'geological_map', coordinates: [{ latitude: 8.4200, longitude: -82.5800 }, { latitude: 8.4200, longitude: -82.5400 }, { latitude: 8.3800, longitude: -82.5400 }, { latitude: 8.3800, longitude: -82.5800 }] },
   { id: 'chiriqui-paso-canoas', probability: 'media', confidence: 0.52, source: 'geological_map', coordinates: [{ latitude: 8.5800, longitude: -82.8600 }, { latitude: 8.5800, longitude: -82.8000 }, { latitude: 8.5200, longitude: -82.8000 }, { latitude: 8.5200, longitude: -82.8600 }] },
+  { id: 'chiriqui-caldera', probability: 'media', confidence: 0.57, source: 'geological_map', coordinates: [{ latitude: 8.7700, longitude: -82.3500 }, { latitude: 8.7700, longitude: -82.2900 }, { latitude: 8.7000, longitude: -82.2900 }, { latitude: 8.7000, longitude: -82.3500 }] },
+  { id: 'chiriqui-horconcitos', probability: 'baja', confidence: 0.38, source: 'geological_map', coordinates: [{ latitude: 8.3500, longitude: -82.2000 }, { latitude: 8.3500, longitude: -82.1200 }, { latitude: 8.2800, longitude: -82.1200 }, { latitude: 8.2800, longitude: -82.2000 }] },
+  { id: 'chiriqui-puerto-armuelles', probability: 'baja', confidence: 0.33, source: 'geological_map', coordinates: [{ latitude: 8.3200, longitude: -82.9000 }, { latitude: 8.3200, longitude: -82.8300 }, { latitude: 8.2500, longitude: -82.8300 }, { latitude: 8.2500, longitude: -82.9000 }] },
   { id: 'chiriqui-tole', probability: 'baja', confidence: 0.40, source: 'geological_map', coordinates: [{ latitude: 8.2800, longitude: -81.7000 }, { latitude: 8.2800, longitude: -81.6400 }, { latitude: 8.2200, longitude: -81.6400 }, { latitude: 8.2200, longitude: -81.7000 }] },
   { id: 'chiriqui-san-felix', probability: 'baja', confidence: 0.35, source: 'geological_map', coordinates: [{ latitude: 8.3200, longitude: -81.8900 }, { latitude: 8.3200, longitude: -81.8400 }, { latitude: 8.2700, longitude: -81.8400 }, { latitude: 8.2700, longitude: -81.8900 }] },
 ]
@@ -29,6 +32,9 @@ const ZONE_INFO: Record<string, { depth: string; type: string }> = {
   'chiriqui-dolega': { depth: '6–18 m', type: 'Caliza detrítica' },
   'chiriqui-alanje': { depth: '4–15 m', type: 'Caliza arenosa' },
   'chiriqui-paso-canoas': { depth: '3–12 m', type: 'Caliza arrecifal' },
+  'chiriqui-caldera': { depth: '5–20 m', type: 'Caliza termal fosilífera' },
+  'chiriqui-horconcitos': { depth: '2–8 m', type: 'Caliza margosa costera' },
+  'chiriqui-puerto-armuelles': { depth: '2–6 m', type: 'Caliza areniscosa' },
   'chiriqui-tole': { depth: '3–10 m', type: 'Caliza lutítica' },
   'chiriqui-san-felix': { depth: '2–8 m', type: 'Caliza conglomerádica' },
 }
@@ -130,7 +136,6 @@ export function CalizaScreen() {
                 return (
                   <View key={zone.id} style={styles.zoneItem}>
                     <Text style={styles.zoneName}>{zone.id.replace('chiriqui-', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
-                    <Text style={styles.zoneDebug}>prob={zone.probability}</Text>
                     {info ? (
                       <Text style={styles.zoneDetail}>📏 {info.depth} · 🪨 {info.type}</Text>
                     ) : (
@@ -170,6 +175,5 @@ const styles = StyleSheet.create({
   zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   zoneItem: { marginBottom: 8, paddingLeft: 4 },
   zoneName: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 2 },
-  zoneDebug: { color: '#888', fontSize: 10, fontFamily: 'monospace', marginBottom: 2 },
   zoneDetail: { color: COLORS.textSecondary, fontSize: 13, marginVertical: 1 },
 })
