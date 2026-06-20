@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native'
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation, calculateBearing, calculateDistance } from '../services/locationService'
 import { getAllZones } from '../services/database'
@@ -107,6 +107,7 @@ export function ARScreen({ navigation }: any) {
   const [targets, setTargets] = useState<ARTarget[]>([])
   const [selectedTarget, setSelectedTarget] = useState<ARTarget | null>(null)
   const [showList, setShowList] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [heading, setHeading] = useState(0)
 
   useEffect(() => {
@@ -250,6 +251,14 @@ export function ARScreen({ navigation }: any) {
     }
   }, [])
 
+  const filteredTargets = searchQuery.trim()
+    ? targets.filter(t =>
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        formatDistance(t.distance).includes(searchQuery)
+      )
+    : targets
+
   const clickEl = (onPress: () => void, style: any, children: any) => {
     const flatStyle = Array.isArray(style) ? Object.assign({}, ...style) : style
     return isWeb
@@ -376,23 +385,73 @@ export function ARScreen({ navigation }: any) {
         </View>
       </CameraView>
 
-      <Modal visible={showList} transparent animationType="slide">
+      <Modal visible={showList} transparent animationType="slide" onShow={() => setSearchQuery('')}>
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Todos los puntos</Text>
-            <FlatList
-              data={targets}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => clickEl(() => { setSelectedTarget(item); setShowList(false) },
-                [styles.listItem, { borderLeftColor: item.color }],
-                [React.createElement(Text, { style: styles.listName, key: 'name' }, item.name),
-                 React.createElement(Text, { style: styles.listDist, key: 'dist' },
-                   `${formatDistance(item.distance)} · ${item.bearing.toFixed(0)}°`)]
+            <Text style={styles.modalTitle}>Puntos de interés</Text>
+
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar por nombre, tipo o distancia..."
+                placeholderTextColor={COLORS.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity style={styles.searchClear} onPress={() => setSearchQuery('')}>
+                  <Text style={styles.searchClearText}>✕</Text>
+                </TouchableOpacity>
               )}
+            </View>
+
+            <FlatList
+              data={filteredTargets}
+              keyExtractor={item => item.id}
+              ListEmptyComponent={
+                <View style={styles.emptyList}>
+                  <Text style={styles.emptyListText}>
+                    {searchQuery ? 'Sin resultados para esta búsqueda' : 'No hay puntos cercanos'}
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const zoneLabel = item.type === 'zone' ? 'Zona' : 'Muestra'
+                const zoneColor = item.type === 'zone' ? item.color : COLORS.textMuted
+                return clickEl(() => { setSelectedTarget(item); setShowList(false) },
+                  [styles.listItem, { borderLeftColor: item.color }],
+                  [
+                    React.createElement(View, { style: styles.listItemLeft, key: 'left' },
+                      React.createElement(View, { style: [styles.listBadge, { backgroundColor: zoneColor + '30' }] },
+                        React.createElement(Text, { style: [styles.listBadgeText, { color: zoneColor }] }, zoneLabel)
+                      ),
+                      React.createElement(View, { style: styles.listItemInfo, key: 'info' },
+                        React.createElement(Text, { style: styles.listName, key: 'name' }, item.name),
+                        React.createElement(Text, { style: styles.listDist, key: 'dist' },
+                          `${formatDistance(item.distance)} · ${dirLabel(item.bearing)}`
+                        )
+                      ),
+                    ),
+                    React.createElement(View, { style: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
+                      isWeb
+                        ? React.createElement('span', { style: { display: 'inline-block', fontSize: 20, transform: `rotate(${item.bearing}deg)`, color: item.color } }, '▲')
+                        : React.createElement(Text, { style: { fontSize: 20, color: item.color, transform: [{ rotate: `${item.bearing}deg` }] } }, '▲')
+                    ),
+                  ]
+                )
+              }}
             />
-            {clickEl(() => setShowList(false), styles.closeBtn,
-              React.createElement(Text, { style: styles.closeBtnText }, 'Cerrar')
-            )}
+
+            <View style={styles.listFooter}>
+              <Text style={styles.listFooterText}>
+                {filteredTargets.length} de {targets.length} puntos
+              </Text>
+              {clickEl(() => { setShowList(false); setSearchQuery('') }, styles.closeBtn,
+                React.createElement(Text, { style: styles.closeBtnText }, 'Cerrar')
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -453,34 +512,82 @@ const styles = StyleSheet.create({
   closeDetailText: { color: COLORS.accent, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   modal: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
-    maxHeight: '60%',
+    paddingTop: 28,
+    maxHeight: '75%',
   },
-  modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
+  modalTitle: { color: COLORS.text, fontSize: 20, fontWeight: '800', marginBottom: 16, textAlign: 'center', letterSpacing: 0.5 },
+  searchContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  searchInput: {
+    backgroundColor: COLORS.surfaceLight,
+    color: COLORS.text,
+    borderRadius: 12,
+    padding: 14,
+    paddingRight: 44,
+    fontSize: 15,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+  },
+  searchClear: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  searchClearText: { color: COLORS.textMuted, fontSize: 16, fontWeight: '700' },
+  emptyList: { paddingVertical: 40, alignItems: 'center' },
+  emptyListText: { color: COLORS.textMuted, fontSize: 14 },
   listItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 14,
     borderLeftWidth: 3,
-    borderRadius: 8,
-    marginVertical: 3,
+    borderRadius: 12,
+    marginVertical: 4,
     backgroundColor: COLORS.surfaceLight,
   },
-  listName: { color: COLORS.text, fontSize: 15, fontWeight: '500' },
-  listDist: { color: COLORS.textSecondary, fontSize: 13 },
-  closeBtn: {
-    backgroundColor: COLORS.accent,
-    padding: 12,
-    borderRadius: 10,
+  listItemLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  listBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  listBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  listItemInfo: { flex: 1 },
+  listName: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
+  listDist: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  listFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
-  closeBtnText: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
+  listFooterText: { color: COLORS.textMuted, fontSize: 13 },
+  closeBtn: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  closeBtnText: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
 })
