@@ -35,11 +35,11 @@ jobs:
           sed -i 's|"/assets/|"/Caliza-App/assets/|g' index.html
           find . -name '*.js' -exec sed -i 's|"/_expo/|"/Caliza-App/_expo/|g' {} +
           find . -name '*.js' -exec sed -i 's|"/assets/|"/Caliza-App/assets/|g' {} +
-          # Add cache-busting meta tags
-          sed -i 's|<title>GeoCaliza</title>|<title>GeoCaliza</title>\n    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n    <meta http-equiv="Pragma" content="no-cache">\n    <meta http-equiv="Expires" content="0">|' index.html
+          # Add cache-busting meta tags and force-reload script
+          BUILD_DATE=$(date +%Y%m%d-%H%M%S)
+          sed -i 's|<title>GeoCaliza</title>|<title>GeoCaliza</title>\n    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n    <meta http-equiv="Pragma" content="no-cache">\n    <meta http-equiv="Expires" content="0">\n    <script>!function(){var e="caliza_ver";try{var t='"'$BUILD_DATE'"',n=localStorage.getItem(e);n!==t&&(localStorage.setItem(e,t),window.location.search?(window.location.search+="&_cb="+t):window.location.search="?_cb="+t)}catch(e){}}();<\/script>|' index.html
           # Add version param to script src for cache busting
-          BUILD_TS=$(date +%s)
-          sed -i "s|<script src=\"/Caliza-App/_expo/static/js/web/index-\([^.]*\)\.js\"|<script src=\"/Caliza-App/_expo/static/js/web/index-\1.js?v=$BUILD_TS\"|" index.html
+          sed -i "s|<script src=\"/Caliza-App/_expo/static/js/web/index-\([^.]*\)\.js\"|<script src=\"/Caliza-App/_expo/static/js/web/index-\1.js?v=$BUILD_DATE\"|" index.html
           touch .nojekyll
 
       - name: Deploy to gh-pages branch
