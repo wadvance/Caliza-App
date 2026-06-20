@@ -300,22 +300,25 @@ export function ARScreen({ navigation }: any) {
 
 
           <View style={styles.targetsContainer}>
-            {targets.length > 0 && targets.slice(0, 5).map(target => (
-              clickEl(() => setSelectedTarget(target),
-                [styles.targetCard, { borderLeftColor: target.color }],
-                [React.createElement(View, { style: styles.targetInfo, key: 'info' },
-                  React.createElement(Text, { style: styles.targetName }, target.name),
-                  React.createElement(Text, { style: styles.targetDist },
-                    `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
-                  )
-                ),
-                React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
-                  isWeb
-                    ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing}deg)`, color: target.color } }, '▲')
-                    : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing}deg` }] } }, '▲')
-                )]
-              )
-            ))}
+          {targets.length > 0 && targets.slice(0, 5).map(target => (
+            clickEl(() => {
+              console.log('Tocaste zona inline:', target.name, 'Bearing:', target.bearing);
+              setSelectedTarget(target);
+            },
+              [styles.targetCard, { borderLeftColor: target.color }],
+              [React.createElement(View, { style: styles.targetInfo, key: 'info' },
+                React.createElement(Text, { style: styles.targetName }, target.name),
+                React.createElement(Text, { style: styles.targetDist },
+                  `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
+                )
+              ),
+              React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
+                isWeb
+                  ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing}deg)`, color: target.color } }, '▲')
+                  : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing}deg` }] } }, '▲')
+              )]
+            )
+          ))}
           </View>
 
           {targets.length > 5 && clickEl(() => setShowList(true), styles.showAllBtn,
@@ -338,7 +341,7 @@ export function ARScreen({ navigation }: any) {
               : '←'
 
             return (
-            <View style={styles.targetDetail}>
+            <View style={[styles.targetDetail, {borderWidth: 2, borderColor: '#00FF00'}]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
