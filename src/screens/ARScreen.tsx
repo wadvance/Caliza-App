@@ -90,6 +90,15 @@ function smoothHeading(raw: number, alpha = 0.25): number {
   return smoothedHeading
 }
 
+const getZoneColor = (prob: string) => {
+  switch (prob) {
+    case 'alta': return COLORS.probabilityHigh
+    case 'media': return COLORS.probabilityMedium
+    case 'baja': return COLORS.probabilityLow
+    default: return COLORS.probabilityPending
+  }
+}
+
 interface ARTarget {
   id: string
   name: string
@@ -135,7 +144,7 @@ export function ARScreen({ navigation }: any) {
           distance: calculateDistance(currentLocation.latitude, currentLocation.longitude, z.coordinates[0]?.latitude || currentLocation.latitude, z.coordinates[0]?.longitude || currentLocation.longitude),
           bearing: calculateBearing(currentLocation.latitude, currentLocation.longitude, z.coordinates[0]?.latitude || currentLocation.latitude, z.coordinates[0]?.longitude || currentLocation.longitude),
           type: 'zone' as const,
-          color: z.probability === 'alta' ? COLORS.probabilityHigh : z.probability === 'media' ? COLORS.probabilityMedium : COLORS.probabilityLow,
+          color: getZoneColor(z.probability),
         })),
       ]
 
@@ -145,6 +154,8 @@ export function ARScreen({ navigation }: any) {
 
     loadTargets()
   }, [currentLocation, samples])
+
+
 
   useEffect(() => {
     if (!isWeb) {
@@ -292,6 +303,19 @@ export function ARScreen({ navigation }: any) {
               <Text style={styles.title}>Realidad Aumentada</Text>
               <View style={{ width: 60 }} />
             </View>
+            <View style={{ alignItems: 'center', marginTop: 10 }}>
+              <View style={{
+                width: 60, height: 60, borderRadius: 30,
+                borderWidth: 2, borderColor: '#fff',
+                justifyContent: 'center', alignItems: 'center',
+                transform: [{ rotate: `-${heading}deg` }]
+              }}>
+                <Text style={{color: '#fff', position: 'absolute', top: 2, fontSize: 12, fontWeight: 'bold'}}>N</Text>
+                <Text style={{color: '#fff', position: 'absolute', bottom: 2, fontSize: 12, fontWeight: 'bold'}}>S</Text>
+                <Text style={{color: '#fff', position: 'absolute', left: 5, fontSize: 12, fontWeight: 'bold'}}>O</Text>
+                <Text style={{color: '#fff', position: 'absolute', right: 5, fontSize: 12, fontWeight: 'bold'}}>E</Text>
+              </View>
+            </View>
             <Text style={styles.subtitle}>
               {targets.length} puntos de interés cercanos
             </Text>
@@ -314,8 +338,8 @@ export function ARScreen({ navigation }: any) {
               ),
               React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
                 isWeb
-                  ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing}deg)`, color: target.color } }, '▲')
-                  : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing}deg` }] } }, '▲')
+                  ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing - heading}deg)`, color: target.color } }, '▲')
+                  : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing - heading}deg` }] } }, '▲')
               )]
             )
           ))}
@@ -443,8 +467,8 @@ export function ARScreen({ navigation }: any) {
                     ),
                     React.createElement(View, { style: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
                       isWeb
-                        ? React.createElement('span', { style: { display: 'inline-block', fontSize: 20, transform: `rotate(${item.bearing}deg)`, color: item.color } }, '▲')
-                        : React.createElement(Text, { style: { fontSize: 20, color: item.color, transform: [{ rotate: `${item.bearing}deg` }] } }, '▲')
+                        ? React.createElement('span', { style: { display: 'inline-block', fontSize: 20, transform: `rotate(${item.bearing - heading}deg)`, color: item.color } }, '▲')
+                        : React.createElement(Text, { style: { fontSize: 20, color: item.color, transform: [{ rotate: `${item.bearing - heading}deg` }] } }, '▲')
                     ),
                   ]
                 )

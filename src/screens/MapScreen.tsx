@@ -332,6 +332,15 @@ export function MapScreen({ navigation }: any) {
     }
   }
 
+  const getZoneFillColor = (probability: string) => {
+    switch (probability) {
+      case 'alta': return COLORS.probabilityHigh + '40'
+      case 'media': return COLORS.probabilityMedium + '35'
+      case 'baja': return COLORS.probabilityLow + '30'
+      default: return COLORS.probabilityPending + '30'
+    }
+  }
+
   const { routes, setRoutes, addRoute, removeRoute } = useAppStore()
   const [showRouteNameModal, setShowRouteNameModal] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -556,9 +565,7 @@ export function MapScreen({ navigation }: any) {
       }}>
         {showPotentialZones && zones.map(zone => (
           <Polygon key={zone.id} coordinates={zone.coordinates}
-            fillColor={zone.probability === 'alta' ? COLORS.probabilityHigh + '40' :
-                       zone.probability === 'media' ? COLORS.probabilityMedium + '35' :
-                       COLORS.probabilityLow + '30'}
+            fillColor={getZoneFillColor(zone.probability)}
             strokeColor={getZoneColor(zone.probability)} strokeWidth={2}
           />
         ))}
