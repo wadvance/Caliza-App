@@ -266,8 +266,28 @@ function mapRowToSample(row: any): Sample {
   }
 }
 
+export function webSaveZones(zones: CalizaZone[]): void {
+  try {
+    localStorage.setItem('caliza_zones', JSON.stringify(zones))
+  } catch {}
+}
+
+export function webLoadZones(): CalizaZone[] {
+  try {
+    const data = localStorage.getItem('caliza_zones')
+    return data ? JSON.parse(data) : []
+  } catch { return [] }
+}
+
 export async function saveZone(zone: CalizaZone): Promise<void> {
-  if (!db) return
+  if (!db) {
+    const zones = webLoadZones()
+    const idx = zones.findIndex(z => z.id === zone.id)
+    if (idx >= 0) zones[idx] = zone
+    else zones.push(zone)
+    webSaveZones(zones)
+    return
+  }
   await db.runAsync(
     `INSERT OR REPLACE INTO caliza_zones (id, coordinates, probability, confidence, source)
      VALUES (?, ?, ?, ?, ?)`,
@@ -276,7 +296,7 @@ export async function saveZone(zone: CalizaZone): Promise<void> {
 }
 
 export async function getAllZones(): Promise<CalizaZone[]> {
-  if (!db) return []
+  if (!db) return webLoadZones()
   const rows = await db.getAllAsync<any>('SELECT * FROM caliza_zones')
   return rows.map(row => ({
     id: row.id,
@@ -343,6 +363,133 @@ export async function deleteSample(id: string): Promise<void> {
     return
   }
   await db.runAsync('DELETE FROM samples WHERE id = ?', [id])
+}
+
+const CHIRIQUI_CALIZA_ZONES: CalizaZone[] = [
+  {
+    id: 'chiriqui-david-cerro-pelado',
+    coordinates: [
+      { latitude: 8.4600, longitude: -82.4600 },
+      { latitude: 8.4600, longitude: -82.4000 },
+      { latitude: 8.4000, longitude: -82.4000 },
+      { latitude: 8.4000, longitude: -82.4600 },
+    ],
+    probability: 'alta',
+    confidence: 0.82,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-gualaca',
+    coordinates: [
+      { latitude: 8.5600, longitude: -82.3300 },
+      { latitude: 8.5600, longitude: -82.2700 },
+      { latitude: 8.5000, longitude: -82.2700 },
+      { latitude: 8.5000, longitude: -82.3300 },
+    ],
+    probability: 'alta',
+    confidence: 0.78,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-bugaba',
+    coordinates: [
+      { latitude: 8.5100, longitude: -82.6500 },
+      { latitude: 8.5100, longitude: -82.5800 },
+      { latitude: 8.4500, longitude: -82.5800 },
+      { latitude: 8.4500, longitude: -82.6500 },
+    ],
+    probability: 'media',
+    confidence: 0.65,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-boqueron',
+    coordinates: [
+      { latitude: 8.5300, longitude: -82.5800 },
+      { latitude: 8.5300, longitude: -82.5300 },
+      { latitude: 8.4800, longitude: -82.5300 },
+      { latitude: 8.4800, longitude: -82.5800 },
+    ],
+    probability: 'media',
+    confidence: 0.60,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-dolega',
+    coordinates: [
+      { latitude: 8.6500, longitude: -82.4400 },
+      { latitude: 8.6500, longitude: -82.3900 },
+      { latitude: 8.6000, longitude: -82.3900 },
+      { latitude: 8.6000, longitude: -82.4400 },
+    ],
+    probability: 'media',
+    confidence: 0.55,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-alanje',
+    coordinates: [
+      { latitude: 8.4200, longitude: -82.5800 },
+      { latitude: 8.4200, longitude: -82.5400 },
+      { latitude: 8.3800, longitude: -82.5400 },
+      { latitude: 8.3800, longitude: -82.5800 },
+    ],
+    probability: 'media',
+    confidence: 0.58,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-tole',
+    coordinates: [
+      { latitude: 8.2800, longitude: -81.7000 },
+      { latitude: 8.2800, longitude: -81.6400 },
+      { latitude: 8.2200, longitude: -81.6400 },
+      { latitude: 8.2200, longitude: -81.7000 },
+    ],
+    probability: 'baja',
+    confidence: 0.40,
+    source: 'geological_map',
+  },
+  {
+    id: 'chiriqui-san-felix',
+    coordinates: [
+      { latitude: 8.3200, longitude: -81.8900 },
+      { latitude: 8.3200, longitude: -81.8400 },
+      { latitude: 8.2700, longitude: -81.8400 },
+      { latitude: 8.2700, longitude: -81.8900 },
+    ],
+    probability: 'baja',
+    confidence: 0.35,
+    source: 'geological_map',
+  },
+]
+
+export async function seedDefaultZones(): Promise<void> {
+  if (!db) {
+    const existing = webLoadZones()
+    if (existing.length > 0) return
+    webSaveZones(CHIRIQUI_CALIZA_ZONES)
+    return
+  }
+  const existing = await db.getAllAsync<any>('SELECT id FROM caliza_zones')
+  if (existing.length > 0) return
+  for (const zone of CHIRIQUI_CALIZA_ZONES) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO caliza_zones (id, coordinates, probability, confidence, source)
+       VALUES (?, ?, ?, ?, ?)`,
+      [zone.id, JSON.stringify(zone.coordinates), zone.probability, zone.confidence, zone.source],
+    )
+  }
+}
+
+export async function clearAllSamples(): Promise<void> {
+  if (!db) {
+    webSaveSamples([])
+    return
+  }
+  await db.execAsync('DELETE FROM sample_history')
+  await db.execAsync('DELETE FROM samples')
+  await db.execAsync('DELETE FROM sync_queue')
 }
 
 export async function clearSyncQueue(): Promise<void> {

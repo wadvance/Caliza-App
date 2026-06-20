@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
 import { syncNow, startAutoSync, onSyncStatus, isOnline } from '../services/syncService'
-import { webSaveSamples } from '../services/database'
+import { clearAllSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
@@ -93,8 +93,8 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   const handleClearAllSamples = () => {
-    const doDelete = () => {
-      webSaveSamples([])
+    const doDelete = async () => {
+      await clearAllSamples()
       setSamples([])
       if (Platform.OS === 'web') window.alert('Todas las muestras fueron borradas')
       else Alert.alert('Listo', 'Todas las muestras fueron borradas')

@@ -21,6 +21,8 @@ if (isWeb) {
         setError('Tu navegador no soporta la cámara. Usa Chrome o Safari.')
         return
       }
+      const api = (window as any).DeviceOrientationEvent
+      if (api?.requestPermission) api.requestPermission().catch(() => {})
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       })
@@ -99,7 +101,7 @@ interface ARTarget {
   color: string
 }
 
-export function ARScreen() {
+export function ARScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
   const { samples } = useAppStore()
   const [targets, setTargets] = useState<ARTarget[]>([])
@@ -144,41 +146,48 @@ export function ARScreen() {
   }, [currentLocation, samples])
 
   useEffect(() => {
-    if (!isWeb) return
-    let watchId: number | null = null
-    let sensor: any = null
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const deg = (e as any).webkitCompassHeading ?? e.alpha
-      if (deg != null && deg >= 0) setHeading(smoothHeading(deg))
-    }
-    if (navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          if (pos.coords.heading != null && pos.coords.heading >= 0) setHeading(smoothHeading(pos.coords.heading))
-        },
-        () => {},
-        { enableHighAccuracy: true, maximumAge: 0 },
-      )
-    }
-    const requestOrientation = () => {
-      const api = (window as any).DeviceOrientationEvent
-      if (api?.requestPermission) {
-        api.requestPermission().then((state: string) => {
-          if (state === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation)
-            window.addEventListener('deviceorientationabsolute', handleOrientation)
-          }
+    if (!isWeb) {
+      let magnetometerSub: any = null
+      try {
+        const M = require('expo-sensors').Magnetometer
+        magnetometerSub = M.addListener((data: { x: number; y: number; z: number }) => {
+          const h = Math.atan2(data.y, data.x) * (180 / Math.PI)
+          if (!isNaN(h)) setHeading(smoothHeading((h + 360) % 360))
         })
-      } else {
-        window.addEventListener('deviceorientation', handleOrientation)
-        window.addEventListener('deviceorientationabsolute', handleOrientation)
+        M.setUpdateInterval(100)
+      } catch {}
+      let watchId: number | null = null
+      if (navigator.geolocation) {
+        watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            if (pos.coords.heading != null && pos.coords.heading >= 0) setHeading(smoothHeading(pos.coords.heading))
+          },
+          () => {},
+          { enableHighAccuracy: true },
+        )
+      }
+      return () => {
+        if (watchId != null) navigator.geolocation.clearWatch(watchId)
+        if (magnetometerSub) magnetometerSub.remove()
       }
     }
-    requestOrientation()
-    try {
-      const Sensor = (window as any).AbsoluteOrientationSensor
-      if (Sensor) {
-        sensor = new Sensor({ frequency: 30 })
+
+    // --- Web heading tracking ---
+    let watchId: number | null = null
+    let sensor: any = null
+    let gpsFallback: number | null = null
+
+    // Priority 1: AbsoluteOrientationSensor (Android Chrome)
+    async function initSensor() {
+      try {
+        const nav = navigator as any
+        if (!nav.permissions || !nav.permissions.query) return
+        const accel = await nav.permissions.query({ name: 'accelerometer' as any }).catch(() => null)
+        const magnet = await nav.permissions.query({ name: 'magnetometer' as any }).catch(() => null)
+        if (accel?.state === 'denied' || magnet?.state === 'denied') return
+        const Sensor = (window as any).AbsoluteOrientationSensor
+        if (!Sensor) return
+        sensor = new Sensor({ frequency: 30, referenceFrame: 'device' })
         sensor.addEventListener('reading', () => {
           if (!sensor?.quaternion) return
           const q = sensor.quaternion
@@ -187,14 +196,57 @@ export function ARScreen() {
           const h = Math.atan2(siny, cosy) * 180 / Math.PI
           setHeading(smoothHeading((h + 360) % 360, 0.3))
         })
+        sensor.addEventListener('error', () => {})
         sensor.start()
+      } catch {}
+    }
+    initSensor()
+
+    // Priority 2: DeviceOrientationEvent
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      // iOS: webkitCompassHeading gives true heading
+      // Android: use alpha (rotation around Z-axis)
+      if ((e as any).webkitCompassHeading != null) {
+        setHeading(smoothHeading((e as any).webkitCompassHeading))
+        return
       }
-    } catch {}
+      if (e.alpha != null && (e as any).absolute === true) {
+        const h = (360 - e.alpha) % 360
+        setHeading(smoothHeading(h))
+      }
+    }
+    const requestOrientation = () => {
+      const api = (window as any).DeviceOrientationEvent
+      if (api?.requestPermission) {
+        api.requestPermission().then((state: string) => {
+          if (state === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation)
+          }
+        })
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation)
+      }
+    }
+    requestOrientation()
+
+    // Priority 3: GPS heading (only updates when moving)
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (pos.coords.heading != null && pos.coords.heading >= 0) {
+            gpsFallback = pos.coords.heading
+            setHeading(smoothHeading(pos.coords.heading))
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0 },
+      )
+    }
+
     return () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId)
-      window.removeEventListener('deviceorientation', handleOrientation)
-      window.removeEventListener('deviceorientationabsolute', handleOrientation)
       if (sensor) sensor.stop()
+      window.removeEventListener('deviceorientation', handleOrientation)
     }
   }, [])
 
@@ -223,7 +275,14 @@ export function ARScreen() {
       <CameraView style={styles.camera} facing="back">
         <View style={styles.overlay}>
           <View style={styles.header}>
-            <Text style={styles.title}>Realidad Aumentada</Text>
+            <View style={styles.headerTop}>
+              {clickEl(() => navigation?.navigate('Inicio'),
+                styles.backBtn,
+                React.createElement(Text, { style: styles.backBtnText }, '← Menú')
+              )}
+              <Text style={styles.title}>Realidad Aumentada</Text>
+              <View style={{ width: 60 }} />
+            </View>
             <Text style={styles.subtitle}>
               {targets.length} puntos de interés cercanos
             </Text>
@@ -366,9 +425,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 40,
   },
-  header: { padding: 20, paddingTop: 50 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  subtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4 },
+  header: { padding: 16, paddingTop: 50 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: { padding: 8, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  subtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, textAlign: 'center' },
   compass: {
     position: 'absolute',
     top: 50,

@@ -1,7 +1,7 @@
 import { Component, useEffect, useState } from 'react'
 import { View, ActivityIndicator, Text, TouchableOpacity } from 'react-native'
 import AppNavigator from './AppNavigator'
-import { initDatabase } from '../services/database'
+import { initDatabase, seedDefaultZones } from '../services/database'
 import { initAuth } from '../services/authService'
 import { startAutoSync, onNetworkChange, syncNow } from '../services/syncService'
 import { COLORS } from '../types/constants'
@@ -41,7 +41,7 @@ export default function App() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    Promise.all([initDatabase(), initAuth()]).finally(() => setReady(true))
+    Promise.all([initDatabase(), initAuth()]).then(() => seedDefaultZones()).finally(() => setReady(true))
   }, [])
 
   useEffect(() => {
