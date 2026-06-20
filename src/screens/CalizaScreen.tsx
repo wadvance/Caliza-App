@@ -7,11 +7,15 @@ import { getAllZones } from '../services/database'
 import { CalizaZone } from '../types'
 import { useAppStore } from '../store/useAppStore'
 
+const PROB_LEVELS = ['alta', 'media', 'baja'] as const
+const PROB_LABELS: Record<string, string> = { alta: 'Alta', media: 'Media', baja: 'Baja' }
+const PROB_COLORS: Record<string, string> = { alta: COLORS.probabilityHigh, media: COLORS.probabilityMedium, baja: COLORS.probabilityLow }
+
 export function CalizaScreen() {
   const currentLocation = useCurrentLocation()
   const { zones, setZones } = useAppStore()
   const [loading, setLoading] = useState(false)
-  const [selectedProbability, setSelectedProbability] = useState<string | null>(null)
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const mapRef = useRef<any>(null)
 
   useMemo(() => {
@@ -21,25 +25,17 @@ export function CalizaScreen() {
     }
   }, [])
 
-  const getColor = (p: string) => {
-    switch (p) {
-      case 'alta': return COLORS.probabilityHigh
-      case 'media': return COLORS.probabilityMedium
-      case 'baja': return COLORS.probabilityLow
-      default: return COLORS.probabilityPending
-    }
-  }
-
-  const centerOnProbability = (probability: string) => {
-    const next = selectedProbability === probability ? null : probability
-    setSelectedProbability(next)
-    if (!next) {
+  const toggleIdx = (idx: number) => {
+    const next = selectedIdx === idx ? null : idx
+    setSelectedIdx(next)
+    if (next === null) {
       if (mapRef.current?.animateToRegion) {
         mapRef.current.animateToRegion({ latitude: 8.4500, longitude: -82.4000, latitudeDelta: 0.6, longitudeDelta: 0.6 }, 600)
       }
       return
     }
-    const matched = zones.filter(z => z.probability === next)
+    const prob = PROB_LEVELS[next]
+    const matched = zones.filter(z => z.probability === prob)
     if (matched.length === 0) return
     const allLats = matched.flatMap(z => z.coordinates.map(c => c.latitude))
     const allLngs = matched.flatMap(z => z.coordinates.map(c => c.longitude))
@@ -90,13 +86,17 @@ export function CalizaScreen() {
               latitudeDelta: 0.6, longitudeDelta: 0.6,
             }}
           >
-            {zones.map(zone => (
-              <Polygon key={zone.id} coordinates={zone.coordinates}
-                fillColor={getColor(zone.probability) + '40'}
-                strokeColor={selectedProbability === zone.probability ? '#fff' : getColor(zone.probability)}
-                strokeWidth={selectedProbability === zone.probability ? 4 : 2}
-              />
-            ))}
+            {zones.map(zone => {
+              const zi = PROB_LEVELS.indexOf(zone.probability as typeof PROB_LEVELS[number])
+              const isHighlighted = selectedIdx !== null && zi === selectedIdx
+              return (
+                <Polygon key={zone.id} coordinates={zone.coordinates}
+                  fillColor={PROB_COLORS[zone.probability] + '40'}
+                  strokeColor={isHighlighted ? '#fff' : PROB_COLORS[zone.probability]}
+                  strokeWidth={isHighlighted ? 4 : 2}
+                />
+              )
+            })}
           </MapView>
 
           <View style={styles.legendRow}>
@@ -109,22 +109,22 @@ export function CalizaScreen() {
           </View>
 
           <Text style={styles.sectionTitle}>Zonas identificadas</Text>
-          {(['alta', 'media', 'baja'] as const).map(prob => {
+          {PROB_LEVELS.map((prob, idx) => {
             const probZones = zones.filter(z => z.probability === prob)
             if (probZones.length === 0) return null
-            const isSelected = selectedProbability === prob
-            const label = prob.charAt(0).toUpperCase() + prob.slice(1)
+            const isSelected = selectedIdx === idx
+            const color = PROB_COLORS[prob]
             return (
-              <TouchableOpacity key={prob} onPress={() => centerOnProbability(prob)}
+              <TouchableOpacity key={prob} onPress={() => toggleIdx(idx)}
                 style={[styles.zoneCard, {
-                  borderLeftColor: isSelected ? getColor(prob) : COLORS.border,
-                  borderColor: isSelected ? getColor(prob) : COLORS.border,
-                  backgroundColor: isSelected ? getColor(prob) + '18' : COLORS.surface,
+                  borderLeftColor: isSelected ? color : COLORS.border,
+                  borderColor: isSelected ? color : COLORS.border,
+                  backgroundColor: isSelected ? color + '18' : COLORS.surface,
                 }]}
               >
                 <View style={styles.titleRow}>
-                  <Text style={[styles.zoneTitle, isSelected && { color: getColor(prob) }]}>Zona {label}</Text>
-                  <Text style={[styles.selectionBadge, isSelected && { color: '#fff', backgroundColor: getColor(prob) }]}>
+                  <Text style={[styles.zoneTitle, isSelected && { color }]}>Zona {PROB_LABELS[prob]}</Text>
+                  <Text style={[styles.selectionBadge, isSelected && { color: '#fff', backgroundColor: color }]}>
                     {isSelected ? '✓' : ''}
                   </Text>
                 </View>
@@ -133,6 +133,7 @@ export function CalizaScreen() {
                   return (
                     <View key={zone.id} style={styles.zoneItem}>
                       <Text style={styles.zoneName}>{zone.id.replace('chiriqui-', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
+                      <Text style={styles.zoneDebug}>prob={zone.probability}</Text>
                       {info ? (
                         <Text style={styles.zoneDetail}>📏 {info.depth} · 🪨 {info.type}</Text>
                       ) : (
@@ -173,5 +174,6 @@ const styles = StyleSheet.create({
   zoneTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   zoneItem: { marginBottom: 8, paddingLeft: 4 },
   zoneName: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  zoneDebug: { color: '#888', fontSize: 10, fontFamily: 'monospace', marginBottom: 2 },
   zoneDetail: { color: COLORS.textSecondary, fontSize: 13, marginVertical: 1 },
 })
