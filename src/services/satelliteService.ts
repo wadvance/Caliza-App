@@ -104,7 +104,7 @@ export async function analyzeSatelliteRegion(
       coordinates,
       probability,
       confidence: parseFloat((0.55 + zH * 0.35).toFixed(2)),
-      source: `SWIR analysis (zone ${i + 1})`,
+      source: `Análisis SWIR (zona ${i + 1})`,
       estimatedRockType: isCarbonateBearing && probScore > 0.5 ? 'caliza' : isCarbonateBearing ? 'marga' : 'arcilla',
     })
   }
