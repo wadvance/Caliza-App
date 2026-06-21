@@ -110,6 +110,361 @@ interface ARTarget {
   color: string
 }
 
+function ScanModeView({ samples, location }: { samples: any[]; location: any }) {
+  const [prop1, setProp1] = useState<string | null>(null)
+  const [prop2, setProp2] = useState<string | null>(null)
+  const [prop3, setProp3] = useState<string | null>(null)
+
+  const result = !prop1 ? null
+    : prop1 === 'clara' && prop2 === 'suave' ? 'Caliza (CaCO₃)'
+    : prop1 === 'clara' && prop2 === 'dura' ? 'Dolomita'
+    : prop1 === 'media' && prop2 === 'suave' ? 'Marga'
+    : prop1 === 'media' && prop2 === 'porosa' ? 'Travertino'
+    : prop1 === 'oscura' && prop2 === 'dura' ? 'Basalto'
+    : prop1 === 'oscura' && prop2 === 'suave' ? 'Arcilla'
+    : prop1 === 'clara' && prop3 === 'si' ? 'Yeso'
+    : prop1 === 'media' && prop3 === 'no' ? 'Caliche'
+    : 'Tipo no determinado'
+
+  const reset = () => { setProp1(null); setProp2(null); setProp3(null) }
+
+  const row = (label: string, options: { value: string; label: string }[], selected: string | null, set: (v: string) => void) => (
+    React.createElement(View, { style: scanStyles.row, key: label },
+      React.createElement(Text, { style: scanStyles.label }, label),
+      React.createElement(View, { style: scanStyles.options },
+        ...options.map(o =>
+          React.createElement(TouchableOpacity, {
+            key: o.value,
+            onPress: () => set(o.value),
+            style: [scanStyles.opt, selected === o.value && scanStyles.optSel]
+          },
+            React.createElement(Text, { style: [scanStyles.optText, selected === o.value && scanStyles.optTextSel] }, o.label)
+          )
+        )
+      )
+    )
+  )
+
+  return React.createElement(View, { style: scanStyles.container },
+    React.createElement(Text, { style: scanStyles.title }, '🔍 Identificación visual de roca'),
+    React.createElement(Text, { style: scanStyles.sub }, 'Selecciona las propiedades de la muestra:'),
+    !prop1 ? row('Color', [
+      { value: 'clara', label: 'Clara (beige/blanco)' },
+      { value: 'media', label: 'Media (marrón/gris)' },
+      { value: 'oscura', label: 'Oscura (negra/gris oscuro)' },
+    ], prop1, v => setProp1(v))
+    : !prop2 ? row('Textura', [
+      { value: 'suave', label: 'Suave/tiza' },
+      { value: 'dura', label: 'Dura/compacta' },
+      { value: 'porosa', label: 'Porosa/esponjosa' },
+    ], prop2, v => setProp2(v))
+    : !prop3 && (prop1 === 'clara') ? row('¿Reacciona con ácido?', [
+      { value: 'si', label: 'Sí (efervescencia)' },
+      { value: 'no', label: 'No' },
+    ], prop3, v => setProp3(v))
+    : null,
+    result && React.createElement(View, { style: scanStyles.result },
+      React.createElement(Text, { style: scanStyles.resultText }, 'Resultado: ' + result),
+      !result.includes('determinado') && React.createElement(Text, { style: scanStyles.resultSub },
+        result === 'Caliza (CaCO₃)' ? 'Alta efervescencia con HCl. Roca sedimentaria carbonatada. Uso: cemento, cal.'
+        : result === 'Dolomita' ? 'Efervescencia leve. Contiene magnesio. Uso: refractarios, construcción.'
+        : result === 'Marga' ? 'Mezcla de caliza y arcilla. Uso: materia prima para cemento.'
+        : result === 'Travertino' ? 'Porosa y ligera. Formada por precipitación en manantiales. Uso: decoración.'
+        : result === 'Basalto' ? 'Roca ígnea oscura y densa. Uso: agregados de construcción.'
+        : result === 'Arcilla' ? 'Plástica cuando se humedece. Uso: ladrillos, cerámica.'
+        : result === 'Yeso' ? 'Muy suave, raya con uña. Uso: yesería, cemento.'
+        : 'Capa superficial dura. Uso: cal agrícola.'
+      ),
+      React.createElement(TouchableOpacity, { onPress: reset, style: scanStyles.resetBtn },
+        React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
+      )
+    ),
+    samples.length > 0 && React.createElement(View, { style: scanStyles.nearby },
+      React.createElement(Text, { style: scanStyles.nearbyTitle }, 'Muestras cercanas registradas:'),
+      ...samples.slice(0, 3).map(s =>
+        React.createElement(Text, { style: scanStyles.nearbyItem, key: s.id },
+          `• ${s.estimatedRockType || 'Tipo desconocido'} (${s.status})`
+        )
+      )
+    )
+  )
+}
+
+const scanStyles = StyleSheet.create({
+  container: { flex: 1, padding: 16, gap: 12 },
+  title: { color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  sub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center' },
+  row: { gap: 8 },
+  label: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  opt: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  optSel: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  optText: { color: '#fff', fontSize: 13 },
+  optTextSel: { color: '#fff', fontWeight: '700' },
+  result: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, padding: 16, gap: 8, marginTop: 8 },
+  resultText: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  resultSub: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center' },
+  resetBtn: { backgroundColor: COLORS.highlight, padding: 10, borderRadius: 8, alignSelf: 'center', marginTop: 8 },
+  resetText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  nearby: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 12, gap: 4 },
+  nearbyTitle: { color: '#fff', fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  nearbyItem: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+})
+
+function StructModeView({ heading, isWeb }: { heading: number; isWeb: boolean }) {
+  const canvasRef = useRef<any>(null)
+  const [dip, setDip] = useState(45)
+  const [strike, setStrike] = useState(0)
+
+  useEffect(() => {
+    if (!isWeb || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const dpr = window.devicePixelRatio || 1
+    const size = Math.min(canvas.clientWidth, canvas.clientHeight, 300)
+    canvas.width = size * dpr
+    canvas.height = size * dpr
+    canvas.style.width = size + 'px'
+    canvas.style.height = size + 'px'
+    ctx.scale(dpr, dpr)
+
+    const cx = size / 2, cy = size / 2, r = size / 2 - 10
+
+    ctx.clearRect(0, 0, size, size)
+
+    // Outer circle
+    ctx.strokeStyle = '#fff'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.stroke()
+
+    // Cardinal directions
+    ctx.fillStyle = '#fff'
+    ctx.font = '12px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('N', cx, cy - r - 5)
+    ctx.fillText('S', cx, cy + r + 15)
+    ctx.fillText('E', cx + r + 15, cy + 4)
+    ctx.fillText('W', cx - r - 15, cy + 4)
+
+    // Tick marks every 10 degrees
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+    ctx.lineWidth = 0.5
+    for (let i = 0; i < 360; i += 10) {
+      const a = i * Math.PI / 180
+      const inner = i % 30 === 0 ? r - 8 : r - 4
+      ctx.beginPath()
+      ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+      ctx.lineTo(cx + inner * Math.cos(a), cy + inner * Math.sin(a))
+      ctx.stroke()
+    }
+
+    // Great circles (grid)
+    for (let d = 10; d < 90; d += 10) {
+      const rad = r * Math.tan((45 - d / 2) * Math.PI / 180)
+      const dist = r / Math.cos((45 - d / 2) * Math.PI / 180)
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+      ctx.beginPath()
+      ctx.arc(cx, cy - dist, rad, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(cx, cy + dist, rad, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+
+    // Small circles (grid)
+    for (let d = 10; d < 90; d += 10) {
+      const rad = r * Math.tan((d / 2) * Math.PI / 180)
+      const dist = r / Math.cos((d / 2) * Math.PI / 180)
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+      ctx.beginPath()
+      ctx.arc(cx - dist, cy, rad, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(cx + dist, cy, rad, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+
+    // Fault plane (great circle for given strike and dip)
+    const strikeRad = strike * Math.PI / 180
+    const dipRad = dip * Math.PI / 180
+    const poleDist = r * Math.tan((45 - dip / 2) * Math.PI / 180)
+    const poleAngle = strikeRad + Math.PI / 2
+
+    ctx.strokeStyle = '#00FF88'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(
+      cx + poleDist * Math.sin(poleAngle),
+      cy - poleDist * Math.cos(poleAngle),
+      r / Math.cos((45 - dip / 2) * Math.PI / 180),
+      -Math.PI / 2 + poleAngle - Math.acos(Math.cos((45 - dip / 2) * Math.PI / 180)),
+      -Math.PI / 2 + poleAngle + Math.acos(Math.cos((45 - dip / 2) * Math.PI / 180))
+    )
+    ctx.stroke()
+
+    // Dip direction arrow
+    const dipDir = (strike + 90) % 360
+    const dipArrow = dipDir * Math.PI / 180
+    const arrowLen = r * 0.6
+    ctx.strokeStyle = '#FF6600'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(cx, cy)
+    ctx.lineTo(cx + arrowLen * Math.sin(dipArrow), cy - arrowLen * Math.cos(dipArrow))
+    ctx.stroke()
+
+    // Info text
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 13px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(`Falla: Rumbo ${strike}° · Buzamiento ${dip}°`, cx, size - 4)
+    ctx.fillStyle = '#FF6600'
+    ctx.font = '11px sans-serif'
+    ctx.fillText(`Dirección de buzamiento: ${dipDir}°`, cx, 14)
+  }, [dip, strike, isWeb])
+
+  const canvas = isWeb
+    ? React.createElement('canvas', {
+        ref: canvasRef,
+        style: { width: '90%', maxWidth: 300, aspectRatio: '1', alignSelf: 'center' }
+      })
+    : React.createElement(View, { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
+        React.createElement(Text, { style: { color: '#fff', fontSize: 14 } }, 'Proyección estructural no disponible')
+      )
+
+  return React.createElement(View, { style: { flex: 1, padding: 10, gap: 8 } },
+    React.createElement(Text, { style: { color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' } }, '📐 Proyección estereográfica'),
+    canvas,
+    React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'center', gap: 10 } },
+      React.createElement(TouchableOpacity, { onPress: () => setStrike((strike + 10) % 360), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
+        React.createElement(Text, { style: { color: '#fff' } }, 'Rumbo +10°')
+      ),
+      React.createElement(TouchableOpacity, { onPress: () => setDip(Math.min(dip + 5, 90)), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
+        React.createElement(Text, { style: { color: '#fff' } }, 'Buz. +5°')
+      ),
+      React.createElement(TouchableOpacity, { onPress: () => setDip(Math.max(dip - 5, 5)), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
+        React.createElement(Text, { style: { color: '#fff' } }, 'Buz. -5°')
+      ),
+    ),
+    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 10, marginTop: 4 } },
+      React.createElement(Text, { style: { color: '#00FF88', fontSize: 13 } }, '• Línea verde: plano de falla'),
+      React.createElement(Text, { style: { color: '#FF6600', fontSize: 13 } }, '• Línea naranja: dirección de buzamiento'),
+    )
+  )
+}
+
+function ModelModeView({ heading, isWeb }: { heading: number; isWeb: boolean }) {
+  const canvasRef = useRef<any>(null)
+  const layers = [
+    { name: 'Suelo vegetal', color: '#5D4037', depth: 0.3 },
+    { name: 'Arcilla', color: '#8D6E63', depth: 0.8 },
+    { name: 'Marga', color: '#BCAAA4', depth: 1.5 },
+    { name: 'Caliza', color: '#BDBDBD', depth: 2.5 },
+    { name: 'Dolomita', color: '#9E9E9E', depth: 3.5 },
+    { name: 'Basamento', color: '#616161', depth: 5.0 },
+  ]
+
+  useEffect(() => {
+    if (!isWeb || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const dpr = window.devicePixelRatio || 1
+    const w = canvas.clientWidth || 320
+    const h = canvas.clientHeight || 240
+    canvas.width = w * dpr
+    canvas.height = h * dpr
+    canvas.style.width = w + 'px'
+    canvas.style.height = h + 'px'
+    ctx.scale(dpr, dpr)
+
+    ctx.clearRect(0, 0, w, h)
+
+    const maxDepth = 5
+    const margin = 50
+    const drawW = w - margin * 2
+    const drawH = h - margin * 2
+
+    // Sky
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, margin)
+    skyGrad.addColorStop(0, '#0a0a2a')
+    skyGrad.addColorStop(1, '#1a1a4a')
+    ctx.fillStyle = skyGrad
+    ctx.fillRect(0, 0, w, margin)
+
+    // Ground surface line
+    ctx.strokeStyle = '#4CAF50'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(margin, margin)
+    for (let x = 0; x <= drawW; x += 5) {
+      const y = margin + Math.sin(x * 0.05) * 5
+      ctx.lineTo(margin + x, y)
+    }
+    ctx.stroke()
+
+    // Draw layers
+    let prevDepth = 0
+    layers.forEach(layer => {
+      const yStart = margin + (prevDepth / maxDepth) * drawH
+      const yEnd = margin + (layer.depth / maxDepth) * drawH
+      ctx.fillStyle = layer.color
+      ctx.fillRect(margin, yStart, drawW, yEnd - yStart)
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(margin, yStart, drawW, yEnd - yStart)
+      ctx.fillStyle = '#fff'
+      ctx.font = '11px sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText(`${layer.name} (${layer.depth}m)`, margin + 8, yStart + (yEnd - yStart) / 2 + 4)
+      prevDepth = layer.depth
+    })
+
+    // Labels
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '10px sans-serif'
+    ctx.textAlign = 'right'
+    for (let d = 0; d <= maxDepth; d += 1) {
+      const y = margin + (d / maxDepth) * drawH
+      ctx.fillText(`-${d}m`, margin - 5, y + 4)
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)'
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(margin, y)
+      ctx.lineTo(margin + drawW, y)
+      ctx.stroke()
+    }
+
+    // Title
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 13px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Corte geológico transversal - Yacimiento de Caliza', w / 2, 18)
+  }, [isWeb])
+
+  const canvas = isWeb
+    ? React.createElement('canvas', {
+        ref: canvasRef,
+        style: { width: '95%', aspectRatio: '4/3', alignSelf: 'center', borderRadius: 8, maxWidth: 400 }
+      })
+    : React.createElement(View, { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
+        React.createElement(Text, { style: { color: '#fff', fontSize: 14 } }, 'Modelo 3D no disponible')
+      )
+
+  return React.createElement(View, { style: { flex: 1, padding: 10, gap: 6 } },
+    canvas,
+    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 10, marginTop: 4 } },
+      React.createElement(Text, { style: { color: '#fff', fontSize: 12, textAlign: 'center' } },
+        'Corte vertical del subsuelo mostrando las capas geológicas. ' +
+        'La caliza se encuentra aproximadamente a 1.5-2.5 m de profundidad en esta proyección.'
+      )
+    )
+  )
+}
+
 export function ARScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
   const { samples } = useAppStore()
@@ -317,37 +672,35 @@ export function ARScreen({ navigation }: any) {
            ))}
          </View>
 
-         {arMode === 'basic' ? (
-           <View style={styles.targetsContainer}>
-           {targets.length > 0 && targets.slice(0, 5).map(target => (
-             clickEl(() => {
-               console.log('Tocaste zona inline:', target.name, 'Bearing:', target.bearing);
-               setSelectedTarget(target);
-             },
-               [styles.targetCard, { borderLeftColor: target.color }],
-               [React.createElement(View, { style: styles.targetInfo, key: 'info' },
-                 React.createElement(Text, { style: styles.targetName }, target.name),
-                 React.createElement(Text, { style: styles.targetDist },
-                   `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
-                 )
-               ),
-               React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
-                 isWeb
-                   ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing - heading}deg)`, color: target.color } }, '▲')
-                   : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing - heading}deg` }] } }, '▲')
-               )]
-             )
-           ))}
-           </View>
-         ) : (
-           <View style={styles.modePlaceholder}>
-             <Text style={styles.placeholderText}>
-               {arMode === 'scan' ? '🔍 Escaneo de muestras activo...' :
-                arMode === 'struct' ? '📐 Proyectando estructuras geológicas...' :
-                '🏗️ Cargando modelo 3D de yacimiento...'}
-             </Text>
-           </View>
-         )}
+          {arMode === 'basic' ? (
+            <View style={styles.targetsContainer}>
+            {targets.length > 0 && targets.slice(0, 5).map(target => (
+              clickEl(() => {
+                console.log('Tocaste zona inline:', target.name, 'Bearing:', target.bearing);
+                setSelectedTarget(target);
+              },
+                [styles.targetCard, { borderLeftColor: target.color }],
+                [React.createElement(View, { style: styles.targetInfo, key: 'info' },
+                  React.createElement(Text, { style: styles.targetName }, target.name),
+                  React.createElement(Text, { style: styles.targetDist },
+                    `${dirLabel(target.bearing)} · ${formatDistance(target.distance)}`
+                  )
+                ),
+                React.createElement(View, { style: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }, key: 'arrow' },
+                  isWeb
+                    ? React.createElement('span', { style: { display: 'inline-block', fontSize: 18, transform: `rotate(${target.bearing - heading}deg)`, color: target.color } }, '▲')
+                    : React.createElement(Text, { style: { fontSize: 18, color: target.color, transform: [{ rotate: `${target.bearing - heading}deg` }] } }, '▲')
+                )]
+              )
+            ))}
+            </View>
+          ) : arMode === 'scan' ? (
+            <ScanModeView samples={samples} location={currentLocation} />
+          ) : arMode === 'struct' ? (
+            <StructModeView heading={heading} isWeb={isWeb} />
+          ) : (
+            <ModelModeView heading={heading} isWeb={isWeb} />
+          )}
 
          {targets.length > 5 && arMode === 'basic' && clickEl(() => setShowList(true), styles.showAllBtn,
            React.createElement(Text, { style: styles.showAllText }, `Ver todos (${targets.length})`)
