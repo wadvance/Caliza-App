@@ -317,22 +317,6 @@ export function MapScreen({ navigation }: any) {
 
   useEffect(() => { loadData() }, [])
 
-  useEffect(() => {
-    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones || showGeological)) {
-      const lats = zones.flatMap(z => z.coordinates.map(c => c.latitude))
-      const lngs = zones.flatMap(z => z.coordinates.map(c => c.longitude))
-      const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-      setTargetRegion({
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: (maxLat - minLat) * 1.5,
-        longitudeDelta: (maxLng - minLng) * 1.5,
-      })
-      initialPanDone.current = true
-    }
-  }, [showExtractionZones, showPotentialZones, showGeological, zones])
-
   const loadData = async () => {
     const [loadedSamples, loadedZones] = await Promise.all([getAllSamples(), getAllZones()])
     setLocalSamples(loadedSamples)
@@ -515,6 +499,22 @@ export function MapScreen({ navigation }: any) {
   const showExtractionZones = visibleLayers.some(l => l.id === 'extraction')
   const showSamplePoints = visibleLayers.some(l => l.id === 'samples')
   const showRoutes = visibleLayers.some(l => l.id === 'routes')
+
+  useEffect(() => {
+    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones || showGeological)) {
+      const lats = zones.flatMap(z => z.coordinates.map(c => c.latitude))
+      const lngs = zones.flatMap(z => z.coordinates.map(c => c.longitude))
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+      setTargetRegion({
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: (maxLat - minLat) * 1.5,
+        longitudeDelta: (maxLng - minLng) * 1.5,
+      })
+      initialPanDone.current = true
+    }
+  }, [showExtractionZones, showPotentialZones, showGeological, zones])
 
   const allTownships: (Township & { districtName: string; provinceName: string })[] =
     PANAMA.flatMap(p =>
