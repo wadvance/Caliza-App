@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator, Linking, Platform } from 'react-native'
 import MapView, { Marker, Polygon, Polyline } from '../components/MapViewWrapper'
 import { useAppStore } from '../store/useAppStore'
 import { COLORS } from '../types/constants'
@@ -400,6 +400,17 @@ export function MapScreen({ navigation }: any) {
     }
   }
 
+  const openDirections = (lat: number, lng: number, label: string) => {
+    if (!currentLocation) return
+    const url = Platform.OS === 'ios'
+      ? `maps://app?daddr=${lat},${lng}&q=${encodeURIComponent(label)}`
+      : `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.latitude},${currentLocation.longitude}&destination=${lat},${lng}&travelmode=driving`
+    Linking.openURL(url).catch(() => {
+      const fallback = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.latitude},${currentLocation.longitude}&destination=${lat},${lng}&travelmode=driving`
+      Linking.openURL(fallback)
+    })
+  }
+
   const { routes, setRoutes, addRoute, removeRoute } = useAppStore()
   const [showRouteNameModal, setShowRouteNameModal] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -715,15 +726,19 @@ export function MapScreen({ navigation }: any) {
                   <Text style={[styles.contextSub, { marginTop: 8, fontWeight: '600', color: COLORS.text }]}>
                     🪨 Zonas de caliza cercanas:
                   </Text>
-                  {calizaNearby.map(({ zone, distanceKm }) => (
-                    <View key={zone.id} style={styles.nearbyRow}>
-                      <Text style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: probColor(zone.probability) }} />
-                      <Text style={styles.nearbyName}>{zone.estimatedRockType || zone.id.replace('chiriqui-', '').replace(/-/g, ' ')}</Text>
-                      <Text style={styles.nearbyDist}>
-                        {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
-                      </Text>
-                    </View>
-                  ))}
+                  {calizaNearby.map(({ zone, distanceKm }) => {
+                    const center = polygonCenter(zone.coordinates)
+                    return (
+                      <TouchableOpacity key={zone.id} style={styles.nearbyRow} onPress={() => openDirections(center.latitude, center.longitude, zone.estimatedRockType || zone.id)}>
+                        <Text style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: probColor(zone.probability) }} />
+                        <Text style={styles.nearbyName}>{zone.estimatedRockType || zone.id.replace('chiriqui-', '').replace(/-/g, ' ')}</Text>
+                        <Text style={styles.nearbyDist}>
+                          {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
+                        </Text>
+                        <Text style={{ fontSize: 16, marginLeft: 6 }}>↗️</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
                 </>
               )}
               {calizaSamplesNearby.length > 0 && (
@@ -732,13 +747,14 @@ export function MapScreen({ navigation }: any) {
                     🧪 Muestras de caliza cercanas:
                   </Text>
                   {calizaSamplesNearby.map(({ sample, distanceKm }) => (
-                    <View key={sample.id} style={styles.nearbyRow}>
+                    <TouchableOpacity key={sample.id} style={styles.nearbyRow} onPress={() => openDirections(sample.latitude, sample.longitude, sample.estimatedRockType || 'Muestra')}>
                       <Text style={{ fontSize: 13 }}>{sample.status === 'validado' ? '✅' : sample.status === 'descartado' ? '❌' : '⏳'}</Text>
                       <Text style={styles.nearbyName}>{sample.estimatedRockType || 'Muestra'} {sample.notes ? `— ${sample.notes.slice(0, 30)}` : ''}</Text>
                       <Text style={styles.nearbyDist}>
                         {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
                       </Text>
-                    </View>
+                      <Text style={{ fontSize: 16, marginLeft: 6 }}>↗️</Text>
+                    </TouchableOpacity>
                   ))}
                 </>
               )}
@@ -748,13 +764,14 @@ export function MapScreen({ navigation }: any) {
                     Cerca de aquí:
                   </Text>
                   {locationCtx.nearby.map((f, i) => (
-                    <View key={i} style={styles.nearbyRow}>
+                    <TouchableOpacity key={i} style={styles.nearbyRow} onPress={() => openDirections(f.lat, f.lon, f.name)}>
                       <Text style={{ fontSize: 14 }}>{ctxIcon(f.type)}</Text>
                       <Text style={styles.nearbyName}>{f.name}</Text>
                       <Text style={styles.nearbyDist}>
                         {f.distance < 1000 ? `${f.distance} m` : `${(f.distance / 1000).toFixed(1)} km`}
                       </Text>
-                    </View>
+                      <Text style={{ fontSize: 16, marginLeft: 6 }}>↗️</Text>
+                    </TouchableOpacity>
                   ))}
                 </>
               )}
