@@ -318,7 +318,7 @@ export function MapScreen({ navigation }: any) {
   useEffect(() => { loadData() }, [])
 
   useEffect(() => {
-    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones)) {
+    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones || showGeological)) {
       const lats = zones.flatMap(z => z.coordinates.map(c => c.latitude))
       const lngs = zones.flatMap(z => z.coordinates.map(c => c.longitude))
       const minLat = Math.min(...lats), maxLat = Math.max(...lats)
@@ -331,7 +331,7 @@ export function MapScreen({ navigation }: any) {
       })
       initialPanDone.current = true
     }
-  }, [showExtractionZones, showPotentialZones, zones])
+  }, [showExtractionZones, showPotentialZones, showGeological, zones])
 
   const loadData = async () => {
     const [loadedSamples, loadedZones] = await Promise.all([getAllSamples(), getAllZones()])
@@ -509,6 +509,8 @@ export function MapScreen({ navigation }: any) {
   }
 
   const visibleLayers = layers.filter(l => l.visible)
+  const showSatellite = visibleLayers.some(l => l.id === 'satellite')
+  const showGeological = visibleLayers.some(l => l.id === 'geological')
   const showPotentialZones = visibleLayers.some(l => l.id === 'potential')
   const showExtractionZones = visibleLayers.some(l => l.id === 'extraction')
   const showSamplePoints = visibleLayers.some(l => l.id === 'samples')
@@ -622,9 +624,21 @@ export function MapScreen({ navigation }: any) {
       <View style={styles.topBar}>
         <Text style={styles.brand}>🗺️ GeoCaliza</Text>
         <View style={styles.topBarRight}>
-          {(zones.length > 0 && showPotentialZones) || (zones.length > 0 && showExtractionZones) ? (
+          {(showGeological || showSatellite || (zones.length > 0 && showPotentialZones) || (zones.length > 0 && showExtractionZones)) ? (
             <View style={styles.zoneLegend}>
               <Text style={styles.legendTitle}>Leyenda</Text>
+              {showGeological && (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: '#8b77be' }]} />
+                  <Text style={styles.legendLabel}>Geológico</Text>
+                </View>
+              )}
+              {showSatellite && (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: '#2c3e50' }]} />
+                  <Text style={styles.legendLabel}>Satélite</Text>
+                </View>
+              )}
               {showPotentialZones && (
                 <View style={styles.legendRow}>
                   <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityHigh }]} />
@@ -652,12 +666,18 @@ export function MapScreen({ navigation }: any) {
         </View>
       </View>
 
-      <MapView style={styles.map} initialRegion={targetRegion || {
+      <MapView style={styles.map} mapType={showSatellite ? 'satellite' : 'standard'} initialRegion={targetRegion || {
         latitude: currentLocation?.latitude || 8.9824,
         longitude: currentLocation?.longitude || -79.5199,
         latitudeDelta: 0.25,
         longitudeDelta: 0.25,
       }}>
+        {showGeological && zones.map(zone => (
+          <Polygon key={`geo-${zone.id}`} coordinates={zone.coordinates}
+            fillColor={'rgba(139, 119, 190, 0.2)'}
+            strokeColor={'#8b77be'} strokeWidth={2}
+          />
+        ))}
         {showPotentialZones && zones.map(zone => (
           <Polygon key={zone.id} coordinates={zone.coordinates}
             fillColor={getZoneFillColor(zone.probability)}

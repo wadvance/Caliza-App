@@ -48,6 +48,7 @@ interface MapViewProps {
   toolbarEnabled?: boolean
   customMapStyle?: any[]
   provider?: any
+  mapType?: 'standard' | 'satellite' | 'hybrid'
   onRegionChangeComplete?: (region: Region) => void
   children?: React.ReactNode
 }
@@ -112,12 +113,19 @@ const CalloutComponent = (props: CalloutProps) => {
 
 let lastTileUrl = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
 
+const SATELLITE_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+
 export function setTileUrl(url: string) { lastTileUrl = url }
+
+function getTileUrl(mapType?: string) {
+  return mapType === 'satellite' || mapType === 'hybrid' ? SATELLITE_TILE_URL : lastTileUrl
+}
 
 function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons: PolygonProps[], polylines: PolylineProps[]): string {
   const reg = props.initialRegion || props.region || { latitude: 8.9824, longitude: -79.5199, latitudeDelta: 0.05, longitudeDelta: 0.05 }
   const center = [reg.latitude, reg.longitude]
   const zoom = Math.round(Math.log2(360 / Math.max(reg.latitudeDelta || 0.05, reg.longitudeDelta || 0.05)) + 1)
+  const tileUrl = getTileUrl(props.mapType)
 
   const markerScript = markers.map((m, i) => {
     const color = m.pinColor || '#e94560'
@@ -178,15 +186,17 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     zoomControl: true,
     attributionControl: true,
   });
-  L.tileLayer('${lastTileUrl}', {
+  L.tileLayer('${tileUrl}', {
     maxZoom: 19,
     attribution: 'Imagery &copy; Esri'
   }).addTo(map);
+  ${props.mapType === 'satellite' || props.mapType === 'hybrid' ? '' : `
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
     opacity: 0.25,
     attribution: 'Esri'
   }).addTo(map);
+  `}
   ${markerScript}
   ${polygonScript}
   ${polylineScript}
@@ -298,10 +308,17 @@ const MapViewComponent = (props: MapViewProps & { children?: React.ReactNode }, 
     return <MobileWebMap {...props} />
   }
 
+  const nativeProps: any = { ...props }
+  if (props.mapType === 'satellite') {
+    nativeProps.mapType = 'satellite'
+  } else if (props.mapType === 'hybrid') {
+    nativeProps.mapType = 'hybrid'
+  }
+
   return (
     <NativeMapView
       ref={ref}
-      {...props}
+      {...nativeProps}
     />
   )
 }
