@@ -193,35 +193,35 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         let tipo = 'No determinado'
         let porcentaje = 0
 
-        if (brightness > 0.55 && saturation < 0.25 && redRatio > 0.33 && greenRatio > 0.33) {
+        if (brightness > 0.65 && saturation < 0.15 && redRatio > 0.34 && redRatio < 0.42 && greenRatio > 0.33) {
           isCaliza = true
-          confidence = Math.min(95, Math.round((brightness * 40 + (1 - saturation) * 30 + (redRatio > 0.35 ? 15 : 0) + (greenRatio > 0.34 ? 10 : 0))))
-          const basePct = 85 + Math.round(brightness * 10) + Math.round((1 - saturation) * 5)
+          confidence = Math.min(92, Math.round((brightness - 0.6) * 100 + (0.15 - saturation) * 100 + (redRatio > 0.36 ? 20 : 0)))
+          const basePct = 85 + Math.round((brightness - 0.6) * 50)
           porcentaje = Math.min(99, basePct)
           tipo = porcentaje >= 95 ? 'Caliza micrítica (CaCO₃ puro)' : 'Caliza esparítica'
           details = `Brillo: ${(brightness * 100).toFixed(0)}%, Saturación: ${(saturation * 100).toFixed(0)}%`
-        } else if (brightness > 0.45 && saturation < 0.35 && redRatio > 0.31 && redRatio < 0.40) {
+        } else if (brightness > 0.55 && saturation < 0.25 && redRatio > 0.32 && redRatio < 0.44) {
           isCaliza = true
-          confidence = Math.min(90, Math.round(brightness * 30 + (1 - saturation) * 25 + 25))
-          porcentaje = 70 + Math.round(brightness * 15)
+          confidence = Math.min(80, Math.round((brightness - 0.5) * 60 + (0.25 - saturation) * 50 + 20))
+          porcentaje = 65 + Math.round((brightness - 0.5) * 40)
           tipo = 'Caliza arcillosa (marga)'
-          details = `Color ligeramente fuera de rango típico. Brillo: ${(brightness * 100).toFixed(0)}%`
+          details = `Color fuera de rango típico. Brillo: ${(brightness * 100).toFixed(0)}%`
         } else {
           isCaliza = false
           confidence = Math.min(98, Math.round(
-            (brightness < 0.45 ? 40 : 0) +
-            (saturation > 0.3 ? 30 : 0) +
-            (redRatio < 0.28 || redRatio > 0.45 ? 20 : 0)
+            (brightness < 0.55 ? 30 : 0) +
+            (saturation > 0.2 ? 35 : 0) +
+            (redRatio < 0.3 || redRatio > 0.46 ? 25 : 0)
           ))
           porcentaje = Math.round(redRatio * 100)
-          tipo = brightness < 0.45 ? 'Roca oscura (posible basalto/lutita)'
-            : saturation > 0.3 ? 'Roca ferruginosa (óxidos de hierro)'
+          tipo = brightness < 0.55 ? 'Roca oscura (posible basalto/lutita)'
+            : saturation > 0.2 ? 'Roca ferruginosa (óxidos de hierro)'
             : 'Roca silícea (cuarzo/arenisca)'
           const reasons = []
-          if (brightness < 0.45) reasons.push('muy oscuro')
-          if (saturation > 0.3) reasons.push('muy saturado')
-          if (redRatio < 0.28) reasons.push('poco rojo')
-          if (redRatio > 0.45) reasons.push('muy rojo')
+          if (brightness < 0.55) reasons.push('muy oscuro')
+          if (saturation > 0.2) reasons.push('muy saturado')
+          if (redRatio < 0.3) reasons.push('poco rojo')
+          if (redRatio > 0.46) reasons.push('muy rojo')
           details = reasons.length ? `Razones: ${reasons.join(', ')}` : 'No coincide con caliza'
         }
 
@@ -303,18 +303,18 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
       React.createElement(Text, { style: [scanStyles.analysisTitle, { color }] },
         r.isCaliza ? 'CALIZA DETECTADA' : 'NO ES CALIZA'
       ),
-      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 8 } },
+      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 4 } },
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'TIPO'),
-          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' } }, r.tipo),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'TIPO'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 10, fontWeight: '600', textAlign: 'center' } }, r.tipo),
         ),
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CALIDAD'),
-          React.createElement(Text, { style: { color: r.calidad === 'Alta' ? '#2ecc71' : r.calidad === 'Media' ? '#f39c12' : '#e74c3c', fontSize: 14, fontWeight: '700' } }, r.calidad),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'CALIDAD'),
+          React.createElement(Text, { style: { color: r.calidad === 'Alta' ? '#2ecc71' : r.calidad === 'Media' ? '#f39c12' : '#e74c3c', fontSize: 12, fontWeight: '700' } }, r.calidad),
         ),
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO\u2083*'),
-          React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${r.porcentaje}%`),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'CaCO\u2083*'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '700' } }, `${r.porcentaje}%`),
         ),
       ),
       r.confidence > 0 ? React.createElement(Text, { style: scanStyles.analysisConfidence },
@@ -325,41 +325,38 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
       // Acid test section
       !acidTest
         ? React.createElement(React.Fragment, null,
-            React.createElement(Text, { style: { color: '#ffff00', fontSize: 12, fontWeight: '700', textAlign: 'center', marginVertical: 6 } },
+            React.createElement(Text, { style: { color: '#ffff00', fontSize: 10, fontWeight: '700', textAlign: 'center', marginVertical: 3 } },
               '🧪 Confirma con prueba de ácido:'
             ),
-            React.createElement(View, { style: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 6 } },
-              [['vigorosa', '#2ecc71', 'Vigorosa\n(efervescencia fuerte)'],
+            React.createElement(View, { style: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, marginBottom: 3 } },
+              [['vigorosa', '#2ecc71', 'Vigorosa'],
                ['moderada', '#f39c12', 'Moderada'],
                ['leve', '#e67e22', 'Leve'],
                ['nula', '#e74c3c', 'Nula']].map(([val, c, label]) =>
                 React.createElement(TouchableOpacity, {
                   key: val,
                   onPress: () => setAcidTest(val as any),
-                  style: { backgroundColor: c + '30', borderColor: c, borderWidth: 1.5, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center' }
+                  style: { backgroundColor: c + '30', borderColor: c, borderWidth: 1, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10, alignItems: 'center' }
                 },
-                  React.createElement(Text, { style: { color: c, fontSize: 12, fontWeight: '700', textAlign: 'center' } }, label)
+                  React.createElement(Text, { style: { color: c, fontSize: 10, fontWeight: '700', textAlign: 'center' } }, label)
                 )
               )
             ),
-            React.createElement(Text, { style: { color: 'rgba(255,255,255,0.4)', fontSize: 9, textAlign: 'center', marginBottom: 6 } },
-              'Aplica HCl al 10% en la roca y selecciona la reacción'
+            React.createElement(Text, { style: { color: 'rgba(255,255,255,0.4)', fontSize: 8, textAlign: 'center', marginBottom: 3 } },
+              'Aplica HCl al 10% y selecciona la reacción'
             ),
           )
-        : React.createElement(View, { style: { backgroundColor: '#ffff0020', borderRadius: 8, padding: 10, marginVertical: 8, width: '100%', alignItems: 'center' } },
-            React.createElement(Text, { style: { fontSize: 16, fontWeight: '800', color: acidTest === 'vigorosa' || acidTest === 'moderada' ? '#2ecc71' : '#e74c3c' } },
-              acidTest === 'vigorosa' ? '✅ CALIZA CONFIRMADA (CaCO₃ > 95%)' :
-              acidTest === 'moderada' ? '✅ CALIZA CONFIRMADA (CaCO₃ 70-90%)' :
-              acidTest === 'leve' ? '⚠️ MARGA — baja reacción, no es caliza pura' :
-              '❌ NO ES CALIZA — sin carbonatos'
-            ),
-            React.createElement(Text, { style: { color: 'rgba(255,255,255,0.5)', fontSize: 10, textAlign: 'center', marginTop: 4 } },
-              `Reacción ${acidTest} — resultado 100% confiable`
+        : React.createElement(View, { style: { backgroundColor: '#ffff0020', borderRadius: 6, padding: 6, marginVertical: 4, width: '100%', alignItems: 'center' } },
+            React.createElement(Text, { style: { fontSize: 12, fontWeight: '800', color: acidTest === 'vigorosa' || acidTest === 'moderada' ? '#2ecc71' : '#e74c3c', textAlign: 'center' } },
+              acidTest === 'vigorosa' ? '✅ CALIZA CONFIRMADA' :
+              acidTest === 'moderada' ? '✅ CALIZA CONFIRMADA' :
+              acidTest === 'leve' ? '⚠️ MARGA — baja reacción' :
+              '❌ NO ES CALIZA'
             ),
           ),
 
-      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 9, textAlign: 'center', marginBottom: 8 } },
-        '*CaCO\u2083 estimado por color. No reemplaza an\u00e1lisis de laboratorio.'
+      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 8, textAlign: 'center', marginBottom: 4 } },
+        '*CaCO\u2083 estimado. No reemplaza laboratorio.'
       ),
       React.createElement(TouchableOpacity, { onPress: () => { setResult(null); setAcidTest(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
         React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
@@ -377,22 +374,22 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
       React.createElement(Text, { style: [scanStyles.analysisTitle, { color }] },
         isCal ? 'POSIBLE CALIZA' : `Resultado: ${info.tipo}`
       ),
-      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 8 } },
+      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 4 } },
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'TIPO'),
-          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' } }, info.tipo),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'TIPO'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 10, fontWeight: '600', textAlign: 'center' } }, info.tipo),
         ),
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CALIDAD'),
-          React.createElement(Text, { style: { color: calidadColor, fontSize: 14, fontWeight: '700' } }, info.calidad),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'CALIDAD'),
+          React.createElement(Text, { style: { color: calidadColor, fontSize: 12, fontWeight: '700' } }, info.calidad),
         ),
         info.porcentaje > 0 ? React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO\u2083*'),
-          React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${info.porcentaje}%`),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 9 } }, 'CaCO\u2083*'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '700' } }, `${info.porcentaje}%`),
         ) : null,
       ),
-      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 9, textAlign: 'center', marginBottom: 8 } },
-        '*CaCO\u2083 estimado. No reemplaza an\u00e1lisis de laboratorio.'
+      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 8, textAlign: 'center', marginBottom: 4 } },
+        '*CaCO\u2083 estimado.'
       ),
       React.createElement(TouchableOpacity, { onPress: manualReset, style: scanStyles.resetBtn },
         React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
@@ -461,16 +458,16 @@ const scanStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center', alignItems: 'center',
   },
-  analyzeBtn: { backgroundColor: COLORS.highlight, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
-  analyzeText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  analyzeBtn: { backgroundColor: COLORS.highlight, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  analyzeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   analysisResult: {
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 3, padding: 20,
-    alignItems: 'center', gap: 6, marginVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, borderWidth: 2, padding: 8,
+    alignItems: 'center', gap: 3, marginVertical: 6,
   },
-  analysisIcon: { fontSize: 40 },
-  analysisTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  analysisConfidence: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  analysisDetails: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center' },
+  analysisIcon: { fontSize: 28 },
+  analysisTitle: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  analysisConfidence: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  analysisDetails: { color: 'rgba(255,255,255,0.6)', fontSize: 10, textAlign: 'center' },
   row: { gap: 8 },
   label: { color: '#fff', fontSize: 14, fontWeight: '600' },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -478,9 +475,9 @@ const scanStyles = StyleSheet.create({
   optSel: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   optText: { color: '#fff', fontSize: 13 },
   optTextSel: { color: '#fff', fontWeight: '700' },
-  result: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, padding: 16, gap: 8, marginTop: 8 },
-  resetBtn: { backgroundColor: COLORS.highlight, padding: 10, borderRadius: 8, alignSelf: 'center', marginTop: 8 },
-  resetText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  result: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, padding: 12, gap: 6, marginTop: 6 },
+  resetBtn: { backgroundColor: COLORS.highlight, padding: 8, borderRadius: 8, alignSelf: 'center', marginTop: 6 },
+  resetText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 })
 
 function makeTextSprite(text: string, color: string, fontSize: number, fontWeight: string = 'normal'): THREE.Sprite {
@@ -1164,10 +1161,10 @@ export function ARScreen({ navigation }: any) {
 
             return (
             <View style={[styles.targetDetail, {borderWidth: 2, borderColor: '#00FF00'}]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.detailTitle}>{selectedTarget.name}</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
                     {formatDistance(selectedTarget.distance)}
                   </Text>
                 </View>
@@ -1183,11 +1180,11 @@ export function ARScreen({ navigation }: any) {
                 }
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, gap: 16 }}>
-                <Text style={{ fontSize: 48, color: selectedTarget.color }}>{dirArrow}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, gap: 12 }}>
+                <Text style={{ fontSize: 40, color: selectedTarget.color }}>{dirArrow}</Text>
                 <View>
-                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>{dirText}</Text>
-                  <Text style={{ fontSize: 14, color: selectedTarget.color }}>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>{dirText}</Text>
+                  <Text style={{ fontSize: 12, color: selectedTarget.color }}>
                     Gira el celular para actualizar la dirección
                   </Text>
                 </View>
@@ -1333,13 +1330,13 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: 'rgba(0,0,0,0.85)',
     borderRadius: 16,
-    padding: 20,
+    padding: 12,
   },
-  detailTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  detailText: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginVertical: 2 },
+  detailTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  detailText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginVertical: 2 },
   closeX: { position: 'absolute', top: 8, right: 12, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   closeXText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  closeDetail: { marginTop: 12, alignSelf: 'stretch', alignItems: 'center', backgroundColor: COLORS.accent + '30', borderRadius: 12, paddingVertical: 12 },
+  closeDetail: { marginTop: 8, alignSelf: 'stretch', alignItems: 'center', backgroundColor: COLORS.accent + '30', borderRadius: 12, paddingVertical: 10 },
   closeDetailText: { color: COLORS.accent, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   modalOverlay: {
     flex: 1,
