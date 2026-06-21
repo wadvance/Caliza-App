@@ -599,116 +599,8 @@ function Model3DView({ heading, isWeb, location, samples }: { heading: number; i
   )
 }
 
-function drawCrossSection(
-  renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.OrthographicCamera,
-  w: number, h: number, calizaCheck: { hasCaliza: boolean; nearest: number; source: string }
-) {
-  while (scene.children.length) {
-    const c = scene.children[0] as any
-    if (c.geometry) c.geometry.dispose()
-    if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose() }
-    scene.remove(c)
-  }
-
-  const layers = [
-    { name: 'Suelo vegetal', color: 0x5D4037, depth: 0.3 },
-    { name: 'Arcilla', color: 0x8D6E63, depth: 0.8 },
-    { name: 'Marga', color: 0xBCAAA4, depth: 1.5 },
-    { name: 'Caliza', color: 0xBDBDBD, depth: 2.5 },
-    { name: 'Dolomita', color: 0x9E9E9E, depth: 3.5 },
-    { name: 'Basamento', color: 0x616161, depth: 5.0 },
-  ]
-  const maxDepth = 5
-  const margin = 50
-  const drawW = w - margin * 2
-  const drawH = h - margin * 2
-
-  const mkPt = (x: number, y: number) => new THREE.Vector3(x, -y + h / 2, 0)
-  const addLine = (pts: THREE.Vector3[], color: number, lw: number = 1, opacity: number = 1) => {
-    const g = new THREE.BufferGeometry().setFromPoints(pts)
-    const m = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity })
-    scene.add(new THREE.Line(g, m))
-  }
-  const addRect = (x: number, y: number, rw: number, rh: number, color: number) => {
-    const geo = new THREE.BufferGeometry()
-    const top = -y + h / 2
-    const bot = -(y + rh) + h / 2
-    const verts = new Float32Array([
-      x, top, 0,  x, bot, 0,  x + rw, bot, 0,
-      x, top, 0,  x + rw, bot, 0,  x + rw, top, 0,
-    ])
-    geo.setAttribute('position', new THREE.BufferAttribute(verts, 3))
-    geo.computeVertexNormals()
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }))
-    scene.add(mesh)
-  }
-
-  // Sky
-  addRect(0, 0, w, margin, 0x0a0a2a)
-
-  // Ground surface (wavy)
-  const surfacePts: THREE.Vector3[] = []
-  for (let x = 0; x <= drawW; x += 3) {
-    const y = margin + Math.sin(x * 0.05) * 5
-    surfacePts.push(mkPt(margin + x, y))
-  }
-  addLine(surfacePts, 0x4caf50, 2)
-
-  // Layers
-  let prevDepth = 0
-  layers.forEach(layer => {
-    const yStart = margin + (prevDepth / maxDepth) * drawH
-    const yEnd = margin + (layer.depth / maxDepth) * drawH
-    addRect(margin, yStart, drawW, yEnd - yStart, layer.color)
-    // Stroke
-    const strokePts = [
-      mkPt(margin, yStart), mkPt(margin + drawW, yStart),
-      mkPt(margin + drawW, yEnd), mkPt(margin, yEnd), mkPt(margin, yStart)
-    ]
-    addLine(strokePts, 0x000000, 1, 0.3)
-    // Label
-    const label = `${layer.name} (${layer.depth}m)`
-    const sprite = makeTextSprite(label, '#fff', 11)
-    sprite.position.set(margin + 8 + 40, -(yStart + (yEnd - yStart) / 2) + h / 2, 0)
-    scene.add(sprite)
-    prevDepth = layer.depth
-  })
-
-  // Depth labels
-  for (let d = 0; d <= maxDepth; d += 1) {
-    const y = margin + (d / maxDepth) * drawH
-    const label = `-${d}m`
-    const sprite = makeTextSprite(label, 'rgba(255,255,255,0.5)', 10)
-    sprite.position.set(margin - 25, -y + h / 2, 0)
-    scene.add(sprite)
-    addLine([mkPt(margin, y), mkPt(margin + drawW, y)], 0xffffff, 0.5, 0.1)
-  }
-
-  // Title
-  const title = makeTextSprite('Corte geol\u00f3gico - Yacimiento de Caliza', '#fff', 13, 'bold')
-  title.position.set(w / 2, -(h / 2) + 14, 0)
-  scene.add(title)
-
-  // Caliza indicator
-  const calizaColor = calizaCheck.hasCaliza ? '#2ecc71' : '#e74c3c'
-  const calizaText = calizaCheck.hasCaliza ? 'HAY CALIZA' : 'NO SE DETECTA CALIZA'
-  const calizaIcon = calizaCheck.hasCaliza ? '\u2705' : '\u274c'
-  const cl = makeTextSprite(`${calizaIcon} ${calizaText}`, calizaColor, 16, 'bold')
-  cl.position.set(w / 2, -(h - 30) + h / 2, 0)
-  scene.add(cl)
-
-  if (calizaCheck.source) {
-    const detail = makeTextSprite(`${calizaCheck.source} (a ${calizaCheck.nearest} km)`, 'rgba(255,255,255,0.6)', 11)
-    detail.position.set(w / 2, -(h - 50) + h / 2, 0)
-    scene.add(detail)
-  }
-
-  renderer.render(scene, camera)
-}
-
 function ModelModeView({ heading, isWeb, location, samples }: { heading: number; isWeb: boolean; location: any; samples: any[] }) {
   const containerRef = useRef<any>(null)
-  const threeRef = useRef<{ scene: THREE.Scene; camera: THREE.OrthographicCamera; renderer: THREE.WebGLRenderer } | null>(null)
 
   const calizaCheck = React.useMemo(() => {
     if (!location) return { hasCaliza: false, nearest: Infinity, source: '' }
@@ -722,69 +614,107 @@ function ModelModeView({ heading, isWeb, location, samples }: { heading: number;
         source = `Muestra: ${s.name || s.estimatedRockType}`
       }
     }
-    return {
-      hasCaliza: nearest < 2,
-      nearest: Math.round(nearest * 1000) / 1000,
-      source
-    }
+    return { hasCaliza: nearest < 2, nearest: Math.round(nearest * 1000) / 1000, source }
   }, [location, samples])
 
   useEffect(() => {
     if (!isWeb) return
     const container = containerRef.current
     if (!container) return
-    const cw = container.clientWidth || 320
-    const asp = 0.75
-    const w = Math.min(cw, 360)
-    const h = w * asp
+
+    const w = container.clientWidth || 360
+    const h = Math.round(w * 0.66)
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x0f0f23)
-    const camera = new THREE.OrthographicCamera(0, w, h / 2, -h / 2, 0.1, 100)
-    camera.position.set(w / 2, 0, 10)
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 50)
+    camera.position.set(0, 0, 18)
+    camera.lookAt(0, -1, 0)
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(w, h)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     container.appendChild(renderer.domElement)
-    threeRef.current = { scene, camera, renderer }
+
+    const al = new THREE.AmbientLight(0x404060, 0.6)
+    scene.add(al)
+    const dl = new THREE.DirectionalLight(0xffffff, 0.8)
+    dl.position.set(5, 8, 10)
+    scene.add(dl)
+
+    const layers = [
+      { name: 'Suelo vegetal', color: 0x5D4037, d: 0.3, y: -0.15 },
+      { name: 'Arcilla', color: 0x8D6E63, d: 0.5, y: -0.55 },
+      { name: 'Marga', color: 0xBCAAA4, d: 0.7, y: -1.15 },
+      { name: 'Caliza', color: 0xBDBDBD, d: 1.0, y: -2.0 },
+      { name: 'Dolomita', color: 0x9E9E9E, d: 1.0, y: -3.0 },
+      { name: 'Basamento', color: 0x616161, d: 2.0, y: -4.5 },
+    ]
+    const boxW = 4
+
+    layers.forEach((l, i) => {
+      const geo = new THREE.BoxGeometry(boxW, l.d, 0.2)
+      const mat = new THREE.MeshPhongMaterial({ color: l.color })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.set(0, l.y, 0)
+      scene.add(mesh)
+
+      const edge = new THREE.EdgesGeometry(geo)
+      const em = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 })
+      scene.add(new THREE.LineSegments(edge, em))
+
+      const sprite = makeTextSprite(`${l.name} (${l.d}m)`, i === 3 ? '#ffff00' : '#ccc', 11)
+      sprite.position.set(boxW / 2 + 0.6, l.y, 0)
+      scene.add(sprite)
+    })
+
+    // Title
+    const title = makeTextSprite('Corte geol\u00f3gico - Yacimiento de Caliza', '#fff', 13, 'bold')
+    title.position.set(0, 2.5, 0)
+    scene.add(title)
+
+    // Caliza indicator
+    const calizaColor = calizaCheck.hasCaliza ? '#2ecc71' : '#e74c3c'
+    const calizaText = calizaCheck.hasCaliza ? 'HAY CALIZA' : 'NO SE DETECTA CALIZA'
+    const calizaIcon = calizaCheck.hasCaliza ? '\u2705' : '\u274c'
+    const cl = makeTextSprite(`${calizaIcon} ${calizaText}`, calizaColor, 14, 'bold')
+    cl.position.set(0, -5.8, 0)
+    scene.add(cl)
+
+    if (calizaCheck.source) {
+      const detail = makeTextSprite(`${calizaCheck.source} (a ${calizaCheck.nearest} km)`, 'rgba(255,255,255,0.6)', 10)
+      detail.position.set(0, -6.5, 0)
+      scene.add(detail)
+    }
+
+    renderer.render(scene, camera)
 
     const ro = new ResizeObserver(entries => {
       for (const e of entries) {
-        const nw = Math.min(e.contentRect.width, 360)
+        const nw = e.contentRect.width
         if (nw > 0) {
-          const nh = nw * asp
+          const nh = Math.round(nw * 0.66)
           renderer.setSize(nw, nh)
-          camera.left = 0; camera.right = nw
-          camera.top = nh / 2; camera.bottom = -nh / 2
+          camera.aspect = nw / nh
           camera.updateProjectionMatrix()
-          drawCrossSection(renderer, scene, camera, nw, nh, calizaCheck)
+          renderer.render(scene, camera)
         }
       }
     })
     ro.observe(container)
 
-    drawCrossSection(renderer, scene, camera, w, h, calizaCheck)
-
     return () => {
       ro.disconnect()
       renderer.dispose()
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement)
-      threeRef.current = null
     }
   }, [isWeb]) // eslint-disable-line
-
-  useEffect(() => {
-    if (!threeRef.current) return
-    const { scene, camera, renderer } = threeRef.current
-    const w = renderer.domElement.width
-    const h = renderer.domElement.height
-    drawCrossSection(renderer, scene, camera, w, h, calizaCheck)
-  }, [calizaCheck]) // eslint-disable-line
 
   return React.createElement(View, { style: { padding: 10, alignItems: 'center' } },
     React.createElement(View, {
       ref: containerRef,
-      style: { width: '100%', maxWidth: 360, aspectRatio: 4 / 3, alignSelf: 'center', borderRadius: 8, overflow: 'hidden' }
+      style: { width: '100%', maxWidth: 400, aspectRatio: 3 / 2, alignSelf: 'center', borderRadius: 8, overflow: 'hidden' }
     }),
     React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, marginTop: 8, width: '100%' } },
       React.createElement(Text, { style: { color: '#fff', fontSize: 12, textAlign: 'center' } },
