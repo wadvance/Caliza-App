@@ -313,7 +313,6 @@ export function MapScreen({ navigation }: any) {
   const [locationCtx, setLocationCtx] = useState<LocationContext | null>(null)
   const [ctxLoading, setCtxLoading] = useState(false)
   const [showContext, setShowContext] = useState(false)
-  const initialPanDone = useRef(false)
   const isInitialRender = useRef(true)
 
   useEffect(() => { loadData() }, [])
