@@ -334,10 +334,10 @@ export function MapScreen({ navigation }: any) {
 
   const getZoneFillColor = (probability: string) => {
     switch (probability) {
-      case 'alta': return COLORS.probabilityHigh + '40'
-      case 'media': return COLORS.probabilityMedium + '35'
-      case 'baja': return COLORS.probabilityLow + '30'
-      default: return COLORS.probabilityPending + '30'
+      case 'alta': return COLORS.probabilityHigh
+      case 'media': return COLORS.probabilityMedium
+      case 'baja': return COLORS.probabilityLow
+      default: return COLORS.probabilityPending
     }
   }
 

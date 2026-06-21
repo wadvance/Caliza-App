@@ -208,7 +208,7 @@ export function SatelliteAnalysisScreen() {
       const color = getCarbonateColor(cell.carbonateIndex)
       allPolygons.push({
         coords: cell.coordinates,
-        fillColor: color + '50',
+        fillColor: color,
         strokeColor: color,
       })
     }
@@ -357,7 +357,7 @@ export function SatelliteAnalysisScreen() {
                   coordinates={zone.coordinates}
                   fillColor={getCarbonateColor(
                     zone.probability === 'alta' ? 0.8 : zone.probability === 'media' ? 0.6 : zone.probability === 'baja' ? 0.3 : 0
-                  ) + '40'}
+                  )}
                   strokeColor={getCarbonateColor(
                     zone.probability === 'alta' ? 0.8 : zone.probability === 'media' ? 0.6 : zone.probability === 'baja' ? 0.3 : 0
                   )}

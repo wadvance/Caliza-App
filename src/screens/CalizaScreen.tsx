@@ -94,7 +94,7 @@ export function CalizaScreen() {
             const isHighlighted = selectedIdx !== null && zi === selectedIdx
             return (
               <Polygon key={zone.id} coordinates={zone.coordinates}
-                fillColor={PROB_COLORS[zone.probability] + '40'}
+                fillColor={PROB_COLORS[zone.probability]}
                 strokeColor={isHighlighted ? '#fff' : PROB_COLORS[zone.probability]}
                 strokeWidth={isHighlighted ? 4 : 2}
               />
