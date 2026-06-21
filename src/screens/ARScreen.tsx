@@ -111,11 +111,90 @@ interface ARTarget {
 }
 
 function ScanModeView({ samples, location }: { samples: any[]; location: any }) {
+  const [analyzing, setAnalyzing] = useState(false)
+  const [result, setResult] = useState<{ isCaliza: boolean; confidence: number; details: string } | null>(null)
+  const canvasRef = useRef<any>(null)
+  const [mode, setMode] = useState<'auto' | 'manual'>('auto')
+
+  const captureAndAnalyze = () => {
+    setAnalyzing(true)
+    setResult(null)
+    setTimeout(() => {
+      try {
+        const video = document.getElementById('ar-video') as HTMLVideoElement
+        if (!video || !video.videoWidth) {
+          setResult({ isCaliza: false, confidence: 0, details: 'No se pudo acceder a la cámara. Usa el modo manual.' })
+          setAnalyzing(false)
+          return
+        }
+        const c = document.createElement('canvas')
+        c.width = video.videoWidth
+        c.height = video.videoHeight
+        const ctx = c.getContext('2d')
+        if (!ctx) { setAnalyzing(false); return }
+        ctx.drawImage(video, 0, 0)
+
+        const cx = Math.floor(c.width / 2), cy = Math.floor(c.height / 2)
+        const size = Math.min(c.width, c.height) * 0.15
+        const region = ctx.getImageData(cx - size, cy - size, size * 2, size * 2)
+        const data = region.data
+
+        let r = 0, g = 0, b = 0, count = 0
+        for (let i = 0; i < data.length; i += 4) {
+          r += data[i]; g += data[i + 1]; b += data[i + 2]; count++
+        }
+        r /= count; g /= count; b /= count
+
+        const brightness = (r + g + b) / 3 / 255
+        const maxC = Math.max(r, g, b), minC = Math.min(r, g, b)
+        const saturation = maxC === 0 ? 0 : (maxC - minC) / maxC
+
+        let redRatio = r / (r + g + b + 1)
+        let greenRatio = g / (r + g + b + 1)
+        let blueRatio = b / (r + g + b + 1)
+
+        let isCaliza = false
+        let confidence = 0
+        let details = ''
+
+        // Caliza: high brightness, low saturation, warm-leaning (beige/cream)
+        if (brightness > 0.55 && saturation < 0.25 && redRatio > 0.33 && greenRatio > 0.33) {
+          isCaliza = true
+          confidence = Math.min(95, Math.round((brightness * 40 + (1 - saturation) * 30 + (redRatio > 0.35 ? 15 : 0) + (greenRatio > 0.34 ? 10 : 0))))
+          details = `Brillo: ${(brightness * 100).toFixed(0)}%, Saturación: ${(saturation * 100).toFixed(0)}%`
+        } else if (brightness > 0.45 && saturation < 0.35 && redRatio > 0.31 && redRatio < 0.40) {
+          isCaliza = true
+          confidence = Math.min(90, Math.round(brightness * 30 + (1 - saturation) * 25 + 25))
+          details = `Color ligeramente fuera de rango típico. Brillo: ${(brightness * 100).toFixed(0)}%`
+        } else {
+          isCaliza = false
+          confidence = Math.min(98, Math.round(
+            (brightness < 0.45 ? 40 : 0) +
+            (saturation > 0.3 ? 30 : 0) +
+            (redRatio < 0.28 || redRatio > 0.45 ? 20 : 0)
+          ))
+          const reasons = []
+          if (brightness < 0.45) reasons.push('muy oscuro')
+          if (saturation > 0.3) reasons.push('muy saturado')
+          if (redRatio < 0.28) reasons.push('poco rojo')
+          if (redRatio > 0.45) reasons.push('muy rojo')
+          details = reasons.length ? `Razones: ${reasons.join(', ')}` : 'No coincide con caliza'
+        }
+
+        setResult({ isCaliza, confidence, details })
+      } catch (e) {
+        setResult({ isCaliza: false, confidence: 0, details: 'Error al analizar. Usa el modo manual.' })
+      }
+      setAnalyzing(false)
+    }, 300)
+  }
+
+  // --- Manual identification sub-mode ---
   const [prop1, setProp1] = useState<string | null>(null)
   const [prop2, setProp2] = useState<string | null>(null)
   const [prop3, setProp3] = useState<string | null>(null)
 
-  const result = !prop1 ? null
+  const manualResult = !prop1 ? null
     : prop1 === 'clara' && prop2 === 'suave' ? 'Caliza (CaCO₃)'
     : prop1 === 'clara' && prop2 === 'dura' ? 'Dolomita'
     : prop1 === 'media' && prop2 === 'suave' ? 'Marga'
@@ -126,7 +205,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
     : prop1 === 'media' && prop3 === 'no' ? 'Caliche'
     : 'Tipo no determinado'
 
-  const reset = () => { setProp1(null); setProp2(null); setProp3(null) }
+  const manualReset = () => { setProp1(null); setProp2(null); setProp3(null) }
 
   const row = (label: string, options: { value: string; label: string }[], selected: string | null, set: (v: string) => void) => (
     React.createElement(View, { style: scanStyles.row, key: label },
@@ -146,44 +225,68 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
   )
 
   return React.createElement(View, { style: scanStyles.container },
-    React.createElement(Text, { style: scanStyles.title }, '🔍 Identificación visual de roca'),
-    React.createElement(Text, { style: scanStyles.sub }, 'Selecciona las propiedades de la muestra:'),
-    !prop1 ? row('Color', [
-      { value: 'clara', label: 'Clara (beige/blanco)' },
-      { value: 'media', label: 'Media (marrón/gris)' },
-      { value: 'oscura', label: 'Oscura (negra/gris oscuro)' },
-    ], prop1, v => setProp1(v))
-    : !prop2 ? row('Textura', [
-      { value: 'suave', label: 'Suave/tiza' },
-      { value: 'dura', label: 'Dura/compacta' },
-      { value: 'porosa', label: 'Porosa/esponjosa' },
-    ], prop2, v => setProp2(v))
-    : !prop3 && (prop1 === 'clara') ? row('¿Reacciona con ácido?', [
-      { value: 'si', label: 'Sí (efervescencia)' },
-      { value: 'no', label: 'No' },
-    ], prop3, v => setProp3(v))
-    : null,
-    result && React.createElement(View, { style: scanStyles.result },
-      React.createElement(Text, { style: scanStyles.resultText }, 'Resultado: ' + result),
-      !result.includes('determinado') && React.createElement(Text, { style: scanStyles.resultSub },
-        result === 'Caliza (CaCO₃)' ? 'Alta efervescencia con HCl. Roca sedimentaria carbonatada. Uso: cemento, cal.'
-        : result === 'Dolomita' ? 'Efervescencia leve. Contiene magnesio. Uso: refractarios, construcción.'
-        : result === 'Marga' ? 'Mezcla de caliza y arcilla. Uso: materia prima para cemento.'
-        : result === 'Travertino' ? 'Porosa y ligera. Formada por precipitación en manantiales. Uso: decoración.'
-        : result === 'Basalto' ? 'Roca ígnea oscura y densa. Uso: agregados de construcción.'
-        : result === 'Arcilla' ? 'Plástica cuando se humedece. Uso: ladrillos, cerámica.'
-        : result === 'Yeso' ? 'Muy suave, raya con uña. Uso: yesería, cemento.'
-        : 'Capa superficial dura. Uso: cal agrícola.'
+    React.createElement(View, { style: scanStyles.tabRow },
+      React.createElement(TouchableOpacity, { onPress: () => { setMode('auto'); setResult(null) }, style: [scanStyles.tab, mode === 'auto' && scanStyles.tabActive] },
+        React.createElement(Text, { style: [scanStyles.tabText, mode === 'auto' && scanStyles.tabTextActive] }, '📷 Automático')
       ),
-      React.createElement(TouchableOpacity, { onPress: reset, style: scanStyles.resetBtn },
-        React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
-      )
+      React.createElement(TouchableOpacity, { onPress: () => { setMode('manual'); setResult(null) }, style: [scanStyles.tab, mode === 'manual' && scanStyles.tabActive] },
+        React.createElement(Text, { style: [scanStyles.tabText, mode === 'manual' && scanStyles.tabTextActive] }, '✋ Manual')
+      ),
     ),
-    samples.length > 0 && React.createElement(View, { style: scanStyles.nearby },
-      React.createElement(Text, { style: scanStyles.nearbyTitle }, 'Muestras cercanas registradas:'),
-      ...samples.slice(0, 3).map(s =>
-        React.createElement(Text, { style: scanStyles.nearbyItem, key: s.id },
-          `• ${s.estimatedRockType || 'Tipo desconocido'} (${s.status})`
+
+    mode === 'auto' ? React.createElement(React.Fragment, null,
+      React.createElement(Text, { style: scanStyles.title }, '📷 Escáner de Caliza'),
+      React.createElement(Text, { style: scanStyles.sub }, 'Apunta la cámara a la roca y presiona "Analizar"'),
+
+      result ? React.createElement(View, { style: [scanStyles.analysisResult, { borderColor: result.isCaliza ? '#2ecc71' : '#e74c3c' }] },
+        React.createElement(Text, { style: [scanStyles.analysisIcon], children: result.isCaliza ? '✅' : '❌' }),
+        React.createElement(Text, { style: [scanStyles.analysisTitle, { color: result.isCaliza ? '#2ecc71' : '#e74c3c' }] },
+          result.isCaliza ? '¡CALIZA DETECTADA!' : 'NO ES CALIZA'
+        ),
+        React.createElement(Text, { style: scanStyles.analysisConfidence },
+          `Confianza: ${result.confidence}%`
+        ),
+        result.details ? React.createElement(Text, { style: scanStyles.analysisDetails }, result.details) : null,
+        React.createElement(TouchableOpacity, { onPress: () => { setResult(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
+          React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
+        )
+      )
+      : React.createElement(View, { style: scanStyles.viewfinder },
+        React.createElement(View, { style: scanStyles.reticle }),
+        React.createElement(TouchableOpacity, { onPress: captureAndAnalyze, disabled: analyzing, style: [scanStyles.analyzeBtn, analyzing && { opacity: 0.5 }] },
+          React.createElement(Text, { style: scanStyles.analyzeText }, analyzing ? 'Analizando...' : '🔍 Analizar roca')
+        )
+      )
+    )
+    : React.createElement(React.Fragment, null,
+      React.createElement(Text, { style: scanStyles.title }, '🔍 Identificación manual'),
+      React.createElement(Text, { style: scanStyles.sub }, 'Selecciona las propiedades:'),
+      !prop1 ? row('Color', [
+        { value: 'clara', label: 'Clara (beige/blanco)' },
+        { value: 'media', label: 'Media (marrón/gris)' },
+        { value: 'oscura', label: 'Oscura (negra/gris oscuro)' },
+      ], prop1, v => setProp1(v))
+      : !prop2 ? row('Textura', [
+        { value: 'suave', label: 'Suave/tiza' },
+        { value: 'dura', label: 'Dura/compacta' },
+        { value: 'porosa', label: 'Porosa/esponjosa' },
+      ], prop2, v => setProp2(v))
+      : !prop3 && (prop1 === 'clara') ? row('¿Reacciona con ácido?', [
+        { value: 'si', label: 'Sí (efervescencia)' },
+        { value: 'no', label: 'No' },
+      ], prop3, v => setProp3(v))
+      : null,
+      manualResult && React.createElement(View, { style: scanStyles.result },
+        React.createElement(Text, { style: [scanStyles.analysisTitle, { color: manualResult.includes('Caliza') ? '#2ecc71' : '#f39c12' }] },
+          manualResult.includes('Caliza') ? '✅ ¡Es probablemente Caliza!' : `Resultado: ${manualResult}`
+        ),
+        React.createElement(Text, { style: scanStyles.analysisDetails },
+          manualResult === 'Caliza (CaCO₃)' ? 'Alta efervescencia con HCl. Roca sedimentaria carbonatada. Uso: cemento, cal.'
+          : manualResult.includes('Caliza') ? 'Mezcla de caliza y arcilla. Uso: materia prima para cemento.'
+          : 'No corresponde a caliza.'
+        ),
+        React.createElement(TouchableOpacity, { onPress: manualReset, style: scanStyles.resetBtn },
+          React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
         )
       )
     )
@@ -191,9 +294,31 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
 }
 
 const scanStyles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 12 },
+  container: { flex: 1, padding: 12, gap: 8 },
+  tabRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)' },
+  tabActive: { backgroundColor: COLORS.accent },
+  tabText: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  tabTextActive: { color: '#fff', fontWeight: '700' },
   title: { color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  sub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center' },
+  sub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', marginBottom: 4 },
+  viewfinder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, minHeight: 200 },
+  reticle: {
+    width: 140, height: 140, borderRadius: 70,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  analyzeBtn: { backgroundColor: COLORS.highlight, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
+  analyzeText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  analysisResult: {
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 3, padding: 20,
+    alignItems: 'center', gap: 6, marginVertical: 10,
+  },
+  analysisIcon: { fontSize: 40 },
+  analysisTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  analysisConfidence: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  analysisDetails: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center' },
   row: { gap: 8 },
   label: { color: '#fff', fontSize: 14, fontWeight: '600' },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -202,13 +327,8 @@ const scanStyles = StyleSheet.create({
   optText: { color: '#fff', fontSize: 13 },
   optTextSel: { color: '#fff', fontWeight: '700' },
   result: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, padding: 16, gap: 8, marginTop: 8 },
-  resultText: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  resultSub: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center' },
   resetBtn: { backgroundColor: COLORS.highlight, padding: 10, borderRadius: 8, alignSelf: 'center', marginTop: 8 },
   resetText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  nearby: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 12, gap: 4 },
-  nearbyTitle: { color: '#fff', fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  nearbyItem: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
 })
 
 function StructModeView({ heading, isWeb }: { heading: number; isWeb: boolean }) {
