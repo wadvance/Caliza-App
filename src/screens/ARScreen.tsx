@@ -5,6 +5,7 @@ import { useCurrentLocation, calculateBearing, calculateDistance } from '../serv
 import { getAllZones } from '../services/database'
 import { Sample, CalizaZone } from '../types'
 import { useAppStore } from '../store/useAppStore'
+import * as THREE from 'three'
 
 const isWeb = Platform.OS === 'web'
 
@@ -331,255 +332,385 @@ const scanStyles = StyleSheet.create({
   resetText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 })
 
-function StructModeView({ heading, isWeb }: { heading: number; isWeb: boolean }) {
-  const canvasRef = useRef<any>(null)
-  const [dip, setDip] = useState(45)
-  const [strike, setStrike] = useState(0)
+function makeTextSprite(text: string, color: string, fontSize: number, fontWeight: string = 'normal'): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+  ctx.font = `${fontWeight} ${fontSize}px sans-serif`
+  const m = ctx.measureText(text)
+  canvas.width = Math.ceil(m.width + 8)
+  canvas.height = Math.ceil(fontSize * 1.5)
+  ctx.font = `${fontWeight} ${fontSize}px sans-serif`
+  ctx.fillStyle = color
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2)
+  const texture = new THREE.CanvasTexture(canvas)
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(canvas.width, canvas.height, 1)
+  return sprite
+}
+
+function Model3DView({ heading, isWeb, location, samples }: { heading: number; isWeb: boolean; location: any; samples: any[] }) {
+  const containerRef = useRef<any>(null)
+  const threeRef = useRef<{
+    scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer
+  } | null>(null)
+  const controlsRef = useRef({ theta: 0.4, phi: 0.4, dist: 7, tx: 0, ty: -1.5 })
+
+  const calizaCheck = React.useMemo(() => {
+    if (!location) return { hasCaliza: false, nearest: Infinity, source: '' }
+    let nearest = Infinity
+    let source = ''
+    for (const s of samples) {
+      if (!s || !s.latitude || !s.longitude) continue
+      const dist = calculateDistance(location.latitude, location.longitude, s.latitude, s.longitude)
+      if (dist < nearest && (s.estimatedRockType?.toLowerCase().includes('caliza') || s.status === 'validado')) {
+        nearest = dist
+        source = `${s.name || s.estimatedRockType}`
+      }
+    }
+    return { hasCaliza: nearest < 2, nearest: Math.round(nearest * 1000) / 1000, source }
+  }, [location, samples])
 
   useEffect(() => {
-    if (!isWeb || !canvasRef.current) return
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const dpr = window.devicePixelRatio || 1
-    const size = Math.min(canvas.clientWidth, canvas.clientHeight, 300)
-    canvas.width = size * dpr
-    canvas.height = size * dpr
-    canvas.style.width = size + 'px'
-    canvas.style.height = size + 'px'
-    ctx.scale(dpr, dpr)
+    if (!isWeb) return
+    const container = containerRef.current
+    if (!container) return
+    const w = container.clientWidth || 320
+    const h = container.clientHeight || 260
 
-    const cx = size / 2, cy = size / 2, r = size / 2 - 10
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0x0a0a1a)
+    const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 50)
+    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    renderer.setSize(w, h)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    renderer.shadowMap.enabled = true
+    container.appendChild(renderer.domElement)
+    threeRef.current = { scene, camera, renderer }
 
-    ctx.clearRect(0, 0, size, size)
+    const al = new THREE.AmbientLight(0x404060, 0.6)
+    scene.add(al)
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9)
+    dl.position.set(5, 10, 7)
+    dl.castShadow = true
+    scene.add(dl)
+    const dl2 = new THREE.DirectionalLight(0x88aaff, 0.3)
+    dl2.position.set(-5, 3, -7)
+    scene.add(dl2)
 
-    // Outer circle
-    ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.stroke()
+    const layers = [
+      { name: 'Suelo vegetal', color: 0x5D4037, y0: 0, y1: -0.3 },
+      { name: 'Arcilla', color: 0x8D6E63, y0: -0.3, y1: -0.8 },
+      { name: 'Marga', color: 0xBCAAA4, y0: -0.8, y1: -1.5 },
+      { name: 'Caliza', color: 0xD0D0D0, y0: -1.5, y1: -2.5 },
+      { name: 'Dolomita', color: 0x9E9E9E, y0: -2.5, y1: -3.5 },
+      { name: 'Basamento', color: 0x616161, y0: -3.5, y1: -5.0 },
+    ]
+    const bs = 2.5
 
-    // Cardinal directions
-    ctx.fillStyle = '#fff'
-    ctx.font = '12px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('N', cx, cy - r - 5)
-    ctx.fillText('S', cx, cy + r + 15)
-    ctx.fillText('E', cx + r + 15, cy + 4)
-    ctx.fillText('W', cx - r - 15, cy + 4)
+    layers.forEach((layer, i) => {
+      const hh = layer.y0 - layer.y1
+      const geo = new THREE.BoxGeometry(bs, hh, bs)
+      const mat = new THREE.MeshPhongMaterial({ color: layer.color, transparent: true, opacity: 0.88, shininess: 10 })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.set(0, layer.y0 - hh / 2, 0)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      scene.add(mesh)
 
-    // Tick marks every 10 degrees
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
-    ctx.lineWidth = 0.5
-    for (let i = 0; i < 360; i += 10) {
-      const a = i * Math.PI / 180
-      const inner = i % 30 === 0 ? r - 8 : r - 4
-      ctx.beginPath()
-      ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
-      ctx.lineTo(cx + inner * Math.cos(a), cy + inner * Math.sin(a))
-      ctx.stroke()
-    }
+      const edge = new THREE.EdgesGeometry(geo)
+      const em = new THREE.LineBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25 })
+      const eg = new THREE.LineSegments(edge, em)
+      eg.position.copy(mesh.position)
+      scene.add(eg)
 
-    // Great circles (grid)
-    for (let d = 10; d < 90; d += 10) {
-      const rad = r * Math.tan((45 - d / 2) * Math.PI / 180)
-      const dist = r / Math.cos((45 - d / 2) * Math.PI / 180)
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
-      ctx.beginPath()
-      ctx.arc(cx, cy - dist, rad, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(cx, cy + dist, rad, 0, Math.PI * 2)
-      ctx.stroke()
-    }
+      const label = makeTextSprite(`${layer.name} (${-layer.y1}m)`, i === 3 ? '#ffff00' : '#ccc', 11)
+      label.position.set(bs / 2 + 0.3, layer.y0 - hh / 2, 0)
+      scene.add(label)
+    })
 
-    // Small circles (grid)
-    for (let d = 10; d < 90; d += 10) {
-      const rad = r * Math.tan((d / 2) * Math.PI / 180)
-      const dist = r / Math.cos((d / 2) * Math.PI / 180)
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
-      ctx.beginPath()
-      ctx.arc(cx - dist, cy, rad, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(cx + dist, cy, rad, 0, Math.PI * 2)
-      ctx.stroke()
-    }
+    const grid = new THREE.GridHelper(bs * 1.5, 8, 0x4caf50, 0x4caf50)
+    grid.position.set(0, 0, 0)
+    scene.add(grid)
 
-    // Fault plane (great circle for given strike and dip)
-    const strikeRad = strike * Math.PI / 180
-    const dipRad = dip * Math.PI / 180
-    const poleDist = r * Math.tan((45 - dip / 2) * Math.PI / 180)
-    const poleAngle = strikeRad + Math.PI / 2
-
-    ctx.strokeStyle = '#00FF88'
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.arc(
-      cx + poleDist * Math.sin(poleAngle),
-      cy - poleDist * Math.cos(poleAngle),
-      r / Math.cos((45 - dip / 2) * Math.PI / 180),
-      -Math.PI / 2 + poleAngle - Math.acos(Math.cos((45 - dip / 2) * Math.PI / 180)),
-      -Math.PI / 2 + poleAngle + Math.acos(Math.cos((45 - dip / 2) * Math.PI / 180))
-    )
-    ctx.stroke()
-
-    // Dip direction arrow
-    const dipDir = (strike + 90) % 360
-    const dipArrow = dipDir * Math.PI / 180
-    const arrowLen = r * 0.6
-    ctx.strokeStyle = '#FF6600'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(cx, cy)
-    ctx.lineTo(cx + arrowLen * Math.sin(dipArrow), cy - arrowLen * Math.cos(dipArrow))
-    ctx.stroke()
-
-    // Info text
-    ctx.fillStyle = '#fff'
-    ctx.font = 'bold 13px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(`Falla: Rumbo ${strike}° · Buzamiento ${dip}°`, cx, size - 4)
-    ctx.fillStyle = '#FF6600'
-    ctx.font = '11px sans-serif'
-    ctx.fillText(`Dirección de buzamiento: ${dipDir}°`, cx, 14)
-  }, [dip, strike, isWeb])
-
-  const canvas = isWeb
-    ? React.createElement('canvas', {
-        ref: canvasRef,
-        style: { width: '90%', maxWidth: 300, aspectRatio: '1', alignSelf: 'center' }
-      })
-    : React.createElement(View, { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
-        React.createElement(Text, { style: { color: '#fff', fontSize: 14 } }, 'Proyección estructural no disponible')
+    // Caliza highlight for the caliza layer
+    if (calizaCheck.hasCaliza) {
+      const glow = new THREE.Mesh(
+        new THREE.BoxGeometry(bs * 1.05, 1.0, bs * 1.05),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.15, wireframe: false })
       )
+      glow.position.set(0, -2.0, 0)
+      scene.add(glow)
+    }
 
-  return React.createElement(View, { style: { flex: 1, padding: 10, gap: 8 } },
-    React.createElement(Text, { style: { color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' } }, '📐 Proyección estereográfica'),
-    canvas,
-    React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'center', gap: 10 } },
-      React.createElement(TouchableOpacity, { onPress: () => setStrike((strike + 10) % 360), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
-        React.createElement(Text, { style: { color: '#fff' } }, 'Rumbo +10°')
-      ),
-      React.createElement(TouchableOpacity, { onPress: () => setDip(Math.min(dip + 5, 90)), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
-        React.createElement(Text, { style: { color: '#fff' } }, 'Buz. +5°')
-      ),
-      React.createElement(TouchableOpacity, { onPress: () => setDip(Math.max(dip - 5, 5)), style: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 8 } },
-        React.createElement(Text, { style: { color: '#fff' } }, 'Buz. -5°')
-      ),
+    let animId: number
+    let isDragging = false
+    let prevX = 0, prevY = 0
+
+    const renderScene = () => {
+      const c = controlsRef.current
+      c.theta += isDragging ? 0 : 0.008
+      camera.position.x = c.tx + c.dist * Math.sin(c.theta) * Math.cos(c.phi)
+      camera.position.y = c.ty + c.dist * Math.sin(c.phi)
+      camera.position.z = c.tx + c.dist * Math.cos(c.theta) * Math.cos(c.phi)
+      camera.lookAt(c.tx, c.ty, 0)
+      renderer.render(scene, camera)
+      animId = requestAnimationFrame(renderScene)
+    }
+    animId = requestAnimationFrame(renderScene)
+
+    const onDown = (x: number, y: number) => { isDragging = true; prevX = x; prevY = y }
+    const onMove = (x: number, y: number) => {
+      if (!isDragging) return
+      const dx = x - prevX, dy = y - prevY
+      controlsRef.current.theta += dx * 0.01
+      controlsRef.current.phi = Math.max(-1.2, Math.min(1.2, controlsRef.current.phi + dy * 0.01))
+      prevX = x; prevY = y
+    }
+    const onUp = () => { isDragging = false }
+
+    renderer.domElement.addEventListener('mousedown', (e: MouseEvent) => onDown(e.clientX, e.clientY))
+    window.addEventListener('mousemove', (e: MouseEvent) => onMove(e.clientX, e.clientY))
+    window.addEventListener('mouseup', onUp)
+    renderer.domElement.addEventListener('touchstart', (e: TouchEvent) => { const t = e.touches[0]; onDown(t.clientX, t.clientY) }, { passive: true })
+    window.addEventListener('touchmove', (e: TouchEvent) => { const t = e.touches[0]; onMove(t.clientX, t.clientY) }, { passive: true })
+    window.addEventListener('touchend', onUp, { passive: true })
+
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const nw = e.contentRect.width
+        const nh = e.contentRect.height
+        if (nw > 0 && nh > 0) {
+          renderer.setSize(nw, nh)
+          camera.aspect = nw / nh
+          camera.updateProjectionMatrix()
+        }
+      }
+    })
+    ro.observe(container)
+
+    return () => {
+      cancelAnimationFrame(animId)
+      ro.disconnect()
+      renderer.dispose()
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement)
+      threeRef.current = null
+      window.removeEventListener('mousemove', (e: MouseEvent) => onMove(e.clientX, e.clientY))
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isWeb]) // eslint-disable-line
+
+  return React.createElement(View, { style: { padding: 10, alignItems: 'center' } },
+    React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 6 } },
+      React.createElement(Text, { style: { color: '#fff', fontSize: 16, fontWeight: '700' } }, 'Modelo 3D del subsuelo'),
+      calizaCheck.hasCaliza
+        ? React.createElement(Text, { style: { color: '#2ecc71', fontSize: 14, fontWeight: '700', marginLeft: 8 } }, '\u2705 Caliza detectada')
+        : React.createElement(Text, { style: { color: '#e74c3c', fontSize: 14, fontWeight: '700', marginLeft: 8 } }, '\u274c Sin caliza')
     ),
-    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 10, marginTop: 4 } },
-      React.createElement(Text, { style: { color: '#00FF88', fontSize: 13 } }, '• Línea verde: plano de falla'),
-      React.createElement(Text, { style: { color: '#FF6600', fontSize: 13 } }, '• Línea naranja: dirección de buzamiento'),
+    calizaCheck.source
+      ? React.createElement(Text, { style: { color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'center', marginBottom: 4 } },
+          `${calizaCheck.source} a ${calizaCheck.nearest} km`
+        )
+      : null,
+    React.createElement(View, {
+      ref: containerRef,
+      style: { width: '100%', maxWidth: 360, aspectRatio: 4 / 3, alignSelf: 'center', borderRadius: 10, overflow: 'hidden' }
+    }),
+    React.createElement(Text, { style: { color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'center', marginTop: 4 } },
+      'Arrastra para rotar · Capas: Suelo, Arcilla, Marga, Caliza, Dolomita, Basamento'
     )
   )
 }
 
-function ModelModeView({ heading, isWeb }: { heading: number; isWeb: boolean }) {
-  const canvasRef = useRef<any>(null)
+function drawCrossSection(
+  renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.OrthographicCamera,
+  w: number, h: number, calizaCheck: { hasCaliza: boolean; nearest: number; source: string }
+) {
+  while (scene.children.length) {
+    const c = scene.children[0] as any
+    if (c.geometry) c.geometry.dispose()
+    if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose() }
+    scene.remove(c)
+  }
+
   const layers = [
-    { name: 'Suelo vegetal', color: '#5D4037', depth: 0.3 },
-    { name: 'Arcilla', color: '#8D6E63', depth: 0.8 },
-    { name: 'Marga', color: '#BCAAA4', depth: 1.5 },
-    { name: 'Caliza', color: '#BDBDBD', depth: 2.5 },
-    { name: 'Dolomita', color: '#9E9E9E', depth: 3.5 },
-    { name: 'Basamento', color: '#616161', depth: 5.0 },
+    { name: 'Suelo vegetal', color: 0x5D4037, depth: 0.3 },
+    { name: 'Arcilla', color: 0x8D6E63, depth: 0.8 },
+    { name: 'Marga', color: 0xBCAAA4, depth: 1.5 },
+    { name: 'Caliza', color: 0xBDBDBD, depth: 2.5 },
+    { name: 'Dolomita', color: 0x9E9E9E, depth: 3.5 },
+    { name: 'Basamento', color: 0x616161, depth: 5.0 },
   ]
+  const maxDepth = 5
+  const margin = 50
+  const drawW = w - margin * 2
+  const drawH = h - margin * 2
+
+  const mkPt = (x: number, y: number) => new THREE.Vector3(x, -y + h / 2, 0)
+  const addLine = (pts: THREE.Vector3[], color: number, lw: number = 1, opacity: number = 1) => {
+    const g = new THREE.BufferGeometry().setFromPoints(pts)
+    const m = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity })
+    scene.add(new THREE.Line(g, m))
+  }
+  const addRect = (x: number, y: number, rw: number, rh: number, color: number) => {
+    const shape = new THREE.Shape()
+    shape.moveTo(x, -y + h / 2)
+    shape.lineTo(x + rw, -y + h / 2)
+    shape.lineTo(x + rw, -(y + rh) + h / 2)
+    shape.lineTo(x, -(y + rh) + h / 2)
+    shape.lineTo(x, -y + h / 2)
+    const geo = new THREE.ShapeGeometry(shape)
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }))
+    scene.add(mesh)
+  }
+
+  // Sky
+  addRect(0, 0, w, margin, 0x0a0a2a)
+
+  // Ground surface (wavy)
+  const surfacePts: THREE.Vector3[] = []
+  for (let x = 0; x <= drawW; x += 3) {
+    const y = margin + Math.sin(x * 0.05) * 5
+    surfacePts.push(mkPt(margin + x, y))
+  }
+  addLine(surfacePts, 0x4caf50, 2)
+
+  // Layers
+  let prevDepth = 0
+  layers.forEach(layer => {
+    const yStart = margin + (prevDepth / maxDepth) * drawH
+    const yEnd = margin + (layer.depth / maxDepth) * drawH
+    addRect(margin, yStart, drawW, yEnd - yStart, layer.color)
+    // Stroke
+    const strokePts = [
+      mkPt(margin, yStart), mkPt(margin + drawW, yStart),
+      mkPt(margin + drawW, yEnd), mkPt(margin, yEnd), mkPt(margin, yStart)
+    ]
+    addLine(strokePts, 0x000000, 1, 0.3)
+    // Label
+    const label = `${layer.name} (${layer.depth}m)`
+    const sprite = makeTextSprite(label, '#fff', 11)
+    sprite.position.set(margin + 8 + 40, -(yStart + (yEnd - yStart) / 2) + h / 2, 0)
+    scene.add(sprite)
+    prevDepth = layer.depth
+  })
+
+  // Depth labels
+  for (let d = 0; d <= maxDepth; d += 1) {
+    const y = margin + (d / maxDepth) * drawH
+    const label = `-${d}m`
+    const sprite = makeTextSprite(label, 'rgba(255,255,255,0.5)', 10)
+    sprite.position.set(margin - 25, -y + h / 2, 0)
+    scene.add(sprite)
+    addLine([mkPt(margin, y), mkPt(margin + drawW, y)], 0xffffff, 0.5, 0.1)
+  }
+
+  // Title
+  const title = makeTextSprite('Corte geol\u00f3gico - Yacimiento de Caliza', '#fff', 13, 'bold')
+  title.position.set(w / 2, -(h / 2) + 14, 0)
+  scene.add(title)
+
+  // Caliza indicator
+  const calizaColor = calizaCheck.hasCaliza ? '#2ecc71' : '#e74c3c'
+  const calizaText = calizaCheck.hasCaliza ? 'HAY CALIZA' : 'NO SE DETECTA CALIZA'
+  const calizaIcon = calizaCheck.hasCaliza ? '\u2705' : '\u274c'
+  const cl = makeTextSprite(`${calizaIcon} ${calizaText}`, calizaColor, 16, 'bold')
+  cl.position.set(w / 2, -(h - 30) + h / 2, 0)
+  scene.add(cl)
+
+  if (calizaCheck.source) {
+    const detail = makeTextSprite(`${calizaCheck.source} (a ${calizaCheck.nearest} km)`, 'rgba(255,255,255,0.6)', 11)
+    detail.position.set(w / 2, -(h - 50) + h / 2, 0)
+    scene.add(detail)
+  }
+
+  renderer.render(scene, camera)
+}
+
+function ModelModeView({ heading, isWeb, location, samples }: { heading: number; isWeb: boolean; location: any; samples: any[] }) {
+  const containerRef = useRef<any>(null)
+  const threeRef = useRef<{ scene: THREE.Scene; camera: THREE.OrthographicCamera; renderer: THREE.WebGLRenderer } | null>(null)
+
+  const calizaCheck = React.useMemo(() => {
+    if (!location) return { hasCaliza: false, nearest: Infinity, source: '' }
+    let nearest = Infinity
+    let source = ''
+    for (const s of samples) {
+      if (!s || !s.latitude || !s.longitude) continue
+      const dist = calculateDistance(location.latitude, location.longitude, s.latitude, s.longitude)
+      if (dist < nearest && (s.estimatedRockType?.toLowerCase().includes('caliza') || s.status === 'validado')) {
+        nearest = dist
+        source = `Muestra: ${s.name || s.estimatedRockType}`
+      }
+    }
+    return {
+      hasCaliza: nearest < 2,
+      nearest: Math.round(nearest * 1000) / 1000,
+      source
+    }
+  }, [location, samples])
 
   useEffect(() => {
-    if (!isWeb || !canvasRef.current) return
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const dpr = window.devicePixelRatio || 1
-    const w = canvas.clientWidth || 320
-    const h = canvas.clientHeight || 240
-    canvas.width = w * dpr
-    canvas.height = h * dpr
-    canvas.style.width = w + 'px'
-    canvas.style.height = h + 'px'
-    ctx.scale(dpr, dpr)
+    if (!isWeb) return
+    const container = containerRef.current
+    if (!container) return
+    const cw = container.clientWidth || 320
+    const asp = 0.75
+    const w = Math.min(cw, 360)
+    const h = w * asp
 
-    ctx.clearRect(0, 0, w, h)
+    const scene = new THREE.Scene()
+    const camera = new THREE.OrthographicCamera(0, w, h / 2, -h / 2, 0.1, 100)
+    camera.position.set(w / 2, 0, 10)
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    renderer.setSize(w, h)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    container.appendChild(renderer.domElement)
+    threeRef.current = { scene, camera, renderer }
 
-    const maxDepth = 5
-    const margin = 50
-    const drawW = w - margin * 2
-    const drawH = h - margin * 2
-
-    // Sky
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, margin)
-    skyGrad.addColorStop(0, '#0a0a2a')
-    skyGrad.addColorStop(1, '#1a1a4a')
-    ctx.fillStyle = skyGrad
-    ctx.fillRect(0, 0, w, margin)
-
-    // Ground surface line
-    ctx.strokeStyle = '#4CAF50'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(margin, margin)
-    for (let x = 0; x <= drawW; x += 5) {
-      const y = margin + Math.sin(x * 0.05) * 5
-      ctx.lineTo(margin + x, y)
-    }
-    ctx.stroke()
-
-    // Draw layers
-    let prevDepth = 0
-    layers.forEach(layer => {
-      const yStart = margin + (prevDepth / maxDepth) * drawH
-      const yEnd = margin + (layer.depth / maxDepth) * drawH
-      ctx.fillStyle = layer.color
-      ctx.fillRect(margin, yStart, drawW, yEnd - yStart)
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)'
-      ctx.lineWidth = 1
-      ctx.strokeRect(margin, yStart, drawW, yEnd - yStart)
-      ctx.fillStyle = '#fff'
-      ctx.font = '11px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(`${layer.name} (${layer.depth}m)`, margin + 8, yStart + (yEnd - yStart) / 2 + 4)
-      prevDepth = layer.depth
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const nw = Math.min(e.contentRect.width, 360)
+        if (nw > 0) {
+          const nh = nw * asp
+          renderer.setSize(nw, nh)
+          camera.left = 0; camera.right = nw
+          camera.top = nh / 2; camera.bottom = -nh / 2
+          camera.updateProjectionMatrix()
+          drawCrossSection(renderer, scene, camera, nw, nh, calizaCheck)
+        }
+      }
     })
+    ro.observe(container)
 
-    // Labels
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '10px sans-serif'
-    ctx.textAlign = 'right'
-    for (let d = 0; d <= maxDepth; d += 1) {
-      const y = margin + (d / maxDepth) * drawH
-      ctx.fillText(`-${d}m`, margin - 5, y + 4)
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)'
-      ctx.lineWidth = 0.5
-      ctx.beginPath()
-      ctx.moveTo(margin, y)
-      ctx.lineTo(margin + drawW, y)
-      ctx.stroke()
+    drawCrossSection(renderer, scene, camera, w, h, calizaCheck)
+
+    return () => {
+      ro.disconnect()
+      renderer.dispose()
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement)
+      threeRef.current = null
     }
+  }, [isWeb]) // eslint-disable-line
 
-    // Title
-    ctx.fillStyle = '#fff'
-    ctx.font = 'bold 13px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('Corte geológico transversal - Yacimiento de Caliza', w / 2, 18)
-  }, [isWeb])
+  useEffect(() => {
+    if (!threeRef.current) return
+    const { scene, camera, renderer } = threeRef.current
+    const w = renderer.domElement.width
+    const h = renderer.domElement.height
+    drawCrossSection(renderer, scene, camera, w, h, calizaCheck)
+  }, [calizaCheck]) // eslint-disable-line
 
-  const canvas = isWeb
-    ? React.createElement('canvas', {
-        ref: canvasRef,
-        style: { width: '95%', aspectRatio: '4/3', alignSelf: 'center', borderRadius: 8, maxWidth: 400 }
-      })
-    : React.createElement(View, { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
-        React.createElement(Text, { style: { color: '#fff', fontSize: 14 } }, 'Modelo 3D no disponible')
-      )
-
-  return React.createElement(View, { style: { flex: 1, padding: 10, gap: 6 } },
-    canvas,
-    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 10, marginTop: 4 } },
+  return React.createElement(View, { style: { padding: 10, alignItems: 'center' } },
+    React.createElement(View, {
+      ref: containerRef,
+      style: { width: '100%', maxWidth: 360, aspectRatio: 4 / 3, alignSelf: 'center', borderRadius: 8, overflow: 'hidden' }
+    }),
+    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, marginTop: 8, width: '100%' } },
       React.createElement(Text, { style: { color: '#fff', fontSize: 12, textAlign: 'center' } },
-        'Corte vertical del subsuelo mostrando las capas geológicas. ' +
-        'La caliza se encuentra aproximadamente a 1.5-2.5 m de profundidad en esta proyección.'
+        'Corte vertical del subsuelo - La caliza se encuentra a 1.5-2.5 m de profundidad.'
       )
     )
   )
@@ -787,7 +918,7 @@ export function ARScreen({ navigation }: any) {
          <View style={styles.modeSelector}>
            {['basic', 'scan', 'struct', 'model'].map(mode => (
              <TouchableOpacity key={mode} onPress={() => { console.log('Mode pressed:', mode); setArMode(mode as any); }} style={[styles.modeBtn, arMode === mode && styles.modeBtnActive]}>
-               <Text style={styles.modeBtnText}>{mode === 'basic' ? '📍' : mode === 'scan' ? '🔍' : mode === 'struct' ? '📐' : '🏗️'}</Text>
+                <Text style={styles.modeBtnText}>{mode === 'basic' ? '📍' : mode === 'scan' ? '🔍' : mode === 'struct' ? '🗺️' : '🏗️'}</Text>
              </TouchableOpacity>
            ))}
          </View>
@@ -817,9 +948,9 @@ export function ARScreen({ navigation }: any) {
           ) : arMode === 'scan' ? (
             <ScanModeView samples={samples} location={currentLocation} />
           ) : arMode === 'struct' ? (
-            <StructModeView heading={heading} isWeb={isWeb} />
+            <Model3DView heading={heading} isWeb={isWeb} location={currentLocation} samples={samples} />
           ) : (
-            <ModelModeView heading={heading} isWeb={isWeb} />
+            <ModelModeView heading={heading} isWeb={isWeb} location={currentLocation} samples={samples} />
           )}
 
          {targets.length > 5 && arMode === 'basic' && clickEl(() => setShowList(true), styles.showAllBtn,
