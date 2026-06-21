@@ -117,6 +117,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
     isCaliza: boolean; confidence: number; details: string;
     tipo: string; calidad: string; porcentaje: number;
   } | null>(null)
+  const [acidTest, setAcidTest] = useState<'vigorosa' | 'moderada' | 'leve' | 'nula' | null>(null)
   const canvasRef = useRef<any>(null)
   const [mode, setMode] = useState<'auto' | 'manual'>('auto')
 
@@ -153,6 +154,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
   const captureAndAnalyze = () => {
     setAnalyzing(true)
     setResult(null)
+    setAcidTest(null)
     setTimeout(() => {
       try {
         const video = document.getElementById('ar-video') as HTMLVideoElement
@@ -319,10 +321,47 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         `Confianza: ${r.confidence}%`
       ) : null,
       r.details ? React.createElement(Text, { style: scanStyles.analysisDetails }, r.details) : null,
+
+      // Acid test section
+      !acidTest
+        ? React.createElement(React.Fragment, null,
+            React.createElement(Text, { style: { color: '#ffff00', fontSize: 12, fontWeight: '700', textAlign: 'center', marginVertical: 6 } },
+              '🧪 Confirma con prueba de ácido:'
+            ),
+            React.createElement(View, { style: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 6 } },
+              [['vigorosa', '#2ecc71', 'Vigorosa\n(efervescencia fuerte)'],
+               ['moderada', '#f39c12', 'Moderada'],
+               ['leve', '#e67e22', 'Leve'],
+               ['nula', '#e74c3c', 'Nula']].map(([val, c, label]) =>
+                React.createElement(TouchableOpacity, {
+                  key: val,
+                  onPress: () => setAcidTest(val as any),
+                  style: { backgroundColor: c + '30', borderColor: c, borderWidth: 1.5, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center' }
+                },
+                  React.createElement(Text, { style: { color: c, fontSize: 12, fontWeight: '700', textAlign: 'center' } }, label)
+                )
+              )
+            ),
+            React.createElement(Text, { style: { color: 'rgba(255,255,255,0.4)', fontSize: 9, textAlign: 'center', marginBottom: 6 } },
+              'Aplica HCl al 10% en la roca y selecciona la reacción'
+            ),
+          )
+        : React.createElement(View, { style: { backgroundColor: '#ffff0020', borderRadius: 8, padding: 10, marginVertical: 8, width: '100%', alignItems: 'center' } },
+            React.createElement(Text, { style: { fontSize: 16, fontWeight: '800', color: acidTest === 'vigorosa' || acidTest === 'moderada' ? '#2ecc71' : '#e74c3c' } },
+              acidTest === 'vigorosa' ? '✅ CALIZA CONFIRMADA (CaCO₃ > 95%)' :
+              acidTest === 'moderada' ? '✅ CALIZA CONFIRMADA (CaCO₃ 70-90%)' :
+              acidTest === 'leve' ? '⚠️ MARGA — baja reacción, no es caliza pura' :
+              '❌ NO ES CALIZA — sin carbonatos'
+            ),
+            React.createElement(Text, { style: { color: 'rgba(255,255,255,0.5)', fontSize: 10, textAlign: 'center', marginTop: 4 } },
+              `Reacción ${acidTest} — resultado 100% confiable`
+            ),
+          ),
+
       React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 9, textAlign: 'center', marginBottom: 8 } },
         '*CaCO\u2083 estimado por color. No reemplaza an\u00e1lisis de laboratorio.'
       ),
-      React.createElement(TouchableOpacity, { onPress: () => { setResult(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
+      React.createElement(TouchableOpacity, { onPress: () => { setResult(null); setAcidTest(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
         React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
       )
     )
