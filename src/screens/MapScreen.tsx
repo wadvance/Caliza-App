@@ -313,8 +313,25 @@ export function MapScreen({ navigation }: any) {
   const [locationCtx, setLocationCtx] = useState<LocationContext | null>(null)
   const [ctxLoading, setCtxLoading] = useState(false)
   const [showContext, setShowContext] = useState(false)
+  const initialPanDone = useRef(false)
 
   useEffect(() => { loadData() }, [])
+
+  useEffect(() => {
+    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones)) {
+      const lats = zones.flatMap(z => z.coordinates.map(c => c.latitude))
+      const lngs = zones.flatMap(z => z.coordinates.map(c => c.longitude))
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+      setTargetRegion({
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: (maxLat - minLat) * 1.5,
+        longitudeDelta: (maxLng - minLng) * 1.5,
+      })
+      initialPanDone.current = true
+    }
+  }, [showExtractionZones, showPotentialZones, zones])
 
   const loadData = async () => {
     const [loadedSamples, loadedZones] = await Promise.all([getAllSamples(), getAllZones()])
