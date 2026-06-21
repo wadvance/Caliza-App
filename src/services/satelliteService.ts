@@ -1,4 +1,4 @@
-import { SatelliteAnalysis, CalizaZone } from '../types'
+import { SatelliteAnalysis, CalizaZone, GridCell, GridAnalysis } from '../types'
 
 function hashLocation(lat: number, lng: number): number {
   const h = Math.sin(lat * 12.9898 + lng * 78.233) * 43758.5453
@@ -27,6 +27,22 @@ async function fetchElevation(lat: number, lng: number): Promise<number> {
     if (typeof elev === 'number') return Math.round(elev)
   } catch {}
   return fallbackElev(lat, lng)
+}
+
+async function fetchElevations(points: { lat: number; lng: number }[]): Promise<number[]> {
+  const locs = points.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('|')
+  try {
+    const res = await fetch(
+      `https://api.open-elevation.com/api/v1/lookup?locations=${locs}`,
+      { signal: AbortSignal.timeout(15000) }
+    )
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    if (data?.results && Array.isArray(data.results)) {
+      return data.results.map((r: any) => typeof r.elevation === 'number' ? Math.round(r.elevation) : fallbackElev(r.latitude, r.longitude))
+    }
+  } catch {}
+  return points.map(p => fallbackElev(p.lat, p.lng))
 }
 
 function simulateSWIRBands(elev: number): {
@@ -59,21 +75,110 @@ export function analyzeSWIRBands(
   return { carbonateIndex, clayRatio, confidence }
 }
 
-export async function analyzeSatelliteRegion(
-  latitude: number, longitude: number, radiusKm: number = 5,
-): Promise<SatelliteAnalysis> {
-  const h = hashLocation(latitude, longitude)
-  const elevation = await fetchElevation(latitude, longitude)
-
+function analyzePoint(lat: number, lng: number, elevation: number): {
+  carbonateIndex: number; clayRatio: number; ndvi: number; quartzIndex: number
+} {
+  const h = hashLocation(lat, lng)
   const bands = simulateSWIRBands(elevation)
   const swirResult = analyzeSWIRBands(bands.band11, bands.band12)
   const landsatResult = analyzeSWIRBands(bands.band6, bands.band7)
   const carbonateIndex = parseFloat(((swirResult.carbonateIndex + landsatResult.carbonateIndex) / 2).toFixed(3))
   const clayRatio = parseFloat(((swirResult.clayRatio + landsatResult.clayRatio) / 2).toFixed(3))
   const ndvi = parseFloat(Math.max(0, Math.min(1, 0.5 - h * 0.4 + (elevation > 300 ? -0.1 : 0.15))).toFixed(3))
-  const quartzIndex = parseFloat(Math.max(0, Math.min(1, clayRatio * 0.3 + (1 - carbonateIndex) * 0.4 + hashLocation(latitude + 10, longitude - 10) * 0.2)).toFixed(3))
+  const quartzIndex = parseFloat(Math.max(0, Math.min(1, clayRatio * 0.3 + (1 - carbonateIndex) * 0.4 + hashLocation(lat + 10, lng - 10) * 0.2)).toFixed(3))
+  return { carbonateIndex, clayRatio, ndvi, quartzIndex }
+}
 
-  // Generate zones based on elevation and terrain
+export async function analyzeGridRegion(
+  centerLat: number, centerLng: number, radiusKm: number, gridSize: number = 7,
+  onProgress?: (progress: number) => void,
+): Promise<GridAnalysis> {
+  const cellSizeKm = (radiusKm * 2) / (gridSize - 1)
+  const totalCells = gridSize * gridSize
+
+  const latPerKm = 1 / 111
+  const lngPerKm = 1 / (111 * Math.cos(centerLat * Math.PI / 180))
+
+  const points: { lat: number; lng: number; row: number; col: number }[] = []
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const lat = centerLat + (r - (gridSize - 1) / 2) * cellSizeKm * latPerKm
+      const lng = centerLng + (c - (gridSize - 1) / 2) * cellSizeKm * lngPerKm
+      points.push({ lat, lng, row: r, col: c })
+    }
+  }
+
+  const elevations = await fetchElevations(points)
+  onProgress?.(0.3)
+
+  const cells: GridCell[] = []
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]
+    const elev = elevations[i]
+    const result = analyzePoint(p.lat, p.lng, elev)
+
+    const halfCell = cellSizeKm * 0.5
+    const dLat = halfCell * latPerKm
+    const dLng = halfCell * lngPerKm
+
+    cells.push({
+      lat: p.lat,
+      lng: p.lng,
+      carbonateIndex: result.carbonateIndex,
+      clayRatio: result.clayRatio,
+      elevation: elev,
+      ndvi: result.ndvi,
+      coordinates: [
+        { latitude: p.lat - dLat, longitude: p.lng - dLng },
+        { latitude: p.lat - dLat, longitude: p.lng + dLng },
+        { latitude: p.lat + dLat, longitude: p.lng + dLng },
+        { latitude: p.lat + dLat, longitude: p.lng - dLng },
+      ],
+    })
+  }
+
+  onProgress?.(0.7)
+
+  const values = cells.map(c => c.carbonateIndex)
+  const avgCarbonate = parseFloat((values.reduce((a, b) => a + b, 0) / values.length).toFixed(3))
+  const maxCarbonate = parseFloat(Math.max(...values).toFixed(3))
+  const highCount = values.filter(v => v > 0.5).length
+  const totalAreaKm2 = parseFloat(((radiusKm * 2) ** 2).toFixed(2))
+  const highProbabilityArea = parseFloat(((highCount / totalCells) * totalAreaKm2).toFixed(2))
+
+  onProgress?.(1)
+
+  return {
+    cells,
+    cellSizeKm: parseFloat(cellSizeKm.toFixed(2)),
+    gridSize,
+    stats: { avgCarbonate, maxCarbonate, highProbabilityArea, totalAreaKm2 },
+  }
+}
+
+export async function geocode(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=es`
+    const res = await fetch(url, { headers: { 'User-Agent': 'GeoCaliza/1.0' }, signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (Array.isArray(data) && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export async function analyzeSatelliteRegion(
+  latitude: number, longitude: number, radiusKm: number = 5,
+): Promise<SatelliteAnalysis> {
+  const h = hashLocation(latitude, longitude)
+  const elevation = await fetchElevation(latitude, longitude)
+
+  const result = analyzePoint(latitude, longitude, elevation)
+
   const numZones = elevation > 400 ? 5 : elevation > 150 ? 4 : 3
   const zones: CalizaZone[] = []
   for (let i = 0; i < numZones; i++) {
@@ -83,7 +188,7 @@ export async function analyzeSatelliteRegion(
     const centerLng = longitude + dist * Math.sin(offset) / Math.cos(latitude * Math.PI / 180)
     const zH = hashLocation(centerLat, centerLng)
     const zElev = elevation + Math.round((zH - 0.5) * 150)
-    const isCarbonateBearing = zElev > 100 && zElev < 800 && carbonateIndex > 0.35
+    const isCarbonateBearing = zElev > 100 && zElev < 800 && result.carbonateIndex > 0.35
 
     const probScore = (isCarbonateBearing ? 0.6 : 0) + (zElev > 200 ? 0.15 : 0) + (zH > 0.5 ? 0.15 : 0)
     const probability = probScore > 0.7 ? 'alta' : probScore > 0.4 ? 'media' : 'baja'
@@ -109,15 +214,17 @@ export async function analyzeSatelliteRegion(
     })
   }
 
+  const bands = simulateSWIRBands(elevation)
+
   return {
     id: `sat_${Date.now()}`,
     location: { latitude, longitude },
     date: Date.now(),
     source: 'sentinel2',
-    ndvi,
-    clayRatio,
-    carbonateIndex,
-    quartzIndex,
+    ndvi: result.ndvi,
+    clayRatio: result.clayRatio,
+    carbonateIndex: result.carbonateIndex,
+    quartzIndex: result.quartzIndex,
     zones,
     swirBands: bands,
     elevation,

@@ -92,6 +92,28 @@ export interface CalizaZone {
 
 export type ProbabilityLevel = 'alta' | 'media' | 'baja' | 'pendiente'
 
+export interface GridCell {
+  lat: number
+  lng: number
+  carbonateIndex: number
+  clayRatio: number
+  elevation: number
+  ndvi: number
+  coordinates: { latitude: number; longitude: number }[]
+}
+
+export interface GridAnalysis {
+  cells: GridCell[]
+  cellSizeKm: number
+  gridSize: number
+  stats: {
+    avgCarbonate: number
+    maxCarbonate: number
+    highProbabilityArea: number
+    totalAreaKm2: number
+  }
+}
+
 export interface SatelliteAnalysis {
   id: string
   location: { latitude: number; longitude: number }
