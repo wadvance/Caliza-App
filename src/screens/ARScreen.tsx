@@ -113,9 +113,14 @@ interface ARTarget {
 
 function ScanModeView({ samples, location }: { samples: any[]; location: any }) {
   const [analyzing, setAnalyzing] = useState(false)
-  const [result, setResult] = useState<{ isCaliza: boolean; confidence: number; details: string } | null>(null)
+  const [result, setResult] = useState<{
+    isCaliza: boolean; confidence: number; details: string;
+    tipo: string; calidad: string; porcentaje: number;
+  } | null>(null)
   const canvasRef = useRef<any>(null)
   const [mode, setMode] = useState<'auto' | 'manual'>('auto')
+
+  const getCalidad = (pct: number) => pct >= 90 ? 'Alta' : pct >= 70 ? 'Media' : 'Baja'
 
   const captureAndAnalyze = () => {
     setAnalyzing(true)
@@ -124,7 +129,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
       try {
         const video = document.getElementById('ar-video') as HTMLVideoElement
         if (!video || !video.videoWidth) {
-          setResult({ isCaliza: false, confidence: 0, details: 'No se pudo acceder a la cámara. Usa el modo manual.' })
+          setResult({ isCaliza: false, confidence: 0, details: 'No se pudo acceder a la cámara. Usa el modo manual.', tipo: 'N/A', calidad: 'N/A', porcentaje: 0 })
           setAnalyzing(false)
           return
         }
@@ -149,23 +154,27 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         const brightness = (r + g + b) / 3 / 255
         const maxC = Math.max(r, g, b), minC = Math.min(r, g, b)
         const saturation = maxC === 0 ? 0 : (maxC - minC) / maxC
-
-        let redRatio = r / (r + g + b + 1)
-        let greenRatio = g / (r + g + b + 1)
-        let blueRatio = b / (r + g + b + 1)
+        const redRatio = r / (r + g + b + 1)
+        const greenRatio = g / (r + g + b + 1)
 
         let isCaliza = false
         let confidence = 0
         let details = ''
+        let tipo = 'No determinado'
+        let porcentaje = 0
 
-        // Caliza: high brightness, low saturation, warm-leaning (beige/cream)
         if (brightness > 0.55 && saturation < 0.25 && redRatio > 0.33 && greenRatio > 0.33) {
           isCaliza = true
           confidence = Math.min(95, Math.round((brightness * 40 + (1 - saturation) * 30 + (redRatio > 0.35 ? 15 : 0) + (greenRatio > 0.34 ? 10 : 0))))
+          const basePct = 85 + Math.round(brightness * 10) + Math.round((1 - saturation) * 5)
+          porcentaje = Math.min(99, basePct)
+          tipo = porcentaje >= 95 ? 'Caliza micrítica (CaCO₃ puro)' : 'Caliza esparítica'
           details = `Brillo: ${(brightness * 100).toFixed(0)}%, Saturación: ${(saturation * 100).toFixed(0)}%`
         } else if (brightness > 0.45 && saturation < 0.35 && redRatio > 0.31 && redRatio < 0.40) {
           isCaliza = true
           confidence = Math.min(90, Math.round(brightness * 30 + (1 - saturation) * 25 + 25))
+          porcentaje = 70 + Math.round(brightness * 15)
+          tipo = 'Caliza arcillosa (marga)'
           details = `Color ligeramente fuera de rango típico. Brillo: ${(brightness * 100).toFixed(0)}%`
         } else {
           isCaliza = false
@@ -174,6 +183,10 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
             (saturation > 0.3 ? 30 : 0) +
             (redRatio < 0.28 || redRatio > 0.45 ? 20 : 0)
           ))
+          porcentaje = Math.round(redRatio * 100)
+          tipo = brightness < 0.45 ? 'Roca oscura (posible basalto/lutita)'
+            : saturation > 0.3 ? 'Roca ferruginosa (óxidos de hierro)'
+            : 'Roca silícea (cuarzo/arenisca)'
           const reasons = []
           if (brightness < 0.45) reasons.push('muy oscuro')
           if (saturation > 0.3) reasons.push('muy saturado')
@@ -182,9 +195,9 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
           details = reasons.length ? `Razones: ${reasons.join(', ')}` : 'No coincide con caliza'
         }
 
-        setResult({ isCaliza, confidence, details })
+        setResult({ isCaliza, confidence, details, tipo, calidad: getCalidad(porcentaje), porcentaje })
       } catch (e) {
-        setResult({ isCaliza: false, confidence: 0, details: 'Error al analizar. Usa el modo manual.' })
+        setResult({ isCaliza: false, confidence: 0, details: 'Error al analizar. Usa el modo manual.', tipo: 'N/A', calidad: 'N/A', porcentaje: 0 })
       }
       setAnalyzing(false)
     }, 300)
@@ -195,16 +208,35 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
   const [prop2, setProp2] = useState<string | null>(null)
   const [prop3, setProp3] = useState<string | null>(null)
 
-  const manualResult = !prop1 ? null
-    : prop1 === 'clara' && prop2 === 'suave' ? 'Caliza (CaCO₃)'
-    : prop1 === 'clara' && prop2 === 'dura' ? 'Dolomita'
-    : prop1 === 'media' && prop2 === 'suave' ? 'Marga'
-    : prop1 === 'media' && prop2 === 'porosa' ? 'Travertino'
-    : prop1 === 'oscura' && prop2 === 'dura' ? 'Basalto'
-    : prop1 === 'oscura' && prop2 === 'suave' ? 'Arcilla'
-    : prop1 === 'clara' && prop3 === 'si' ? 'Yeso'
-    : prop1 === 'media' && prop3 === 'no' ? 'Caliche'
-    : 'Tipo no determinado'
+  const manualInfo = !prop1 ? null
+    : prop1 === 'clara' && prop2 === 'suave'
+      ? { tipo: 'Caliza micrítica (CaCO₃ puro)', calidad: 'Alta', porcentaje: 97 }
+    : prop1 === 'clara' && prop2 === 'dura'
+      ? { tipo: 'Caliza esparítica', calidad: 'Alta', porcentaje: 93 }
+    : prop1 === 'clara' && prop3 === 'si'
+      ? { tipo: 'Caliza arcillosa', calidad: 'Media', porcentaje: 82 }
+    : prop1 === 'clara' && prop3 === 'no'
+      ? { tipo: 'Yeso (CaSO₄)', calidad: 'N/A', porcentaje: 0 }
+    : prop1 === 'media' && prop2 === 'suave'
+      ? { tipo: 'Marga', calidad: 'Baja', porcentaje: 45 }
+    : prop1 === 'media' && prop2 === 'porosa'
+      ? { tipo: 'Travertino', calidad: 'Media', porcentaje: 75 }
+    : prop1 === 'media' && prop3 === 'no'
+      ? { tipo: 'Caliche', calidad: 'Baja', porcentaje: 35 }
+    : prop1 === 'oscura' && prop2 === 'dura'
+      ? { tipo: 'Basalto', calidad: 'N/A', porcentaje: 0 }
+    : prop1 === 'oscura' && prop2 === 'suave'
+      ? { tipo: 'Arcilla', calidad: 'N/A', porcentaje: 0 }
+    : prop1 === 'oscura'
+      ? { tipo: 'Roca oscura no calcárea', calidad: 'N/A', porcentaje: 0 }
+    : prop1 === 'clara'
+      ? { tipo: 'Caliza (tipo no especificado)', calidad: 'Media', porcentaje: 85 }
+    : prop1 === 'media'
+      ? { tipo: 'Roca sedimentaria mixta', calidad: 'Baja', porcentaje: 40 }
+    : { tipo: 'Tipo no determinado', calidad: 'N/A', porcentaje: 0 }
+
+  const isManualCaliza = manualInfo && (manualInfo.tipo.includes('Caliza') || manualInfo.tipo.includes('Marga') || manualInfo.tipo.includes('Travertino') || manualInfo.tipo.includes('Caliche'))
+  const manualResult = manualInfo?.tipo || null
 
   const manualReset = () => { setProp1(null); setProp2(null); setProp3(null) }
 
@@ -225,10 +257,71 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
     )
   )
 
+  const resultCard = (r: typeof result) => {
+    const color = r.isCaliza ? '#2ecc71' : '#e74c3c'
+    return React.createElement(View, { style: [scanStyles.analysisResult, { borderColor: color }] },
+      React.createElement(Text, { style: [scanStyles.analysisIcon] }, r.isCaliza ? '✅' : '❌'),
+      React.createElement(Text, { style: [scanStyles.analysisTitle, { color }] },
+        r.isCaliza ? 'CALIZA DETECTADA' : 'NO ES CALIZA'
+      ),
+      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 8 } },
+        React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'TIPO'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' } }, r.tipo),
+        ),
+        React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CALIDAD'),
+          React.createElement(Text, { style: { color: r.calidad === 'Alta' ? '#2ecc71' : r.calidad === 'Media' ? '#f39c12' : '#e74c3c', fontSize: 14, fontWeight: '700' } }, r.calidad),
+        ),
+        React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO₃'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${r.porcentaje}%`),
+        ),
+      ),
+      r.confidence > 0 ? React.createElement(Text, { style: scanStyles.analysisConfidence },
+        `Confianza: ${r.confidence}%`
+      ) : null,
+      r.details ? React.createElement(Text, { style: scanStyles.analysisDetails }, r.details) : null,
+      React.createElement(TouchableOpacity, { onPress: () => { setResult(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
+        React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
+      )
+    )
+  }
+
+  const manualResultCard = (info: typeof manualInfo) => {
+    if (!info) return null
+    const isCal = isManualCaliza
+    const color = isCal ? '#2ecc71' : '#e74c3c'
+    const calidadColor = info.calidad === 'Alta' ? '#2ecc71' : info.calidad === 'Media' ? '#f39c12' : '#e74c3c'
+    return React.createElement(View, { style: [scanStyles.analysisResult, { borderColor: color }] },
+      React.createElement(Text, { style: [scanStyles.analysisIcon] }, isCal ? '✅' : '❌'),
+      React.createElement(Text, { style: [scanStyles.analysisTitle, { color }] },
+        isCal ? 'POSIBLE CALIZA' : `Resultado: ${info.tipo}`
+      ),
+      React.createElement(View, { style: { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 8 } },
+        React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'TIPO'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' } }, info.tipo),
+        ),
+        React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CALIDAD'),
+          React.createElement(Text, { style: { color: calidadColor, fontSize: 14, fontWeight: '700' } }, info.calidad),
+        ),
+        info.porcentaje > 0 ? React.createElement(View, { style: { alignItems: 'center' } },
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO₃'),
+          React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${info.porcentaje}%`),
+        ) : null,
+      ),
+      React.createElement(TouchableOpacity, { onPress: manualReset, style: scanStyles.resetBtn },
+        React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
+      )
+    )
+  }
+
   return React.createElement(View, { style: scanStyles.container },
     React.createElement(View, { style: scanStyles.tabRow },
       React.createElement(TouchableOpacity, { onPress: () => { setMode('auto'); setResult(null) }, style: [scanStyles.tab, mode === 'auto' && scanStyles.tabActive] },
-        React.createElement(Text, { style: [scanStyles.tabText, mode === 'auto' && scanStyles.tabTextActive] }, '📷 Automático')
+        React.createElement(Text, { style: [scanStyles.tabText, mode === 'auto' && scanStyles.tabTextActive] }, '📷 Autom\u00e1tico')
       ),
       React.createElement(TouchableOpacity, { onPress: () => { setMode('manual'); setResult(null) }, style: [scanStyles.tab, mode === 'manual' && scanStyles.tabActive] },
         React.createElement(Text, { style: [scanStyles.tabText, mode === 'manual' && scanStyles.tabTextActive] }, '✋ Manual')
@@ -236,35 +329,23 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
     ),
 
     mode === 'auto' ? React.createElement(React.Fragment, null,
-      React.createElement(Text, { style: scanStyles.title }, '📷 Escáner de Caliza'),
-      React.createElement(Text, { style: scanStyles.sub }, 'Apunta la cámara a la roca y presiona "Analizar"'),
+      React.createElement(Text, { style: scanStyles.title }, 'Esc\u00e1ner de Caliza'),
+      React.createElement(Text, { style: scanStyles.sub }, 'Apunta la c\u00e1mara a la roca y presiona "Analizar"'),
 
-      result ? React.createElement(View, { style: [scanStyles.analysisResult, { borderColor: result.isCaliza ? '#2ecc71' : '#e74c3c' }] },
-        React.createElement(Text, { style: [scanStyles.analysisIcon], children: result.isCaliza ? '✅' : '❌' }),
-        React.createElement(Text, { style: [scanStyles.analysisTitle, { color: result.isCaliza ? '#2ecc71' : '#e74c3c' }] },
-          result.isCaliza ? '¡CALIZA DETECTADA!' : 'NO ES CALIZA'
-        ),
-        React.createElement(Text, { style: scanStyles.analysisConfidence },
-          `Confianza: ${result.confidence}%`
-        ),
-        result.details ? React.createElement(Text, { style: scanStyles.analysisDetails }, result.details) : null,
-        React.createElement(TouchableOpacity, { onPress: () => { setResult(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
-          React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
-        )
-      )
+      result ? resultCard(result)
       : React.createElement(View, { style: scanStyles.viewfinder },
         React.createElement(View, { style: scanStyles.reticle }),
         React.createElement(TouchableOpacity, { onPress: captureAndAnalyze, disabled: analyzing, style: [scanStyles.analyzeBtn, analyzing && { opacity: 0.5 }] },
-          React.createElement(Text, { style: scanStyles.analyzeText }, analyzing ? 'Analizando...' : '🔍 Analizar roca')
+          React.createElement(Text, { style: scanStyles.analyzeText }, analyzing ? 'Analizando...' : 'Analizar roca')
         )
       )
     )
     : React.createElement(React.Fragment, null,
-      React.createElement(Text, { style: scanStyles.title }, '🔍 Identificación manual'),
+      React.createElement(Text, { style: scanStyles.title }, 'Identificaci\u00f3n manual'),
       React.createElement(Text, { style: scanStyles.sub }, 'Selecciona las propiedades:'),
       !prop1 ? row('Color', [
         { value: 'clara', label: 'Clara (beige/blanco)' },
-        { value: 'media', label: 'Media (marrón/gris)' },
+        { value: 'media', label: 'Media (marr\u00f3n/gris)' },
         { value: 'oscura', label: 'Oscura (negra/gris oscuro)' },
       ], prop1, v => setProp1(v))
       : !prop2 ? row('Textura', [
@@ -272,24 +353,12 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         { value: 'dura', label: 'Dura/compacta' },
         { value: 'porosa', label: 'Porosa/esponjosa' },
       ], prop2, v => setProp2(v))
-      : !prop3 && (prop1 === 'clara') ? row('¿Reacciona con ácido?', [
-        { value: 'si', label: 'Sí (efervescencia)' },
+      : !prop3 && (prop1 === 'clara' || prop1 === 'media') ? row('\u00bfReacciona con \u00e1cido?', [
+        { value: 'si', label: 'S\u00ed (efervescencia)' },
         { value: 'no', label: 'No' },
       ], prop3, v => setProp3(v))
       : null,
-      manualResult && React.createElement(View, { style: scanStyles.result },
-        React.createElement(Text, { style: [scanStyles.analysisTitle, { color: manualResult.includes('Caliza') ? '#2ecc71' : '#f39c12' }] },
-          manualResult.includes('Caliza') ? '✅ ¡Es probablemente Caliza!' : `Resultado: ${manualResult}`
-        ),
-        React.createElement(Text, { style: scanStyles.analysisDetails },
-          manualResult === 'Caliza (CaCO₃)' ? 'Alta efervescencia con HCl. Roca sedimentaria carbonatada. Uso: cemento, cal.'
-          : manualResult.includes('Caliza') ? 'Mezcla de caliza y arcilla. Uso: materia prima para cemento.'
-          : 'No corresponde a caliza.'
-        ),
-        React.createElement(TouchableOpacity, { onPress: manualReset, style: scanStyles.resetBtn },
-          React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
-        )
-      )
+      manualInfo && manualResultCard(manualInfo)
     )
   )
 }
