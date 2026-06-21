@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, FlatList, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { useCurrentLocation, calculateBearing, calculateDistance } from '../services/locationService'
-import { getAllZones } from '../services/database'
+import { getAllZones, saveSample } from '../services/database'
 import { Sample, CalizaZone } from '../types'
 import { useAppStore } from '../store/useAppStore'
 import * as THREE from 'three'
@@ -122,6 +122,34 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
 
   const getCalidad = (pct: number) => pct >= 90 ? 'Alta' : pct >= 70 ? 'Media' : 'Baja'
 
+  const saveDetection = (tipo: string, calidad: string, porcentaje: number, confidence: number, isCaliza: boolean) => {
+    if (!location) return
+    const rockType = tipo.toLowerCase().includes('caliza') || tipo.toLowerCase().includes('marga') ? 'caliza'
+      : tipo.toLowerCase().includes('arcilla') ? 'arcilla'
+      : tipo.toLowerCase().includes('yeso') ? 'yeso'
+      : tipo.toLowerCase().includes('dolomita') ? 'dolomita'
+      : tipo.toLowerCase().includes('travertino') ? 'travertino'
+      : tipo.toLowerCase().includes('basalto') ? 'basalto'
+      : tipo.toLowerCase().includes('granito') ? 'granito'
+      : 'desconocido'
+    const sample: Sample = {
+      id: `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      photoUri: [],
+      latitude: location.latitude,
+      longitude: location.longitude,
+      altitude: 0,
+      operatorName: 'Escáner AR',
+      timestamp: Date.now(),
+      notes: `AR scan: ${tipo} (${calidad}, ${porcentaje}% CaCO₃)`,
+      estimatedRockType: rockType as any,
+      confidenceLevel: confidence / 100,
+      status: isCaliza ? 'validado' : 'pendiente',
+      synced: false,
+    }
+    saveSample(sample).catch(() => {})
+    useAppStore.getState().addSample(sample)
+  }
+
   const captureAndAnalyze = () => {
     setAnalyzing(true)
     setResult(null)
@@ -196,6 +224,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         }
 
         setResult({ isCaliza, confidence, details, tipo, calidad: getCalidad(porcentaje), porcentaje })
+        saveDetection(tipo, getCalidad(porcentaje), porcentaje, confidence, isCaliza)
       } catch (e) {
         setResult({ isCaliza: false, confidence: 0, details: 'Error al analizar. Usa el modo manual.', tipo: 'N/A', calidad: 'N/A', porcentaje: 0 })
       }
@@ -234,6 +263,14 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
     : prop1 === 'media'
       ? { tipo: 'Roca sedimentaria mixta', calidad: 'Baja', porcentaje: 40 }
     : { tipo: 'Tipo no determinado', calidad: 'N/A', porcentaje: 0 }
+
+  // Save manual detection when identified
+  React.useEffect(() => {
+    if (manualInfo && prop1) {
+      const isCal = manualInfo.tipo.includes('Caliza') || manualInfo.tipo.includes('Marga') || manualInfo.tipo.includes('Travertino') || manualInfo.tipo.includes('Caliche')
+      saveDetection(manualInfo.tipo, manualInfo.calidad, manualInfo.porcentaje, isCal ? 80 : 30, isCal)
+    }
+  }, [prop1, prop2, prop3]) // eslint-disable-line
 
   const isManualCaliza = manualInfo && (manualInfo.tipo.includes('Caliza') || manualInfo.tipo.includes('Marga') || manualInfo.tipo.includes('Travertino') || manualInfo.tipo.includes('Caliche'))
   const manualResult = manualInfo?.tipo || null
