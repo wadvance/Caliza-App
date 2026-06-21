@@ -630,14 +630,16 @@ function drawCrossSection(
     scene.add(new THREE.Line(g, m))
   }
   const addRect = (x: number, y: number, rw: number, rh: number, color: number) => {
-    const shape = new THREE.Shape()
-    shape.moveTo(x, -y + h / 2)
-    shape.lineTo(x + rw, -y + h / 2)
-    shape.lineTo(x + rw, -(y + rh) + h / 2)
-    shape.lineTo(x, -(y + rh) + h / 2)
-    shape.lineTo(x, -y + h / 2)
-    const geo = new THREE.ShapeGeometry(shape)
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }))
+    const geo = new THREE.BufferGeometry()
+    const top = -y + h / 2
+    const bot = -(y + rh) + h / 2
+    const verts = new Float32Array([
+      x, top, 0,  x, bot, 0,  x + rw, bot, 0,
+      x, top, 0,  x + rw, bot, 0,  x + rw, top, 0,
+    ])
+    geo.setAttribute('position', new THREE.BufferAttribute(verts, 3))
+    geo.computeVertexNormals()
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }))
     scene.add(mesh)
   }
 
@@ -737,6 +739,7 @@ function ModelModeView({ heading, isWeb, location, samples }: { heading: number;
     const h = w * asp
 
     const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0x0f0f23)
     const camera = new THREE.OrthographicCamera(0, w, h / 2, -h / 2, 0.1, 100)
     camera.position.set(w / 2, 0, 10)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
