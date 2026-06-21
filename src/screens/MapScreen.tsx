@@ -493,6 +493,7 @@ export function MapScreen({ navigation }: any) {
 
   const visibleLayers = layers.filter(l => l.visible)
   const showPotentialZones = visibleLayers.some(l => l.id === 'potential')
+  const showExtractionZones = visibleLayers.some(l => l.id === 'extraction')
   const showSamplePoints = visibleLayers.some(l => l.id === 'samples')
   const showRoutes = visibleLayers.some(l => l.id === 'routes')
 
@@ -604,19 +605,27 @@ export function MapScreen({ navigation }: any) {
       <View style={styles.topBar}>
         <Text style={styles.brand}>🗺️ GeoCaliza</Text>
         <View style={styles.topBarRight}>
-          {zones.length > 0 && showPotentialZones && (
+          {(zones.length > 0 && showPotentialZones) || (zones.length > 0 && showExtractionZones) ? (
             <View style={styles.zoneLegend}>
-              <Text style={styles.legendTitle}>Probabilidad</Text>
-              <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityHigh }]} />
-                <Text style={styles.legendLabel}>Alta</Text>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityMedium }]} />
-                <Text style={styles.legendLabel}>Media</Text>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityLow }]} />
-                <Text style={styles.legendLabel}>Baja</Text>
-              </View>
+              <Text style={styles.legendTitle}>Leyenda</Text>
+              {showPotentialZones && (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityHigh }]} />
+                  <Text style={styles.legendLabel}>Alta</Text>
+                  <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityMedium }]} />
+                  <Text style={styles.legendLabel}>Media</Text>
+                  <View style={[styles.legendDot, { backgroundColor: COLORS.probabilityLow }]} />
+                  <Text style={styles.legendLabel}>Baja</Text>
+                </View>
+              )}
+              {showExtractionZones && (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: '#e67e22' }]} />
+                  <Text style={styles.legendLabel}>Extracción</Text>
+                </View>
+              )}
             </View>
-          )}
+          ) : null}
           <TouchableOpacity style={styles.searchBtn} onPress={() => setShowSearch(true)}>
             <Text style={styles.searchBtnText}>🔍</Text>
           </TouchableOpacity>
@@ -636,6 +645,12 @@ export function MapScreen({ navigation }: any) {
           <Polygon key={zone.id} coordinates={zone.coordinates}
             fillColor={getZoneFillColor(zone.probability)}
             strokeColor={getZoneColor(zone.probability)} strokeWidth={2}
+          />
+        ))}
+        {showExtractionZones && zones.map(zone => (
+          <Polygon key={`ext-${zone.id}`} coordinates={zone.coordinates}
+            fillColor={'rgba(230, 126, 34, 0.25)'}
+            strokeColor={'#e67e22'} strokeWidth={3}
           />
         ))}
         {showSamplePoints && samples.map(sample => (
