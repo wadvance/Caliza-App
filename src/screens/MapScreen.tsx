@@ -401,12 +401,11 @@ export function MapScreen({ navigation }: any) {
   }
 
   const openDirections = (lat: number, lng: number, label: string) => {
-    if (!currentLocation) return
-    const url = Platform.OS === 'ios'
+    const uri = Platform.OS === 'ios'
       ? `maps://app?daddr=${lat},${lng}&q=${encodeURIComponent(label)}`
-      : `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.latitude},${currentLocation.longitude}&destination=${lat},${lng}&travelmode=driving`
-    Linking.openURL(url).catch(() => {
-      const fallback = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.latitude},${currentLocation.longitude}&destination=${lat},${lng}&travelmode=driving`
+      : `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`
+    Linking.openURL(uri).catch(() => {
+      const fallback = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
       Linking.openURL(fallback)
     })
   }
