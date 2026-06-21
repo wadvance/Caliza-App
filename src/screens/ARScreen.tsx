@@ -274,7 +274,7 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
           React.createElement(Text, { style: { color: r.calidad === 'Alta' ? '#2ecc71' : r.calidad === 'Media' ? '#f39c12' : '#e74c3c', fontSize: 14, fontWeight: '700' } }, r.calidad),
         ),
         React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO₃'),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO\u2083*'),
           React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${r.porcentaje}%`),
         ),
       ),
@@ -282,6 +282,9 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
         `Confianza: ${r.confidence}%`
       ) : null,
       r.details ? React.createElement(Text, { style: scanStyles.analysisDetails }, r.details) : null,
+      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 9, textAlign: 'center', marginBottom: 8 } },
+        '*CaCO\u2083 estimado por color. No reemplaza an\u00e1lisis de laboratorio.'
+      ),
       React.createElement(TouchableOpacity, { onPress: () => { setResult(null); captureAndAnalyze() }, style: scanStyles.analyzeBtn },
         React.createElement(Text, { style: scanStyles.analyzeText }, 'Analizar otra')
       )
@@ -308,9 +311,12 @@ function ScanModeView({ samples, location }: { samples: any[]; location: any }) 
           React.createElement(Text, { style: { color: calidadColor, fontSize: 14, fontWeight: '700' } }, info.calidad),
         ),
         info.porcentaje > 0 ? React.createElement(View, { style: { alignItems: 'center' } },
-          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO₃'),
+          React.createElement(Text, { style: { color: '#aaa', fontSize: 10 } }, 'CaCO\u2083*'),
           React.createElement(Text, { style: { color: '#fff', fontSize: 14, fontWeight: '700' } }, `${info.porcentaje}%`),
         ) : null,
+      ),
+      React.createElement(Text, { style: { color: 'rgba(255,255,255,0.3)', fontSize: 9, textAlign: 'center', marginBottom: 8 } },
+        '*CaCO\u2083 estimado. No reemplaza an\u00e1lisis de laboratorio.'
       ),
       React.createElement(TouchableOpacity, { onPress: manualReset, style: scanStyles.resetBtn },
         React.createElement(Text, { style: scanStyles.resetText }, 'Reiniciar')
