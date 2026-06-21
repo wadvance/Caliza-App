@@ -182,6 +182,11 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     maxZoom: 19,
     attribution: 'Imagery &copy; Esri'
   }).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    opacity: 0.25,
+    attribution: 'Esri'
+  }).addTo(map);
   ${markerScript}
   ${polygonScript}
   ${polylineScript}

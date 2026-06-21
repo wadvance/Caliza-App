@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator } from 'react-native'
 import MapView, { Marker, Polygon, Polyline } from '../components/MapViewWrapper'
 import { useAppStore } from '../store/useAppStore'
@@ -341,6 +341,65 @@ export function MapScreen({ navigation }: any) {
     }
   }
 
+  const pointInPolygon = (lat: number, lng: number, coords: { latitude: number; longitude: number }[]) => {
+    let inside = false
+    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+      const xi = coords[i].longitude, yi = coords[i].latitude
+      const xj = coords[j].longitude, yj = coords[j].latitude
+      if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)
+        inside = !inside
+    }
+    return inside
+  }
+
+  const polygonCenter = (coords: { latitude: number; longitude: number }[]) => {
+    const lat = coords.reduce((s, c) => s + c.latitude, 0) / coords.length
+    const lng = coords.reduce((s, c) => s + c.longitude, 0) / coords.length
+    return { latitude: lat, longitude: lng }
+  }
+
+  const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  }
+
+  const calizaNearby = useMemo(() => {
+    if (!currentLocation) return [] as { zone: CalizaZone; distanceKm: number }[]
+    const result = zones
+      .map(z => ({ zone: z, distanceKm: haversineKm(currentLocation.latitude, currentLocation.longitude, polygonCenter(z.coordinates).latitude, polygonCenter(z.coordinates).longitude) }))
+      .filter(({ distanceKm }) => distanceKm < 10)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 5)
+    return result
+  }, [currentLocation, zones])
+
+  const insideZone = useMemo(() => {
+    if (!currentLocation) return null
+    return zones.find(z => pointInPolygon(currentLocation.latitude, currentLocation.longitude, z.coordinates)) || null
+  }, [currentLocation, zones])
+
+  const calizaSamplesNearby = useMemo(() => {
+    if (!currentLocation) return [] as { sample: Sample; distanceKm: number }[]
+    return samples
+      .filter(s => s.estimatedRockType && ['caliza', 'dolomita', 'marga'].includes(s.estimatedRockType))
+      .map(s => ({ sample: s, distanceKm: haversineKm(currentLocation.latitude, currentLocation.longitude, s.latitude, s.longitude) }))
+      .filter(({ distanceKm }) => distanceKm < 5)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 3)
+  }, [currentLocation, samples])
+
+  const probColor = (p: string) => {
+    switch (p) {
+      case 'alta': return COLORS.probabilityHigh
+      case 'media': return COLORS.probabilityMedium
+      case 'baja': return COLORS.probabilityLow
+      default: return COLORS.probabilityPending
+    }
+  }
+
   const { routes, setRoutes, addRoute, removeRoute } = useAppStore()
   const [showRouteNameModal, setShowRouteNameModal] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -637,6 +696,51 @@ export function MapScreen({ navigation }: any) {
               ) : null}
               {locationCtx.state && (
                 <Text style={styles.contextSub}>{locationCtx.state}, {locationCtx.country}</Text>
+              )}
+              {insideZone && (
+                <View style={[styles.nearbyRow, { marginTop: 8, paddingVertical: 8, borderWidth: 1, borderColor: probColor(insideZone.probability) + '50', borderRadius: 10, backgroundColor: probColor(insideZone.probability) + '15' }]}>
+                  <Text style={{ fontSize: 18 }}>🪨</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.nearbyName, { color: probColor(insideZone.probability), fontWeight: '700' }]}>
+                      ESTÁS EN ZONA DE CALIZA
+                    </Text>
+                    <Text style={[styles.nearbyDist, { marginTop: 1 }]}>
+                      {insideZone.estimatedRockType || 'Caliza'} · Confianza {(insideZone.confidence * 100).toFixed(0)}% · {insideZone.probability === 'alta' ? 'Alta' : insideZone.probability === 'media' ? 'Media' : 'Baja'} probabilidad
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {calizaNearby.length > 0 && !insideZone && (
+                <>
+                  <Text style={[styles.contextSub, { marginTop: 8, fontWeight: '600', color: COLORS.text }]}>
+                    🪨 Zonas de caliza cercanas:
+                  </Text>
+                  {calizaNearby.map(({ zone, distanceKm }) => (
+                    <View key={zone.id} style={styles.nearbyRow}>
+                      <Text style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: probColor(zone.probability) }} />
+                      <Text style={styles.nearbyName}>{zone.estimatedRockType || zone.id.replace('chiriqui-', '').replace(/-/g, ' ')}</Text>
+                      <Text style={styles.nearbyDist}>
+                        {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              {calizaSamplesNearby.length > 0 && (
+                <>
+                  <Text style={[styles.contextSub, { marginTop: 6, fontWeight: '600', color: COLORS.text }]}>
+                    🧪 Muestras de caliza cercanas:
+                  </Text>
+                  {calizaSamplesNearby.map(({ sample, distanceKm }) => (
+                    <View key={sample.id} style={styles.nearbyRow}>
+                      <Text style={{ fontSize: 13 }}>{sample.status === 'validado' ? '✅' : sample.status === 'descartado' ? '❌' : '⏳'}</Text>
+                      <Text style={styles.nearbyName}>{sample.estimatedRockType || 'Muestra'} {sample.notes ? `— ${sample.notes.slice(0, 30)}` : ''}</Text>
+                      <Text style={styles.nearbyDist}>
+                        {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
+                      </Text>
+                    </View>
+                  ))}
+                </>
               )}
               {locationCtx.nearby.length > 0 && (
                 <>
