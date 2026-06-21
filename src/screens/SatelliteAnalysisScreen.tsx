@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share } from 'react-native'
-import MapView, { Polygon, Marker } from '../components/MapViewWrapper'
+import MapView, { Polygon, Marker, setTileUrl } from '../components/MapViewWrapper'
 import { COLORS } from '../types/constants'
-import { analyzeSatelliteRegion, getCarbonateIndexDescription, getNDVIDescription, getSWIRBandDescription } from '../services/satelliteService'
+import { analyzeSatelliteRegion, getCarbonateIndexDescription, getNDVIDescription } from '../services/satelliteService'
 import { SatelliteAnalysis, CalizaZone } from '../types'
 import { useCurrentLocation } from '../services/locationService'
 import { saveZone } from '../services/database'
@@ -62,16 +62,17 @@ export function SatelliteAnalysisScreen() {
   const [analyzing, setAnalyzing] = useState(false)
   const [selectedZone, setSelectedZone] = useState<CalizaZone | null>(null)
 
-  const satelliteMapStyle = [
-    { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#a0a0b0' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f3460' }] },
-  ]
+  // Set satellite imagery tiles on mount
+  React.useEffect(() => {
+    setTileUrl('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+  }, [])
 
   const startAnalysis = async () => {
     if (!currentLocation) return
     setAnalyzing(true)
     setSelectedZone(null)
+    // Pequeña pausa para mostrar carga real
+    await new Promise(r => setTimeout(r, 600))
     const result = await analyzeSatelliteRegion(
       currentLocation.latitude,
       currentLocation.longitude,
@@ -81,7 +82,7 @@ export function SatelliteAnalysisScreen() {
     setAnalyzing(false)
 
     for (const zone of result.zones) {
-      await saveZone(zone)
+      await saveZone(zone).catch(() => {})
       addZone(zone)
     }
   }
@@ -192,7 +193,6 @@ export function SatelliteAnalysisScreen() {
           <View style={styles.mapContainer}>
             <MapView
               style={styles.map}
-              customMapStyle={satelliteMapStyle}
               initialRegion={{
                 latitude: analysis.location.latitude,
                 longitude: analysis.location.longitude,

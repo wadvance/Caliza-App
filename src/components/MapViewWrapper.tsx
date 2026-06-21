@@ -110,6 +110,10 @@ const CalloutComponent = (props: CalloutProps) => {
   return <NativeCallout {...props} />
 }
 
+let lastTileUrl = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+
+export function setTileUrl(url: string) { lastTileUrl = url }
+
 function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons: PolygonProps[], polylines: PolylineProps[]): string {
   const reg = props.initialRegion || props.region || { latitude: 8.9824, longitude: -79.5199, latitudeDelta: 0.05, longitudeDelta: 0.05 }
   const center = [reg.latitude, reg.longitude]
@@ -117,7 +121,6 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
 
   const markerScript = markers.map((m, i) => {
     const color = m.pinColor || '#e94560'
-    const iconSize = 24
     return `
       L.circleMarker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
         radius: 8, color: '${color}', fillColor: '${color}', fillOpacity: 0.9, weight: 2
@@ -149,8 +152,6 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     `
   }).join('\n')
 
-  const tileUrl = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
-
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -171,42 +172,15 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
 <body>
 <div id="map"></div>
 <script>
-  ;(function() {
-    var origLoadTile = L.TileLayer.prototype._loadTile;
-    L.TileLayer.prototype._loadTile = function(tile, tilePoint) {
-      tile._layer = this;
-      tile._tilePoint = tilePoint;
-      this._adjustTilePoint(tilePoint);
-      var src = this.getTileUrl(tilePoint);
-      this.fire('tileloadstart', { tile: tile, url: src });
-      if (typeof caches !== 'undefined') {
-        caches.open('geocaliza-tiles-v1').then(function(cache) {
-          cache.match(src).then(function(response) {
-            if (response) {
-              response.blob().then(function(blob) {
-                tile.src = URL.createObjectURL(blob);
-              });
-            } else {
-              tile.src = src;
-            }
-          });
-        }).catch(function() {
-          tile.src = src;
-        });
-      } else {
-        tile.src = src;
-      }
-    };
-  })();
   var map = L.map('map', {
     center: [${center[0]}, ${center[1]}],
     zoom: ${zoom},
     zoomControl: true,
     attributionControl: true,
   });
-  L.tileLayer('${tileUrl}', {
+  L.tileLayer('${lastTileUrl}', {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+    attribution: 'Imagery &copy; Esri'
   }).addTo(map);
   ${markerScript}
   ${polygonScript}

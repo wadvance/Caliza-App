@@ -1,32 +1,44 @@
 import { SatelliteAnalysis, CalizaZone } from '../types'
 
-const SWIR_BAND_CENTERS = {
-  sentinel2: { band11: 1610, band12: 2190 },
-  landsat8: { band6: 1600, band7: 2200 },
-}
-
 function hashLocation(lat: number, lng: number): number {
   const h = Math.sin(lat * 12.9898 + lng * 78.233) * 43758.5453
   return h - Math.floor(h)
 }
 
-function estimateElevation(lat: number, lng: number): number {
+function fallbackElev(lat: number, lng: number): number {
+  const h = hashLocation(lat, lng)
   const latN = lat + 9
-  const panamaRidges = Math.sin(latN * 0.15) * 600 + Math.sin(latN * 0.4 + lng * 0.3) * 300
-  const coastal = Math.max(0, 200 - Math.abs(lng + 80) * 100)
-  return Math.max(0, Math.round(panamaRidges + coastal + hashLocation(lat, lng) * 200))
+  return Math.max(0, Math.round(
+    Math.sin(latN * 0.15) * 600 +
+    Math.sin(latN * 0.4 + lng * 0.3) * 300 +
+    h * 200
+  ))
 }
 
-function simulateSWIRBands(lat: number, lng: number): {
+async function fetchElevation(lat: number, lng: number): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    const elev = data?.results?.[0]?.elevation
+    if (typeof elev === 'number') return Math.round(elev)
+  } catch {}
+  return fallbackElev(lat, lng)
+}
+
+function simulateSWIRBands(elev: number): {
   band11: number; band12: number; band6: number; band7: number
 } {
-  const h = hashLocation(lat, lng)
-  const elev = estimateElevation(lat, lng)
   const isLowland = elev < 200
-  const isCarbonate = (Math.sin(lat * 0.3 + lng * 0.5) * 0.5 + 0.5) > 0.55
+  const isCarbonate = elev > 100 && elev < 800
+  const isForested = elev > 200
+  const h = hashLocation(elev, elev * 0.3)
 
-  const base11 = isCarbonate ? 0.15 : 0.25
-  const base12 = isCarbonate ? 0.35 : 0.20
+  const base11 = isCarbonate ? 0.15 : isForested ? 0.18 : 0.25
+  const base12 = isCarbonate ? 0.35 : isForested ? 0.28 : 0.20
   const clayFactor = isLowland ? 0.2 : 0.05
 
   return {
@@ -47,21 +59,31 @@ export function analyzeSWIRBands(
   return { carbonateIndex, clayRatio, confidence }
 }
 
-function generateZones(lat: number, lng: number, radiusKm: number): CalizaZone[] {
-  const zones: CalizaZone[] = []
-  const h = hashLocation(lat, lng)
-  const elev = estimateElevation(lat, lng)
-  const numZones = elev > 400 ? 5 : elev > 150 ? 4 : 3
+export async function analyzeSatelliteRegion(
+  latitude: number, longitude: number, radiusKm: number = 5,
+): Promise<SatelliteAnalysis> {
+  const h = hashLocation(latitude, longitude)
+  const elevation = await fetchElevation(latitude, longitude)
 
+  const bands = simulateSWIRBands(elevation)
+  const swirResult = analyzeSWIRBands(bands.band11, bands.band12)
+  const landsatResult = analyzeSWIRBands(bands.band6, bands.band7)
+  const carbonateIndex = parseFloat(((swirResult.carbonateIndex + landsatResult.carbonateIndex) / 2).toFixed(3))
+  const clayRatio = parseFloat(((swirResult.clayRatio + landsatResult.clayRatio) / 2).toFixed(3))
+  const ndvi = parseFloat(Math.max(0, Math.min(1, 0.5 - h * 0.4 + (elevation > 300 ? -0.1 : 0.15))).toFixed(3))
+  const quartzIndex = parseFloat(Math.max(0, Math.min(1, clayRatio * 0.3 + (1 - carbonateIndex) * 0.4 + hashLocation(latitude + 10, longitude - 10) * 0.2)).toFixed(3))
+
+  // Generate zones based on elevation and terrain
+  const numZones = elevation > 400 ? 5 : elevation > 150 ? 4 : 3
+  const zones: CalizaZone[] = []
   for (let i = 0; i < numZones; i++) {
     const offset = (i / numZones) * Math.PI * 2 + h * 2
-    const dist = (0.3 + hashLocation(lat + i * 2, lng + i * 3)) * radiusKm / 80
-    const centerLat = lat + dist * Math.cos(offset)
-    const centerLng = lng + dist * Math.sin(offset) / Math.cos(lat * Math.PI / 180)
-
+    const dist = (0.3 + hashLocation(latitude + i * 2, longitude + i * 3)) * radiusKm / 80
+    const centerLat = latitude + dist * Math.cos(offset)
+    const centerLng = longitude + dist * Math.sin(offset) / Math.cos(latitude * Math.PI / 180)
     const zH = hashLocation(centerLat, centerLng)
-    const zElev = estimateElevation(centerLat, centerLng)
-    const isCarbonateBearing = zElev > 100 && (Math.sin(centerLat * 0.3 + centerLng * 0.5) * 0.5 + 0.5) > 0.48
+    const zElev = elevation + Math.round((zH - 0.5) * 150)
+    const isCarbonateBearing = zElev > 100 && zElev < 800 && carbonateIndex > 0.35
 
     const probScore = (isCarbonateBearing ? 0.6 : 0) + (zElev > 200 ? 0.15 : 0) + (zH > 0.5 ? 0.15 : 0)
     const probability = probScore > 0.7 ? 'alta' : probScore > 0.4 ? 'media' : 'baja'
@@ -87,22 +109,7 @@ function generateZones(lat: number, lng: number, radiusKm: number): CalizaZone[]
     })
   }
 
-  return zones
-}
-
-export async function analyzeSatelliteRegion(
-  latitude: number, longitude: number, radiusKm: number = 5,
-): Promise<SatelliteAnalysis> {
-  const bands = simulateSWIRBands(latitude, longitude)
-  const swirResult = analyzeSWIRBands(bands.band11, bands.band12)
-  const landsatResult = analyzeSWIRBands(bands.band6, bands.band7)
-  const carbonateIndex = parseFloat(((swirResult.carbonateIndex + landsatResult.carbonateIndex) / 2).toFixed(3))
-  const clayRatio = parseFloat(((swirResult.clayRatio + landsatResult.clayRatio) / 2).toFixed(3))
-  const ndvi = parseFloat(Math.max(0, Math.min(1, 0.5 - (hashLocation(latitude, longitude) * 0.4) + (estimateElevation(latitude, longitude) > 300 ? -0.1 : 0.15))).toFixed(3))
-  const quartzIndex = parseFloat(Math.max(0, Math.min(1, clayRatio * 0.3 + (1 - carbonateIndex) * 0.4 + hashLocation(latitude + 10, longitude - 10) * 0.2)).toFixed(3))
-  const zones = generateZones(latitude, longitude, radiusKm)
-
-  const analysis: SatelliteAnalysis = {
+  return {
     id: `sat_${Date.now()}`,
     location: { latitude, longitude },
     date: Date.now(),
@@ -113,10 +120,8 @@ export async function analyzeSatelliteRegion(
     quartzIndex,
     zones,
     swirBands: bands,
-    elevation: estimateElevation(latitude, longitude),
+    elevation,
   }
-
-  return analysis
 }
 
 export function getCarbonateIndexDescription(index: number): string {
