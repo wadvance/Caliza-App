@@ -314,6 +314,7 @@ export function MapScreen({ navigation }: any) {
   const [ctxLoading, setCtxLoading] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const initialPanDone = useRef(false)
+  const isInitialRender = useRef(true)
 
   useEffect(() => { loadData() }, [])
 
@@ -501,7 +502,11 @@ export function MapScreen({ navigation }: any) {
   const showRoutes = visibleLayers.some(l => l.id === 'routes')
 
   useEffect(() => {
-    if (!initialPanDone.current && zones.length > 0 && (showExtractionZones || showPotentialZones || showGeological)) {
+    if (isInitialRender.current) {
+      isInitialRender.current = false
+      return
+    }
+    if (zones.length > 0 && (showExtractionZones || showPotentialZones || showGeological)) {
       const lats = zones.flatMap(z => z.coordinates.map(c => c.latitude))
       const lngs = zones.flatMap(z => z.coordinates.map(c => c.longitude))
       const minLat = Math.min(...lats), maxLat = Math.max(...lats)
@@ -512,7 +517,6 @@ export function MapScreen({ navigation }: any) {
         latitudeDelta: (maxLat - minLat) * 1.5,
         longitudeDelta: (maxLng - minLng) * 1.5,
       })
-      initialPanDone.current = true
     }
   }, [showExtractionZones, showPotentialZones, showGeological, zones])
 
@@ -624,7 +628,7 @@ export function MapScreen({ navigation }: any) {
       <View style={styles.topBar}>
         <Text style={styles.brand}>🗺️ GeoCaliza</Text>
         <View style={styles.topBarRight}>
-          {(showGeological || showSatellite || (zones.length > 0 && showPotentialZones) || (zones.length > 0 && showExtractionZones)) ? (
+          {(zones.length > 0 && (showGeological || showPotentialZones || showExtractionZones)) || showSatellite ? (
             <View style={styles.zoneLegend}>
               <Text style={styles.legendTitle}>Leyenda</Text>
               {showGeological && (
