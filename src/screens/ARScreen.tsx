@@ -599,8 +599,18 @@ function Model3DView({ heading, isWeb, location, samples }: { heading: number; i
   )
 }
 
+function lighten(hex: string, pct: number): string {
+  const num = parseInt(hex.slice(1), 16)
+  const r = Math.min(255, (num >> 16) + pct)
+  const g = Math.min(255, ((num >> 8) & 0x00FF) + pct)
+  const b = Math.min(255, (num & 0x0000FF) + pct)
+  return `rgb(${r},${g},${b})`
+}
+
 function ModelModeView({ heading, isWeb, location, samples }: { heading: number; isWeb: boolean; location: any; samples: any[] }) {
   const containerRef = useRef<any>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const drawRef = useRef<(() => void) | null>(null)
 
   const calizaCheck = React.useMemo(() => {
     if (!location) return { hasCaliza: false, nearest: Infinity, source: '' }
@@ -617,109 +627,204 @@ function ModelModeView({ heading, isWeb, location, samples }: { heading: number;
     return { hasCaliza: nearest < 2, nearest: Math.round(nearest * 1000) / 1000, source }
   }, [location, samples])
 
+  // Collect rock types from nearby samples
+  const localTypes = React.useMemo(() => {
+    if (!location) return new Set<string>()
+    const types = new Set<string>()
+    for (const s of samples) {
+      if (!s || !s.latitude || !s.longitude) continue
+      const dist = calculateDistance(location.latitude, location.longitude, s.latitude, s.longitude)
+      if (dist < 5 && s.estimatedRockType) types.add(s.estimatedRockType.toLowerCase())
+    }
+    return types
+  }, [location, samples])
+
   useEffect(() => {
     if (!isWeb) return
     const container = containerRef.current
     if (!container) return
 
-    const w = container.clientWidth || 360
-    const h = Math.round(w * 0.66)
+    const canvas = document.createElement('canvas')
+    canvas.style.cssText = 'width:100%;height:100%;display:block;border-radius:8px'
+    container.appendChild(canvas)
+    canvasRef.current = canvas
 
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x0f0f23)
+    const draw = () => {
+      const rect = container.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      const w = rect.width
+      const h = rect.height
+      if (w < 1 || h < 1) return
+      canvas.width = w * dpr
+      canvas.height = h * dpr
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(dpr, dpr)
 
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 50)
-    camera.position.set(0, 0, 18)
-    camera.lookAt(0, -1, 0)
+      const margin = { top: 10, bottom: 14, left: 42, right: 90 }
+      const colX = margin.left
+      const colW = w - margin.left - margin.right
+      const colY = margin.top
+      const colH = h - margin.top - margin.bottom
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setSize(w, h)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
-    container.appendChild(renderer.domElement)
+      // Background
+      ctx.fillStyle = '#0f0f23'
+      ctx.fillRect(0, 0, w, h)
 
-    const al = new THREE.AmbientLight(0x404060, 0.6)
-    scene.add(al)
-    const dl = new THREE.DirectionalLight(0xffffff, 0.8)
-    dl.position.set(5, 8, 10)
-    scene.add(dl)
+      // Column background
+      ctx.fillStyle = '#1a1a2e'
+      ctx.beginPath()
+      ctx.roundRect(colX, colY, colW, colH, 4)
+      ctx.fill()
 
-    const layers = [
-      { name: 'Suelo vegetal', color: 0x5D4037, d: 0.3, y: -0.15 },
-      { name: 'Arcilla', color: 0x8D6E63, d: 0.5, y: -0.55 },
-      { name: 'Marga', color: 0xBCAAA4, d: 0.7, y: -1.15 },
-      { name: 'Caliza', color: 0xBDBDBD, d: 1.0, y: -2.0 },
-      { name: 'Dolomita', color: 0x9E9E9E, d: 1.0, y: -3.0 },
-      { name: 'Basamento', color: 0x616161, d: 2.0, y: -4.5 },
-    ]
-    const boxW = 4
+      const layers = [
+        { name: 'Suelo vegetal', color: '#5D4037', depth: 0.3 },
+        { name: 'Arcilla', color: '#8D6E63', depth: 0.8 },
+        { name: 'Marga', color: '#BCAAA4', depth: 1.5 },
+        { name: '★ CALIZA', color: '#BDBDBD', depth: 2.5, highlight: true },
+        { name: 'Dolomita', color: '#9E9E9E', depth: 3.5 },
+        { name: 'Basamento', color: '#616161', depth: 5.0 },
+      ]
+      const maxDepth = 5
 
-    layers.forEach((l, i) => {
-      const geo = new THREE.BoxGeometry(boxW, l.d, 0.2)
-      const mat = new THREE.MeshPhongMaterial({ color: l.color })
-      const mesh = new THREE.Mesh(geo, mat)
-      mesh.position.set(0, l.y, 0)
-      scene.add(mesh)
-
-      const edge = new THREE.EdgesGeometry(geo)
-      const em = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 })
-      scene.add(new THREE.LineSegments(edge, em))
-
-      const sprite = makeTextSprite(`${l.name} (${l.d}m)`, i === 3 ? '#ffff00' : '#ccc', 11)
-      sprite.position.set(boxW / 2 + 0.6, l.y, 0)
-      scene.add(sprite)
-    })
-
-    // Title
-    const title = makeTextSprite('Corte geol\u00f3gico - Yacimiento de Caliza', '#fff', 13, 'bold')
-    title.position.set(0, 2.5, 0)
-    scene.add(title)
-
-    // Caliza indicator
-    const calizaColor = calizaCheck.hasCaliza ? '#2ecc71' : '#e74c3c'
-    const calizaText = calizaCheck.hasCaliza ? 'HAY CALIZA' : 'NO SE DETECTA CALIZA'
-    const calizaIcon = calizaCheck.hasCaliza ? '\u2705' : '\u274c'
-    const cl = makeTextSprite(`${calizaIcon} ${calizaText}`, calizaColor, 14, 'bold')
-    cl.position.set(0, -5.8, 0)
-    scene.add(cl)
-
-    if (calizaCheck.source) {
-      const detail = makeTextSprite(`${calizaCheck.source} (a ${calizaCheck.nearest} km)`, 'rgba(255,255,255,0.6)', 10)
-      detail.position.set(0, -6.5, 0)
-      scene.add(detail)
-    }
-
-    renderer.render(scene, camera)
-
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        const nw = e.contentRect.width
-        if (nw > 0) {
-          const nh = Math.round(nw * 0.66)
-          renderer.setSize(nw, nh)
-          camera.aspect = nw / nh
-          camera.updateProjectionMatrix()
-          renderer.render(scene, camera)
+      // Mark local rock types
+      for (const l of layers) {
+        const cleanName = l.name.replace('★ ', '').toLowerCase()
+        if (localTypes.has(cleanName)) {
+          l.highlight = true
         }
       }
-    })
+
+      // Draw layers
+      let prevDepth = 0
+      for (const layer of layers) {
+        const y1 = colY + colH * (prevDepth / maxDepth)
+        const y2 = colY + colH * (layer.depth / maxDepth)
+        const lh = y2 - y1
+
+        // Layer fill
+        const grad = ctx.createLinearGradient(colX, y1, colX, y2)
+        grad.addColorStop(0, layer.highlight ? lighten(layer.color, 20) : layer.color)
+        grad.addColorStop(1, layer.color)
+        ctx.fillStyle = grad
+        ctx.fillRect(colX, y1, colW, lh)
+
+        // Pattern overlay for texture
+        if (layer.name.includes('CALIZA')) {
+          ctx.save()
+          ctx.globalAlpha = 0.08
+          for (let i = 0; i < colW * 3; i += 8) {
+            const px = colX + (i % colW)
+            const py = y1 + (i % lh)
+            ctx.fillStyle = '#000'
+            ctx.beginPath()
+            ctx.arc(px, py, 1, 0, Math.PI * 2)
+            ctx.fill()
+          }
+          ctx.restore()
+        }
+
+        // Layer border
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+        ctx.lineWidth = 0.5
+        ctx.strokeRect(colX, y1, colW, lh)
+
+        // Right label
+        ctx.fillStyle = layer.highlight ? '#ffff00' : '#ccc'
+        ctx.font = layer.highlight ? 'bold 10px sans-serif' : '10px sans-serif'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
+        const labelY = y1 + lh / 2
+        ctx.fillText(layer.name, colX + colW + 6, labelY)
+        if (layer.depth) {
+          ctx.fillStyle = 'rgba(255,255,255,0.4)'
+          ctx.font = '8px sans-serif'
+          ctx.fillText(`${layer.depth}m`, colX + colW + 6, labelY + 12)
+        }
+
+        prevDepth = layer.depth
+      }
+
+      // Depth axis
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+      ctx.lineWidth = 0.5
+      for (let d = 0; d <= maxDepth; d++) {
+        const y = colY + colH * (d / maxDepth)
+        ctx.beginPath()
+        ctx.moveTo(colX - 6, y)
+        ctx.lineTo(colX, y)
+        ctx.stroke()
+
+        // Horizontal guide
+        ctx.globalAlpha = 0.06
+        ctx.beginPath()
+        ctx.moveTo(colX, y)
+        ctx.lineTo(colX + colW, y)
+        ctx.stroke()
+        ctx.globalAlpha = 1
+
+        // Depth label
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'
+        ctx.font = '9px sans-serif'
+        ctx.textAlign = 'right'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(`${d}m`, colX - 9, y)
+      }
+
+      // Surface line
+      ctx.strokeStyle = '#4caf50'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(colX, colY)
+      ctx.lineTo(colX + colW, colY)
+      ctx.stroke()
+
+      // Title
+      ctx.fillStyle = '#fff'
+      ctx.font = 'bold 11px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillText('Perfil estratigráfico', w / 2, 2)
+
+      // Caliza status
+      const calizaColor = calizaCheck.hasCaliza ? '#2ecc71' : '#e74c3c'
+      const calizaText = calizaCheck.hasCaliza ? 'HAY CALIZA' : 'NO SE DETECTA CALIZA'
+      ctx.fillStyle = calizaColor
+      ctx.font = 'bold 12px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText(`${calizaCheck.hasCaliza ? '\u2705' : '\u274c'} ${calizaText}`, w / 2, h - 3)
+
+      if (calizaCheck.source) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'
+        ctx.font = '8px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'bottom'
+        ctx.fillText(`${calizaCheck.source} (a ${calizaCheck.nearest} km)`, w / 2, h - 15)
+      }
+    }
+
+    draw()
+    drawRef.current = draw
+    const ro = new ResizeObserver(draw)
     ro.observe(container)
 
     return () => {
       ro.disconnect()
-      renderer.dispose()
-      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement)
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas)
     }
   }, [isWeb]) // eslint-disable-line
+
+  useEffect(() => {
+    drawRef.current?.()
+  }, [calizaCheck, localTypes]) // eslint-disable-line
 
   return React.createElement(View, { style: { padding: 10, alignItems: 'center' } },
     React.createElement(View, {
       ref: containerRef,
-      style: { width: '100%', maxWidth: 400, aspectRatio: 3 / 2, alignSelf: 'center', borderRadius: 8, overflow: 'hidden' }
+      style: { width: '100%', maxWidth: 400, aspectRatio: 2 / 3, alignSelf: 'center', borderRadius: 8, overflow: 'hidden' }
     }),
-    React.createElement(View, { style: { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, marginTop: 8, width: '100%' } },
-      React.createElement(Text, { style: { color: '#fff', fontSize: 12, textAlign: 'center' } },
-        'Corte vertical del subsuelo - La caliza se encuentra a 1.5-2.5 m de profundidad.'
-      )
+    React.createElement(Text, { style: { color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'center', marginTop: 4 } },
+      'Columna estratigráfica del subsuelo basada en muestras locales'
     )
   )
 }
