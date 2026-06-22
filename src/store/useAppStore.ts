@@ -48,7 +48,7 @@ export const useAppStore = create<AppState>((set) => ({
     { id: 'satellite', name: 'Satélite', type: 'satellite', coordinates: [], color: '#ffffff', opacity: 0.7, visible: false },
     { id: 'geological', name: 'Mapa geológico', type: 'geological_map', coordinates: [], color: COLORS.accent, opacity: 0.6, visible: true },
     { id: 'potential', name: 'Potencial caliza', type: 'caliza_potential', coordinates: [], color: COLORS.success, opacity: 0.5, visible: true },
-    { id: 'extraction', name: 'Zonas de extracción', type: 'extraction_zone', coordinates: [], color: COLORS.warning, opacity: 0.5, visible: false },
+    { id: 'extraction', name: 'Zonas de extracción', type: 'extraction_zone', coordinates: [], color: COLORS.warning, opacity: 0.5, visible: true },
     { id: 'samples', name: 'Puntos de muestreo', type: 'sample_point', coordinates: [], color: COLORS.highlight, opacity: 1, visible: true },
     { id: 'routes', name: 'Rutas de acceso', type: 'access_route', coordinates: [], color: '#3498db', opacity: 0.7, visible: false },
   ],
