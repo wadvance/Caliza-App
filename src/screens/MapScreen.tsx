@@ -774,7 +774,8 @@ export function MapScreen({ navigation }: any) {
                 <Text style={styles.contextSub}>{locationCtx.state}, {locationCtx.country}</Text>
               )}
               {insideZone && (
-                <View style={[styles.nearbyRow, { marginTop: 8, paddingVertical: 8, borderWidth: 1, borderColor: probColor(insideZone.probability) + '50', borderRadius: 10, backgroundColor: probColor(insideZone.probability) + '15' }]}>
+                <TouchableOpacity style={[styles.nearbyRow, { marginTop: 8, paddingVertical: 8, borderWidth: 1, borderColor: probColor(insideZone.probability) + '50', borderRadius: 10, backgroundColor: probColor(insideZone.probability) + '15' }]}
+                  onPress={() => openDirections(currentLocation!.latitude, currentLocation!.longitude, 'Zona de caliza')}>
                   <Text style={{ fontSize: 18 }}>🪨</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.nearbyName, { color: probColor(insideZone.probability), fontWeight: '700' }]}>
@@ -784,12 +785,13 @@ export function MapScreen({ navigation }: any) {
                       {insideZone.estimatedRockType || 'Caliza'} · Confianza {(insideZone.confidence * 100).toFixed(0)}% · {insideZone.probability === 'alta' ? 'Alta' : insideZone.probability === 'media' ? 'Media' : 'Baja'} probabilidad
                     </Text>
                   </View>
-                </View>
+                  <Text style={{ fontSize: 16 }}>↗️</Text>
+                </TouchableOpacity>
               )}
-              {calizaNearby.length > 0 && !insideZone && (
+              {!insideZone && calizaNearby.length > 0 && (
                 <>
                   <Text style={[styles.contextSub, { marginTop: 8, fontWeight: '600', color: COLORS.text }]}>
-                    🪨 Zonas de caliza cercanas:
+                    🪨 Zonas de caliza cercanas — toca para ir:
                   </Text>
                   {calizaNearby.map(({ zone, distanceKm }) => {
                     const center = polygonCenter(zone.coordinates)
@@ -829,20 +831,31 @@ export function MapScreen({ navigation }: any) {
                     Cerca de aquí:
                   </Text>
                   {locationCtx.nearby.map((f, i) => (
-                    <TouchableOpacity key={i} style={styles.nearbyRow} onPress={() => openDirections(f.lat, f.lon, f.name)}>
+                    <View key={i} style={styles.nearbyRow}>
                       <Text style={{ fontSize: 14 }}>{ctxIcon(f.type)}</Text>
                       <Text style={styles.nearbyName}>{f.name}</Text>
                       <Text style={styles.nearbyDist}>
                         {f.distance < 1000 ? `${f.distance} m` : `${(f.distance / 1000).toFixed(1)} km`}
                       </Text>
-                      <Text style={{ fontSize: 16, marginLeft: 6 }}>↗️</Text>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </>
               )}
             </>
           ) : (
             <Text style={styles.contextSub}>No se pudo obtener información del lugar</Text>
+          )}
+          {currentLocation && !insideZone && calizaNearby.length > 0 && (
+            <TouchableOpacity style={[styles.ctxBackBtn, { marginTop: 8, backgroundColor: COLORS.probabilityHigh + '30', borderColor: COLORS.probabilityHigh, borderWidth: 1 }]}
+              onPress={() => {
+                const nearest = calizaNearby[0]
+                const center = polygonCenter(nearest.zone.coordinates)
+                openDirections(center.latitude, center.longitude, nearest.zone.estimatedRockType || 'Zona de caliza')
+              }}>
+              <Text style={[styles.ctxBackBtnText, { color: COLORS.probabilityHigh }]}>
+                🪨 Ir a zona de caliza más cercana ({calizaNearby[0].distanceKm < 1 ? `${(calizaNearby[0].distanceKm * 1000).toFixed(0)} m` : `${calizaNearby[0].distanceKm.toFixed(1)} km`})
+              </Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.ctxBackBtn} onPress={() => setShowContext(false)}>
             <Text style={styles.ctxBackBtnText}>← Volver al mapa</Text>
