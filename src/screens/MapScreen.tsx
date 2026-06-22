@@ -8,6 +8,7 @@ import { useCurrentLocation } from '../services/locationService'
 import { getAllZones, getAllSamples, webSaveRoutes, webLoadRoutes } from '../services/database'
 import { Sample, CalizaZone, AccessRoute } from '../types'
 import { getLocationContext, LocationContext } from '../services/locationContextService'
+import { analyzeSatelliteRegion } from '../services/satelliteService'
 
 const { height } = Dimensions.get('window')
 
@@ -321,15 +322,40 @@ export function MapScreen({ navigation }: any) {
   const isInitialRender = useRef(true)
 
   useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    if (!currentLocation || zones.length > 0) return
+    const inChiriqui = zones.some(z => pointInPolygon(currentLocation.latitude, currentLocation.longitude, z.coordinates))
+    if (!inChiriqui) {
+      analyzeSatelliteRegion(currentLocation.latitude, currentLocation.longitude, 3).then(sat => {
+        if (sat.zones.length > 0) {
+          const merged = [...zones, ...sat.zones]
+          setLocalZones(merged)
+          setZones(merged)
+        }
+      }).catch(() => {})
+    }
+  }, [currentLocation?.latitude])
 
   const loadData = async () => {
     const [loadedSamples, loadedZones] = await Promise.all([getAllSamples(), getAllZones()])
     setLocalSamples(loadedSamples)
-    setLocalZones(loadedZones)
-    setZones(loadedZones)
-    if (loadedZones.length > 0 && !currentLocation) {
-      const lats = loadedZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.latitude))
-      const lngs = loadedZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.longitude))
+    let finalZones = loadedZones
+    if (currentLocation) {
+      const inChiriqui = loadedZones.some(z => pointInPolygon(currentLocation.latitude, currentLocation.longitude, z.coordinates))
+      if (!inChiriqui) {
+        try {
+          const sat = await analyzeSatelliteRegion(currentLocation.latitude, currentLocation.longitude, 3)
+          if (sat.zones.length > 0) {
+            finalZones = [...loadedZones, ...sat.zones]
+          }
+        } catch {}
+      }
+    }
+    setLocalZones(finalZones)
+    setZones(finalZones)
+    if (finalZones.length > 0 && !currentLocation) {
+      const lats = finalZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.latitude))
+      const lngs = finalZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.longitude))
       setTargetRegion({
         latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
         longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
