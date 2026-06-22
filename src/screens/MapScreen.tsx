@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator, Linking, Platform } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Text, Modal, FlatList, TextInput, Dimensions, Alert, ActivityIndicator, Linking, Platform, Keyboard } from 'react-native'
 import MapView, { Marker, Polygon, Polyline } from '../components/MapViewWrapper'
 import { useAppStore } from '../store/useAppStore'
 import { COLORS } from '../types/constants'
@@ -11,6 +11,15 @@ import { getLocationContext, LocationContext } from '../services/locationContext
 import { analyzeSatelliteRegion } from '../services/satelliteService'
 
 const { height } = Dimensions.get('window')
+
+interface GeocodingResult {
+  lat: number
+  lng: number
+  displayName: string
+  type: string
+  insideCaliza: boolean
+  calizaDistanceKm: number | null
+}
 
 interface Township {
   id: string
@@ -319,6 +328,9 @@ export function MapScreen({ navigation }: any) {
   const [locationCtx, setLocationCtx] = useState<LocationContext | null>(null)
   const [ctxLoading, setCtxLoading] = useState(false)
   const [showContext, setShowContext] = useState(false)
+  const [geoResults, setGeoResults] = useState<GeocodingResult[]>([])
+  const [geoLoading, setGeoLoading] = useState(false)
+  const geoTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isInitialRender = useRef(true)
 
   useEffect(() => { loadData() }, [])
@@ -656,11 +668,75 @@ export function MapScreen({ navigation }: any) {
     }
   }
 
+  const searchNominatim = useCallback(async (query: string) => {
+    if (!query.trim()) { setGeoResults([]); return }
+    setGeoLoading(true)
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=7&countrycodes=pa&accept-language=es`, {
+        headers: { 'User-Agent': 'GeoCaliza/2.0' }
+      })
+      const data = await res.json()
+      setGeoResults(data.map((r: any) => {
+        const lat = parseFloat(r.lat), lng = parseFloat(r.lon)
+        const insideZone = zones.find(z => pointInPolygon(lat, lng, z.coordinates))
+        let calizaDist: number | null = null
+        if (!insideZone) {
+          const nearest = zones.reduce<{ d: number } | null>((best, z) => {
+            const c = polygonCenter(z.coordinates)
+            const d = haversineKm(lat, lng, c.latitude, c.longitude)
+            return !best || d < best.d ? { d } : best
+          }, null)
+          calizaDist = nearest?.d ?? null
+        }
+        return {
+          lat, lng,
+          displayName: r.display_name,
+          type: r.type,
+          insideCaliza: !!insideZone,
+          calizaDistanceKm: calizaDist,
+        }
+      }))
+    } catch {
+      setGeoResults([])
+    } finally {
+      setGeoLoading(false)
+    }
+  }, [zones])
+
+  const handleSearchTextChange = (text: string) => {
+    setSearchText(text)
+    if (geoTimeout.current) clearTimeout(geoTimeout.current)
+    geoTimeout.current = setTimeout(() => searchNominatim(text), 400)
+  }
+
+  const handleSelectGeoResult = (result: GeocodingResult) => {
+    Keyboard.dismiss()
+    setTargetRegion({ latitude: result.lat, longitude: result.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 })
+    setShowSearch(false)
+    setSelectedProvince(null)
+    setDistrictTownships(null)
+    setSearchText('')
+    setGeoResults([])
+    if (result.insideCaliza) {
+      const zone = zones.find(z => pointInPolygon(result.lat, result.lng, z.coordinates))
+      if (zone) {
+        setLocationCtx({
+          place: 'Zona de caliza',
+          road: zone.estimatedRockType || 'Caliza',
+          city: null, state: null, country: 'Panamá',
+          distance: null, nearby: [],
+        })
+        setShowContext(true)
+      }
+    }
+  }
+
   const handleCloseSearch = () => {
     setShowSearch(false)
     setSelectedProvince(null)
     setDistrictTownships(null)
     setSearchText('')
+    setGeoResults([])
   }
 
   return (
@@ -929,10 +1005,10 @@ export function MapScreen({ navigation }: any) {
               placeholder={
                 districtTownships ? 'Buscar corregimiento...' :
                 selectedProvince ? 'Buscar distrito...' :
-                'Ej: Chiriquí, David, Penonomé...'}
+                'Ej: Paso Canoas, Volcán, Ciudad de Panamá...'}
               placeholderTextColor={COLORS.textMuted}
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={handleSearchTextChange}
               autoFocus
             />
 
@@ -963,6 +1039,41 @@ export function MapScreen({ navigation }: any) {
                     <Text style={styles.provinceCoords}>{item.lat.toFixed(2)}, {item.lng.toFixed(2)}</Text>
                   </TouchableOpacity>
                 )}
+              />
+            ) : searchText.trim() && (geoResults.length > 0 || geoLoading) ? (
+              <FlatList
+                data={geoResults}
+                keyExtractor={(_, i) => `geo-${i}`}
+                style={styles.provinceList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.geoRow} onPress={() => handleSelectGeoResult(item)}>
+                    <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.geoName} numberOfLines={1}>{item.displayName.split(',')[0]}</Text>
+                      <Text style={styles.geoSub} numberOfLines={2}>{item.displayName}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        {item.insideCaliza ? (
+                          <View style={[styles.calizaBadge, { backgroundColor: COLORS.probabilityHigh + '30', borderColor: COLORS.probabilityHigh }]}>
+                            <Text style={{ fontSize: 10, color: COLORS.probabilityHigh, fontWeight: '700' }}>🪨 ZONA DE CALIZA</Text>
+                          </View>
+                        ) : item.calizaDistanceKm !== null && item.calizaDistanceKm < 20 ? (
+                          <View style={[styles.calizaBadge, { backgroundColor: COLORS.probabilityMedium + '30', borderColor: COLORS.probabilityMedium }]}>
+                            <Text style={{ fontSize: 10, color: COLORS.probabilityMedium, fontWeight: '600' }}>
+                              🪨 A {item.calizaDistanceKm < 1 ? `${(item.calizaDistanceKm * 1000).toFixed(0)} m` : `${item.calizaDistanceKm.toFixed(1)} km`} de caliza
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 14, color: COLORS.highlight }}>Ir →</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={geoLoading ? (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator color={COLORS.accent} size="small" />
+                    <Text style={{ color: COLORS.textMuted, marginTop: 8, fontSize: 13 }}>Buscando...</Text>
+                  </View>
+                ) : null}
               />
             ) : (
               <FlatList
@@ -1132,6 +1243,10 @@ const styles = StyleSheet.create({
   townshipRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   townshipName: { color: COLORS.text, fontSize: 14, fontWeight: '500' },
   townshipSub: { color: COLORS.textMuted, fontSize: 11 },
+  geoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  geoName: { color: COLORS.text, fontSize: 14, fontWeight: '600' },
+  geoSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
+  calizaBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
   closeBtn: { backgroundColor: COLORS.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 12 },
   closeBtnText: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
   recordBtn: {

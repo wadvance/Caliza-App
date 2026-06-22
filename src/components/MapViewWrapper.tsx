@@ -197,6 +197,14 @@ function buildLeafletHtml(props: MapViewProps, markers: MarkerProps[], polygons:
     attribution: 'Esri'
   }).addTo(map);
   `}
+  map.on('moveend', function() {
+    parent.postMessage({ type: 'map-move', center: map.getCenter(), zoom: map.getZoom() }, '*');
+  });
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'set-view') {
+      map.setView([e.data.lat, e.data.lng], e.data.zoom, { animate: true, duration: 0.5 });
+    }
+  });
   ${markerScript}
   ${polygonScript}
   ${polylineScript}
@@ -227,23 +235,43 @@ function WebMap({ style, children, ...props }: MapViewProps & { children?: React
 
   const html = useMemo(() => buildLeafletHtml(props, markers, polygons, polylines),
     [props.initialRegion?.latitude, props.initialRegion?.longitude,
+     props.mapType,
      markers.length, polygons.length, polylines.length,
      JSON.stringify(markers), JSON.stringify(polygons), JSON.stringify(polylines)])
 
-  const blobUrl = useMemo(() => {
-    const blob = new Blob([html], { type: 'text/html' })
-    return URL.createObjectURL(blob)
-  }, [html])
+  useEffect(() => {
+    const iframe = iframeRef.current
+    if (!iframe || !iframe.contentWindow) return
+    const reg = props.region
+    if (!reg) return
+    const zoom = Math.round(Math.log2(360 / Math.max(reg.latitudeDelta || 0.05, reg.longitudeDelta || 0.05)) + 1)
+    iframe.contentWindow.postMessage({ type: 'set-view', lat: reg.latitude, lng: reg.longitude, zoom }, '*')
+  }, [props.region?.latitude, props.region?.longitude, props.region?.latitudeDelta, html])
 
   useEffect(() => {
-    return () => URL.revokeObjectURL(blobUrl)
-  }, [blobUrl])
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'map-move' && props.onRegionChangeComplete) {
+        const center = e.data.center
+        const zoom = e.data.zoom
+        const latDelta = 360 / Math.pow(2, zoom) * 2
+        const lngDelta = 360 / Math.pow(2, zoom) * 2
+        props.onRegionChangeComplete({
+          latitude: center.lat,
+          longitude: center.lng,
+          latitudeDelta: latDelta,
+          longitudeDelta: lngDelta,
+        })
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [props.onRegionChangeComplete])
 
   return (
-    <View style={style} pointerEvents="auto">
+    <View style={style}>
       <iframe
         ref={iframeRef}
-        src={blobUrl}
+        srcDoc={html}
         style={{ width: '100%', height: '100%', border: 'none' }}
         title="map"
       />
