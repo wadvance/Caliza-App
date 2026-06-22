@@ -306,7 +306,12 @@ export function MapScreen({ navigation }: any) {
   const [showSearch, setShowSearch] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [selectedProvince, setSelectedProvince] = useState<Province | null>(null)
-  const [targetRegion, setTargetRegion] = useState<any>(null)
+  const [targetRegion, setTargetRegion] = useState<any>({
+    latitude: currentLocation?.latitude || 8.9824,
+    longitude: currentLocation?.longitude || -79.5199,
+    latitudeDelta: 0.25,
+    longitudeDelta: 0.25,
+  })
   const [districtTownships, setDistrictTownships] = useState<(Township & { districtName: string; provinceName: string })[] | null>(null)
   const [samples, setLocalSamples] = useState<Sample[]>([])
   const [zones, setLocalZones] = useState<CalizaZone[]>([])
@@ -322,6 +327,16 @@ export function MapScreen({ navigation }: any) {
     setLocalSamples(loadedSamples)
     setLocalZones(loadedZones)
     setZones(loadedZones)
+    if (loadedZones.length > 0 && !currentLocation) {
+      const lats = loadedZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.latitude))
+      const lngs = loadedZones.flatMap((z: CalizaZone) => z.coordinates.map(c => c.longitude))
+      setTargetRegion({
+        latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+        longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+        latitudeDelta: (Math.max(...lats) - Math.min(...lats)) * 1.5,
+        longitudeDelta: (Math.max(...lngs) - Math.min(...lngs)) * 1.5,
+      })
+    }
   }
 
   const getZoneColor = (probability: string) => {
@@ -669,12 +684,8 @@ export function MapScreen({ navigation }: any) {
         </View>
       </View>
 
-      <MapView style={styles.map} mapType={showSatellite ? 'satellite' : 'standard'} initialRegion={targetRegion || {
-        latitude: currentLocation?.latitude || 8.9824,
-        longitude: currentLocation?.longitude || -79.5199,
-        latitudeDelta: 0.25,
-        longitudeDelta: 0.25,
-      }}>
+      <MapView style={styles.map} mapType={showSatellite ? 'satellite' : 'standard'} region={targetRegion}
+        onRegionChangeComplete={(r: any) => setTargetRegion(r)}>
         {showGeological && zones.map(zone => (
           <Polygon key={`geo-${zone.id}`} coordinates={zone.coordinates}
             fillColor={'rgba(139, 119, 190, 0.2)'}
