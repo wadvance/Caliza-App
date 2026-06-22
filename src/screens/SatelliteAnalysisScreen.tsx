@@ -191,8 +191,13 @@ export function SatelliteAnalysisScreen() {
       const a = document.createElement('a')
       a.href = url
       a.download = `analisis_swir_${Date.now()}.txt`
+      a.style.display = 'none'
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, 1000)
     } else {
       try {
         await Share.share({ message: text, title: 'Análisis SWIR' })
