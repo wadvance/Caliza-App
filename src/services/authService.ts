@@ -1,102 +1,101 @@
-import API_CONFIG, { getApiUrl, getAuthHeaders } from './api'
-import { setSetting, getSetting } from './database'
+import { initFirebase } from './firebaseConfig'
 import {
-  supabaseLogin,
-  supabaseRegister,
-  supabaseLogout as supabaseLogoutFn,
-  supabaseGetSession,
-  supabaseGetUser,
-} from './supabaseClient'
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User,
+  sendPasswordResetEmail,
+} from 'firebase/auth'
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from 'firebase/firestore'
 
-type AuthMode = 'mock' | 'supabase' | 'auto'
-let currentMode: AuthMode = 'auto'
-let currentToken: string | null = null
+initFirebase()
+
+const auth = getAuth()
+const db = getFirestore()
+
+type AuthMode = 'firebase' | 'mock'
+let currentMode: AuthMode = 'firebase'
 let currentUser: { id: string; email: string; full_name: string; role: string } | null = null
 
-function setUserFromSupabase(sbUser: any) {
-  currentToken = sbUser?.access_token || null
-  currentUser = sbUser?.user ? {
-    id: sbUser.user.id,
-    email: sbUser.user.email || '',
-    full_name: sbUser.user.user_metadata?.full_name || sbUser.user.email?.split('@')[0] || '',
-    role: sbUser.user.user_metadata?.role || 'operator',
-  } : null
-}
-
-export async function initAuth(): Promise<void> {
-  // Try Supabase session first
-  try {
-    const session = await supabaseGetSession()
-    if (session) {
-      setUserFromSupabase(session)
-      currentMode = 'supabase'
-      return
+function setUser(firebaseUser: User | null) {
+  if (firebaseUser) {
+    currentUser = {
+      id: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      full_name: (firebaseUser as any).displayName || firebaseUser.email?.split('@')[0] || '',
+      role: 'operator',
     }
-  } catch {}
-
-  // Fallback to local JWT token
-  const saved = await getSetting('auth_token')
-  if (saved) {
-    currentToken = saved
-    try {
-      const res = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH_ME), {
-        headers: getAuthHeaders(currentToken!),
-      })
-      if (res.ok) {
-        currentUser = await res.json()
-        currentMode = 'mock'
-      } else {
-        currentToken = null
-        await setSetting('auth_token', '')
-      }
-    } catch {
-      currentToken = saved
-    }
+  } else {
+    currentUser = null
   }
 }
 
-export async function login(email: string, password: string): Promise<boolean> {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), 15000)
-  )
+export function initAuth(): Promise<void> {
+  console.log('[initAuth] Firebase auth mode')
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
+      if (user) {
+        setUser(user)
+        currentMode = 'firebase'
+        const userDoc = await getDoc(doc(db, 'users', user.uid))
+        if (userDoc.exists()) {
+          currentUser = {
+            id: user.uid,
+            email: userDoc.data().email || user.email || '',
+            full_name: userDoc.data().fullName || user.displayName || user.email?.split('@')[0] || '',
+            role: userDoc.data().role || 'operator',
+          }
+        }
+      }
+      resolve()
+    })
+    unsubscribe()
+  })
+}
 
+export async function login(email: string, password: string): Promise<boolean> {
   try {
-    const data: any = await Promise.race([supabaseLogin(email, password), timeoutPromise])
-    if (data.session) {
-      setUserFromSupabase(data.session)
-      currentMode = 'supabase'
-      return true
-    }
-    return false
+    const cred = await signInWithEmailAndPassword(auth, email, password)
+    setUser(cred.user)
+    currentMode = 'firebase'
+    return true
   } catch {
     return false
   }
 }
 
 export async function register(email: string, password: string, fullName?: string): Promise<'ok' | 'email_confirmation' | 'error'> {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), 15000)
-  )
-
   try {
-    const data: any = await Promise.race([supabaseRegister(email, password, fullName || email.split('@')[0]), timeoutPromise])
-    if (data.session) {
-      setUserFromSupabase(data.session)
-      currentMode = 'supabase'
-      return 'ok'
-    }
-    if (data.user) {
-      return 'email_confirmation'
-    }
-    return 'error'
-  } catch (e) {
-    console.warn('Register error:', e)
+    const cred = await createUserWithEmailAndPassword(auth, email, password)
+    const name = fullName || email.split('@')[0]
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      email,
+      fullName: name,
+      role: 'operator',
+      createdAt: serverTimestamp(),
+    })
+    setUser(cred.user)
+    currentUser = { ...currentUser!, full_name: name }
+    currentMode = 'firebase'
+    return 'ok'
+  } catch (e: any) {
+    console.error('[register] Error:', e.code, e.message)
+    if (e.code === 'auth/email-already-in-use') return 'email_confirmation'
     return 'error'
   }
 }
 
 export function getToken(): string | null {
-  return currentToken
+  return currentUser?.id || null
 }
 
 export function getUser(): typeof currentUser {
@@ -104,7 +103,7 @@ export function getUser(): typeof currentUser {
 }
 
 export function isAuthenticated(): boolean {
-  return currentToken !== null
+  return auth.currentUser !== null
 }
 
 export function getAuthMode(): AuthMode {
@@ -113,23 +112,14 @@ export function getAuthMode(): AuthMode {
 
 export async function forgotPassword(email: string): Promise<boolean> {
   try {
-    const res = await fetch(getApiUrl('/api/v1/auth/forgot-password'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ email }),
-    })
-    if (!res.ok) return false
-    const data = await res.json()
-    return !!data.message
+    await sendPasswordResetEmail(auth, email)
+    return true
   } catch {
     return false
   }
 }
 
 export async function logout(): Promise<void> {
-  try { await supabaseLogoutFn() } catch {}
-  currentToken = null
+  await signOut(auth)
   currentUser = null
-  currentMode = 'auto'
-  await setSetting('auth_token', '')
 }

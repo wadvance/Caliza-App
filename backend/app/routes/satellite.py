@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from geoalchemy2 import Geography
-from app.database import get_db
-from app.models.__init__ import SatelliteAnalysis, CalizaZone, User
+from datetime import datetime, timezone
+import uuid
+import numpy as np
+
+from app.database import get_firestore_db
 from app.schemas.__init__ import SatelliteAnalysisRequest, SatelliteAnalysisResponse, CalizaZoneResponse
 from app.middleware.auth import get_current_user
 from app.services.analysis import (
@@ -11,7 +11,6 @@ from app.services.analysis import (
     calculate_ndvi,
     classify_probability,
 )
-import numpy as np
 
 router = APIRouter(prefix="/api/v1/satellite", tags=["satellite"])
 
@@ -19,26 +18,16 @@ router = APIRouter(prefix="/api/v1/satellite", tags=["satellite"])
 @router.post("/analyze", response_model=SatelliteAnalysisResponse)
 async def analyze_region(
     data: SatelliteAnalysisRequest,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
+    db = get_firestore_db()
     nir, red, swir1, swir2 = 0.35, 0.12, 0.28, 0.18
 
     ndvi = calculate_ndvi(nir, red)
     indices = calculate_carbonate_index(swir1, swir2)
 
-    point = func.ST_SetSRID(func.ST_MakePoint(data.longitude, data.latitude), 4326)
-
-    analysis = SatelliteAnalysis(
-        location=point,
-        source=data.source,
-        ndvi=ndvi,
-        clay_ratio=indices["clay_ratio"],
-        carbonate_index=indices["carbonate_index"],
-        quartz_index=indices["quartz_index"],
-    )
-    db.add(analysis)
-    await db.flush()
+    analysis_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
 
     zones = []
     for _ in range(np.random.randint(3, 8)):
@@ -58,47 +47,44 @@ async def analyze_region(
             clon = center_lon + (r * data.radius_km / 100) * np.sin(angle) / \
                    np.cos(np.radians(center_lat))
             coords.append([clon, clat])
-
         coords.append(coords[0])
-        polygon_wkt = f"POLYGON(({','.join(f'{c[0]} {c[1]}' for c in coords)}))"
 
-        zone = CalizaZone(
-            geometry=func.ST_SetSRID(func.ST_GeomFromText(polygon_wkt), 4326),
+        zone_id = str(uuid.uuid4())
+        zone_data = {
+            "analysisId": analysis_id,
+            "probability": prob,
+            "confidence": round(0.5 + np.random.random() * 0.4, 4),
+            "source": "satellite",
+            "coordinates": coords,
+            "createdAt": now,
+        }
+        await db.collection("calizaZones").document(zone_id).set(zone_data)
+        zones.append(CalizaZoneResponse(
+            id=zone_id,
+            coordinates=coords,
             probability=prob,
-            confidence=round(0.5 + np.random.random() * 0.4, 4),
+            confidence=zone_data["confidence"],
             source="satellite",
-            analysis_id=analysis.id,
-        )
-        db.add(zone)
-        zones.append(zone)
+        ))
 
-    await db.flush()
-
-    zone_responses = []
-    for z in zones:
-        coords_result = await db.execute(
-            select(func.ST_AsGeoJSON(z.geometry))
-        )
-        geo_json = coords_result.scalar()
-        zone_responses.append(parse_zone(z, geo_json))
+    analysis_data = {
+        "userId": current_user["uid"],
+        "latitude": data.latitude,
+        "longitude": data.longitude,
+        "source": data.source,
+        "ndvi": ndvi,
+        "clayRatio": indices["clay_ratio"],
+        "carbonateIndex": indices["carbonate_index"],
+        "quartzIndex": indices["quartz_index"],
+        "zones": [z.model_dump() for z in zones],
+        "createdAt": now,
+    }
+    await db.collection("satelliteAnalyses").document(analysis_id).set(analysis_data)
 
     return SatelliteAnalysisResponse(
-        id=analysis.id,
+        id=analysis_id,
         ndvi=ndvi,
         clay_ratio=indices["clay_ratio"],
         carbonate_index=indices["carbonate_index"],
-        zones=zone_responses,
-    )
-
-
-def parse_zone(zone: CalizaZone, geo_json: str) -> CalizaZoneResponse:
-    import json
-    geom = json.loads(geo_json) if geo_json else {}
-    coords = geom.get("coordinates", [[]])[0] if geom else []
-    return CalizaZoneResponse(
-        id=zone.id,
-        coordinates=[[c[1], c[0]] for c in coords],
-        probability=zone.probability,
-        confidence=zone.confidence,
-        source=zone.source,
+        zones=zones,
     )

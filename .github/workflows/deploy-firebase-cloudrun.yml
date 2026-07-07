@@ -1,0 +1,80 @@
+name: Deploy to Firebase & Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  FIREBASE_PROJECT_ID: calizaapp
+  CLOUD_RUN_SERVICE: caliza-backend
+  CLOUD_RUN_RUN_REGION: us-central1
+
+jobs:
+  # Frontend → Firebase Hosting
+  deploy-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EXPO_PUBLIC_API_URL: https://${{ env.CLOUD_RUN_SERVICE }}-${{ hash('sha256', env.FIREBASE_PROJECT_ID) }}.${{ env.CLO_RUN_REGION }}.run.app
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ env.FIREBASE_PROJECT_ID }}
+
+  # Backend → Cloud Run
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE="gcr.io/${{ env.FIREBASE_PROJECT_ID }}/${{ env.CLOUD_RUN_SERVICE }}"
+          docker build -t "$IMAGE:latest" ./backend
+          docker push "$IMAGE:latest"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image gcr.io/${{ env.FIREBASE_PROJECT_ID }}/${{ env.CLOUD_RUN_SERVICE }}:latest \
+            --platform managed \
+            --region ${{ env.CLO_RUN_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "FIREBASE_PROJECT_ID=${{ env.FIREBASE_PROJECT_ID }},DEBUG=false" \
+            --service-account ${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}

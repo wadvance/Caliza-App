@@ -44,3 +44,4 @@ backend/static/admin/.env
 android/app/build/
 ios/build/
 .expo-eas-env
+backend/firebase-service-account.json

@@ -11,8 +11,12 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "@firebase_api_key",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "@firebase_auth_domain",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "@firebase_project_id",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "@firebase_storage_bucket",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "@firebase_messaging_sender_id",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "@firebase_app_id",
         "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
       }
     },
@@ -25,8 +29,12 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "@firebase_api_key",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "@firebase_auth_domain",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "@firebase_project_id",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "@firebase_storage_bucket",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "@firebase_messaging_sender_id",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "@firebase_app_id",
         "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
       }
     },
@@ -34,8 +42,12 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://scpmyuvcqsjfcrehwzsl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjcG15dXZjcXNqZmNyZWh3enNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzU5MTYsImV4cCI6MjA5NzIxMTkxNn0.36nY5hWiyRfSic8iof7XqtNW506M82ovnYYnA999WRc",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "@firebase_api_key",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "@firebase_auth_domain",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "@firebase_project_id",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "@firebase_storage_bucket",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "@firebase_messaging_sender_id",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "@firebase_app_id",
         "EXPO_PUBLIC_API_URL": "https://tu-backend-real.com"
       }
     }

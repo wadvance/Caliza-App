@@ -87,7 +87,7 @@ export function LoginScreen({ navigation }: any) {
             [{ text: 'Entendido', onPress: () => switchMode('login') }],
           )
         } else {
-          setErrorMsg('No se pudo crear la cuenta. El correo podría ya estar registrado o Supabase tiene límite de registros.')
+          setErrorMsg('No se pudo crear la cuenta. El correo podría ya estar registrado.')
         }
       }
     } catch {

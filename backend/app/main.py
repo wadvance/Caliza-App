@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 
 from app.config import get_settings
 from app.database import init_db
-from app.services.storage import ensure_bucket_exists
 from app.routes import auth, samples, sync, satellite, reports
 
 settings = get_settings()
@@ -15,10 +14,6 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    try:
-        await ensure_bucket_exists()
-    except Exception:
-        pass
     yield
 
 
@@ -48,6 +43,7 @@ app.include_router(reports.router)
 @app.get("/")
 async def root():
     return RedirectResponse(url="/admin/")
+
 
 @app.get("/health")
 async def health():

@@ -1,28 +1,29 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+import os
 
 
 class Settings(BaseSettings):
     APP_NAME: str = "Caliza Explorer API"
     DEBUG: bool = True
 
-    DATABASE_URL: str = "postgresql+asyncpg://caliza:caliza_secret_2026@db:5432/caliza_explorer"
-    DATABASE_SYNC_URL: str = "postgresql://caliza:caliza_secret_2026@db:5432/caliza_explorer"
-
-    REDIS_URL: str = "redis://redis:6379/0"
-
     SECRET_KEY: str = "caliza-explorer-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
-    S3_ENDPOINT: str = "http://minio:9000"
-    S3_ACCESS_KEY: str = "caliza"
-    S3_SECRET_KEY: str = "minio_secret_2026"
-    S3_BUCKET: str = "caliza-uploads"
-    S3_REGION: str = "us-east-1"
+    # Firebase
+    FIREBASE_SERVICE_ACCOUNT_PATH: str = os.getenv(
+        "GOOGLE_APPLICATION_CREDENTIALS", "firebase-service-account.json"
+    )
+    FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
+    FIREBASE_STORAGE_BUCKET: str = os.getenv(
+        "FIREBASE_STORAGE_BUCKET", ""
+    )
+
+    # Cloud Run / Cloud
+    PORT: int = int(os.getenv("PORT", "8080"))
 
     SENTRY_DSN: str = ""
-
     CORS_ORIGINS: list[str] = ["*"]
 
     class Config:

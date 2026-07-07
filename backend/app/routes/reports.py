@@ -1,11 +1,8 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from datetime import datetime, timedelta
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
+import uuid
 
-from app.database import get_db
-from app.models.__init__ import Sample, CalizaZone, ExplorationReport, User
+from app.database import get_firestore_db
 from app.schemas.__init__ import ReportResponse, ReportStatistics
 from app.middleware.auth import get_current_user
 
@@ -15,29 +12,35 @@ router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 @router.post("/generate", response_model=ReportResponse)
 async def generate_report(
     days: int = 30,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    end = datetime.utcnow()
+    db = get_firestore_db()
+    end = datetime.now(timezone.utc)
     start = end - timedelta(days=days)
 
-    samples_result = await db.execute(
-        select(Sample).where(
-            Sample.user_id == user.id,
-            Sample.timestamp.between(start, end),
-        )
-    )
-    samples = samples_result.scalars().all()
+    samples_q = db.collection("samples").where("userId", "==", current_user["uid"])
+    samples_docs = [d async for d in samples_q.stream()]
 
-    zones_result = await db.execute(
-        select(CalizaZone).where(CalizaZone.created_at.between(start, end))
-    )
-    zones = zones_result.scalars().all()
+    zones_q = db.collection("calizaZones")
+    zones_docs = [d async for d in zones_q.stream()]
 
-    validated = [s for s in samples if s.status == "validado"]
-    high_prob = [z for z in zones if z.probability == "alta"]
-    avg_conf = sum(s.confidence_level for s in samples) / max(len(samples), 1)
-    rock_types = [s.estimated_rock_type.value for s in samples]
+    samples = []
+    zones = []
+    for d in samples_docs:
+        data = d.to_dict()
+        created = data.get("createdAt")
+        if created and start <= created <= end:
+            samples.append(data)
+    for d in zones_docs:
+        data = d.to_dict()
+        created = data.get("createdAt")
+        if created and start <= created <= end:
+            zones.append(data)
+
+    validated = [s for s in samples if s.get("status") == "validado"]
+    high_prob = [z for z in zones if z.get("probability") == "alta"]
+    avg_conf = sum(s.get("confidenceLevel", 0) for s in samples) / max(len(samples), 1)
+    rock_types = [s.get("estimatedRockType", "desconocido") for s in samples]
     dominant = max(set(rock_types), key=rock_types.count) if rock_types else "desconocido"
 
     stats = ReportStatistics(
@@ -49,43 +52,41 @@ async def generate_report(
         area_covered_km2=round(len(zones) * 0.5, 2),
     )
 
-    report = ExplorationReport(
-        user_id=user.id,
-        title=f"Reporte de exploración - {start.date()} a {end.date()}",
-        date_range_start=start,
-        date_range_end=end,
-        statistics=stats.model_dump(),
-    )
-    db.add(report)
-    await db.flush()
-    await db.refresh(report)
+    report_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    await db.collection("explorationReports").document(report_id).set({
+        "userId": current_user["uid"],
+        "title": f"Reporte de exploración - {start.date()} a {end.date()}",
+        "dateRangeStart": start,
+        "dateRangeEnd": end,
+        "statistics": stats.model_dump(),
+        "createdAt": now,
+    })
 
     return ReportResponse(
-        id=report.id,
-        title=report.title,
-        generated_at=report.created_at,
+        id=report_id,
+        title=f"Reporte de exploración - {start.date()} a {end.date()}",
+        generated_at=now,
         statistics=stats,
     )
 
 
 @router.get("", response_model=list[ReportResponse])
 async def list_reports(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(ExplorationReport)
-        .where(ExplorationReport.user_id == user.id)
-        .order_by(ExplorationReport.created_at.desc())
-        .limit(20)
-    )
-    reports = result.scalars().all()
-    return [
-        ReportResponse(
-            id=r.id,
-            title=r.title,
-            generated_at=r.created_at,
-            statistics=ReportStatistics(**r.statistics) if r.statistics else None,
-        )
-        for r in reports
-    ]
+    db = get_firestore_db()
+    q = db.collection("explorationReports").where("userId", "==", current_user["uid"]).order_by("createdAt", direction="DESCENDING").limit(20)
+    docs = [d async for d in q.stream()]
+    result = []
+    for d in docs:
+        data = d.to_dict()
+        stats_data = data.get("statistics")
+        stats = ReportStatistics(**stats_data) if stats_data else None
+        result.append(ReportResponse(
+            id=d.id,
+            title=data.get("title", ""),
+            generated_at=data.get("createdAt", datetime.now(timezone.utc)),
+            statistics=stats,
+        ))
+    return result

@@ -1,7 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from uuid import UUID
 
 
 # Auth
@@ -24,14 +23,11 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: UUID
+    id: str
     email: str
     full_name: str
     role: str
-    is_active: bool
-
-    class Config:
-        from_attributes = True
+    is_active: bool = True
 
 
 # Quick test
@@ -73,7 +69,7 @@ class SampleCreate(BaseModel):
 
 
 class SampleResponse(BaseModel):
-    id: UUID
+    id: str
     latitude: float
     longitude: float
     altitude: float
@@ -83,9 +79,6 @@ class SampleResponse(BaseModel):
     confidence_level: float
     status: str
     photo_urls: List[str] = []
-
-    class Config:
-        from_attributes = True
 
 
 class SampleDetailResponse(SampleResponse):
@@ -110,14 +103,11 @@ class SampleDetailResponse(SampleResponse):
 
 # Zone
 class CalizaZoneResponse(BaseModel):
-    id: UUID
+    id: str
     coordinates: List[List[float]]
     probability: str
     confidence: float
     source: str
-
-    class Config:
-        from_attributes = True
 
 
 # Sync
@@ -143,7 +133,7 @@ class ReportStatistics(BaseModel):
 
 
 class ReportResponse(BaseModel):
-    id: UUID
+    id: str
     title: str
     generated_at: datetime
     statistics: Optional[ReportStatistics] = None
@@ -159,7 +149,7 @@ class SatelliteAnalysisRequest(BaseModel):
 
 
 class SatelliteAnalysisResponse(BaseModel):
-    id: UUID
+    id: str
     ndvi: float
     clay_ratio: float
     carbonate_index: float

@@ -1,8 +1,8 @@
 import API_CONFIG, { getApiUrl, getAuthHeaders } from './api'
 import { getToken, getAuthMode } from './authService'
 import { getSyncQueue, removeFromSyncQueue, getAllSamples, saveSample } from './database'
-import { supabaseGetSamples, supabaseSyncBatch, supabaseGetSample } from './supabaseDataService'
-import { supabaseGetSession } from './supabaseClient'
+import { firestoreGetSamples, firestoreSyncBatch, firestoreGetSample } from './firestoreService'
+import { getAuth } from 'firebase/auth'
 import { Sample } from '../types'
 
 let _NetInfo: any = null
@@ -74,8 +74,8 @@ export async function syncNow(): Promise<void> {
   const mode = getAuthMode()
 
   try {
-    if (mode === 'supabase') {
-      await syncToSupabase()
+    if (mode === 'firebase') {
+      await syncToFirebase()
     } else {
       await syncToMockServer(token)
     }
@@ -88,13 +88,13 @@ export async function syncNow(): Promise<void> {
   }
 }
 
-async function syncToSupabase(): Promise<void> {
-  const session = await supabaseGetSession()
-  if (!session?.user) {
-    currentStatus.error = 'No hay sesión de Supabase'
+async function syncToFirebase(): Promise<void> {
+  const user = getAuth().currentUser
+  if (!user) {
+    currentStatus.error = 'No hay sesión activa'
     return
   }
-  const userId = session.user.id
+  const userId = user.uid
 
   const queue = await getSyncQueue()
   currentStatus.total = queue.length
@@ -106,10 +106,10 @@ async function syncToSupabase(): Promise<void> {
   if (unsyncedSamples.length > 0) {
     const batch = unsyncedSamples.map(i => ({
       ...i.data,
-      user_id: userId,
+      userId,
     }))
 
-    const result = await supabaseSyncBatch(batch)
+    const result = await firestoreSyncBatch(batch)
 
     for (const item of unsyncedSamples) {
       await removeFromSyncQueue(item.id)
@@ -122,7 +122,7 @@ async function syncToSupabase(): Promise<void> {
     }
   }
 
-  const remoteSamples = await supabaseGetSamples(userId)
+  const remoteSamples = await firestoreGetSamples(userId)
   const existing = await getAllSamples()
 
   for (const remote of remoteSamples) {
@@ -200,11 +200,11 @@ async function syncToMockServer(token: string): Promise<void> {
 export async function syncSample(sample: Sample): Promise<boolean> {
   const mode = getAuthMode()
 
-  if (mode === 'supabase') {
+  if (mode === 'firebase') {
     try {
-      const session = await supabaseGetSession()
-      if (!session?.user) return false
-      const result = await supabaseGetSample(sample.id)
+      const user = getAuth().currentUser
+      if (!user) return false
+      const result = await firestoreGetSample(sample.id)
       return result !== null
     } catch {
       return false

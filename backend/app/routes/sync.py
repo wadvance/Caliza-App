@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+import uuid
 
-from app.database import get_db
-from app.models.__init__ import Sample, CalizaZone, SyncLog, User
-from app.schemas.__init__ import SyncRequest, SyncResponse, SampleCreate
+from app.database import get_firestore_db
+from app.schemas.__init__ import SyncRequest, SyncResponse
 from app.middleware.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
@@ -15,55 +12,76 @@ router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 @router.post("", response_model=SyncResponse)
 async def sync_data(
     data: SyncRequest,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
+    db = get_firestore_db()
     synced = 0
     errors = []
 
+    batch = db.batch()
+    now = datetime.now(timezone.utc)
+
     for sample_data in data.samples:
         try:
-            sample = Sample(
-                user_id=user.id,
-                location=func.ST_SetSRID(
-                    func.ST_MakePoint(sample_data.longitude, sample_data.latitude), 4326
-                ),
-                altitude=sample_data.altitude,
-                notes=sample_data.notes,
-                operator_name=sample_data.operator_name or user.full_name,
-                estimated_rock_type=sample_data.estimated_rock_type,
-                confidence_level=sample_data.confidence_level,
-                status=sample_data.status,
-                synced=True,
-            )
-            db.add(sample)
+            doc_id = str(uuid.uuid4())
+            doc_ref = db.collection("samples").document(doc_id)
+            batch.set(doc_ref, {
+                "userId": current_user["uid"],
+                "photoUrls": [],
+                "latitude": sample_data.latitude,
+                "longitude": sample_data.longitude,
+                "altitude": sample_data.altitude,
+                "notes": sample_data.notes or "",
+                "operatorName": sample_data.operator_name or current_user.get("name", ""),
+                "estimatedRockType": sample_data.estimated_rock_type,
+                "confidenceLevel": sample_data.confidence_level,
+                "status": sample_data.status or "pendiente",
+                "synced": True,
+                "createdAt": now,
+                "updatedAt": now,
+            })
             synced += 1
         except Exception as e:
             errors.append(str(e))
 
-    log = SyncLog(
-        user_id=user.id,
-        items_synced=synced,
-        status="partial" if errors else "success",
-        error_message="; ".join(errors[:5]) if errors else None,
-    )
-    db.add(log)
-    await db.flush()
+    await batch.commit()
+
+    log_ref = db.collection("syncLogs").document()
+    await log_ref.set({
+        "userId": current_user["uid"],
+        "synced": synced,
+        "errors": errors,
+        "status": "partial" if errors else "success",
+        "createdAt": now,
+    })
 
     return SyncResponse(
         synced=synced,
         errors=errors,
-        server_time=datetime.utcnow(),
+        server_time=now,
     )
 
 
 @router.get("/pending")
 async def get_pending_sync(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Sample).where(Sample.user_id == user.id, Sample.synced == False)
-    )
-    samples = result.scalars().all()
+    db = get_firestore_db()
+    q = db.collection("samples").where("userId", "==", current_user["uid"]).where("synced", "==", False)
+    docs = [d async for d in q.stream()]
+    samples = []
+    for d in docs:
+        data = d.to_dict()
+        samples.append({
+            "id": d.id,
+            "latitude": data.get("latitude"),
+            "longitude": data.get("longitude"),
+            "altitude": data.get("altitude", 0),
+            "notes": data.get("notes", ""),
+            "operator_name": data.get("operatorName", ""),
+            "estimated_rock_type": data.get("estimatedRockType", "desconocido"),
+            "confidence_level": data.get("confidenceLevel", 0),
+            "status": data.get("status", "pendiente"),
+            "timestamp": data.get("createdAt"),
+        })
     return {"pending": len(samples), "samples": samples}
