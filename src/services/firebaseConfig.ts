@@ -5,12 +5,12 @@ import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/st
 import { Platform } from 'react-native'
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCyYgL0VzcyvaM3-Zpn-7_t5ENCUU3XNUo',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'calizaapp.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'calizaapp',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'calizaapp.firebasestorage.app',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '902292132906',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:902292132906:web:ab02906dd08f56d9ca9f53',
+  apiKey: 'AIzaSyCyYgL0VzcyvaM3-Zpn-7_t5ENCUU3XNUo',
+  authDomain: 'calizaapp.firebaseapp.com',
+  projectId: 'calizaapp',
+  storageBucket: 'calizaapp.firebasestorage.app',
+  messagingSenderId: '902292132906',
+  appId: '1:902292132906:web:ab02906dd08f56d9ca9f53',
 }
 
 let app: FirebaseApp
