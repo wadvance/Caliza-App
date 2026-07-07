@@ -1,6 +1,5 @@
-import { initFirebase } from './firebaseConfig'
+import { initFirebase, getFirebaseAuth, getFirebaseDb } from './firebaseConfig'
 import {
-  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -9,17 +8,20 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 import {
-  getFirestore,
   doc,
   getDoc,
   setDoc,
   serverTimestamp,
 } from 'firebase/firestore'
 
-initFirebase()
+try {
+  initFirebase()
+} catch (e) {
+  console.error('[authService] Firebase init error:', e)
+}
 
-const auth = getAuth()
-const db = getFirestore()
+const auth = getFirebaseAuth()
+const db = getFirebaseDb()
 
 type AuthMode = 'firebase' | 'mock'
 let currentMode: AuthMode = 'firebase'
@@ -41,19 +43,28 @@ function setUser(firebaseUser: User | null) {
 export function initAuth(): Promise<void> {
   console.log('[initAuth] Firebase auth mode')
   return new Promise((resolve) => {
+    if (!auth) {
+      console.error('[initAuth] auth is undefined, skipping')
+      resolve()
+      return
+    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
       if (user) {
         setUser(user)
         currentMode = 'firebase'
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          currentUser = {
-            id: user.uid,
-            email: userDoc.data().email || user.email || '',
-            full_name: userDoc.data().fullName || user.displayName || user.email?.split('@')[0] || '',
-            role: userDoc.data().role || 'operator',
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid))
+          if (userDoc.exists()) {
+            currentUser = {
+              id: user.uid,
+              email: userDoc.data().email || user.email || '',
+              full_name: userDoc.data().fullName || user.displayName || user.email?.split('@')[0] || '',
+              role: userDoc.data().role || 'operator',
+            }
           }
+        } catch (e) {
+          console.error('[initAuth] user doc error:', e)
         }
       }
       resolve()
