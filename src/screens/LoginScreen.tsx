@@ -5,18 +5,16 @@ import {
   ScrollView, Animated, Dimensions,
 } from 'react-native'
 import { COLORS } from '../types/constants'
-import { signInWithGoogle, login, register, forgotPassword, isAuthenticated } from '../services/authService'
+import { signInWithGoogle, login, forgotPassword, isAuthenticated } from '../services/authService'
 
 const { width, height } = Dimensions.get('window')
 
-type Mode = 'login' | 'register' | 'forgot'
+type Mode = 'login' | 'forgot'
 
 export function LoginScreen({ navigation }: any) {
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [fullName, setFullName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -89,34 +87,14 @@ export function LoginScreen({ navigation }: any) {
     }
 
     if (!password) { Alert.alert('Error', 'Ingresa tu contraseña'); return }
-    if (mode === 'register') {
-      if (!fullName.trim()) { Alert.alert('Error', 'Ingresa tu nombre completo'); return }
-      if (password.length < 6) { Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres'); return }
-      if (password !== confirmPassword) { Alert.alert('Error', 'Las contraseñas no coinciden'); return }
-    }
 
     setLoading(true)
     try {
-      if (mode === 'login') {
-        const ok = await login(email.trim(), password)
-        if (ok) {
-          navigation.replace('MainTabs')
-        } else {
-          setErrorMsg('Credenciales inválidas. Verifica tu correo y contraseña.')
-        }
+      const ok = await login(email.trim(), password)
+      if (ok) {
+        navigation.replace('MainTabs')
       } else {
-        const result = await register(email.trim(), password, fullName.trim())
-        if (result === 'ok') {
-          navigation.replace('MainTabs')
-        } else if (result === 'email_confirmation') {
-          Alert.alert(
-            'Revisa tu correo',
-            'Hemos enviado un enlace de confirmación a tu correo electrónico. Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace para activar tu cuenta. Luego inicia sesión.',
-            [{ text: 'Entendido', onPress: () => switchMode('login') }],
-          )
-        } else {
-          setErrorMsg('No se pudo crear la cuenta. El correo podría ya estar registrado.')
-        }
+        setErrorMsg('Credenciales inválidas. Verifica tu correo y contraseña.')
       }
     } catch {
       Alert.alert('Error', 'Error de conexión. Intenta de nuevo.')
@@ -149,23 +127,11 @@ export function LoginScreen({ navigation }: any) {
 
         <Animated.View style={[styles.formCard, { opacity: fadeAnim }]}>
           <Text style={styles.formTitle}>
-            {mode === 'login' ? 'Bienvenido' : mode === 'register' ? 'Crear cuenta' : 'Recuperar contraseña'}
+            {mode === 'login' ? 'Bienvenido' : 'Recuperar contraseña'}
           </Text>
           <Text style={styles.formSubtitle}>
-            {mode === 'login' ? 'Inicia sesión para continuar' : mode === 'register' ? 'Regístrate para comenzar' : 'Te enviaremos instrucciones'}
+            {mode === 'login' ? 'Inicia sesión para continuar' : 'Te enviaremos instrucciones'}
           </Text>
-
-          {mode === 'register' && (
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
-              placeholderTextColor={COLORS.textMuted}
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-          )}
 
           <TextInput
             style={styles.input}
@@ -180,43 +146,27 @@ export function LoginScreen({ navigation }: any) {
           />
 
           {mode !== 'forgot' && (
-            <>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Contraseña"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  returnKeyType={mode === 'register' ? 'next' : 'done'}
-                  autoComplete="new-password"
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>
-                    {showPassword ? '🙈' : '👁️'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {mode === 'register' && (
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    style={styles.passwordInput}
-                    placeholder="Confirmar contraseña"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showPassword}
-                    returnKeyType="done"
-                    autoComplete="new-password"
-                  />
-                </View>
-              )}
-            </>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Contraseña"
+                placeholderTextColor={COLORS.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                returnKeyType="done"
+                autoComplete="new-password"
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>
+                  {showPassword ? '🙈' : '👁️'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {errorMsg ? (
@@ -235,7 +185,7 @@ export function LoginScreen({ navigation }: any) {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitText}>
-                {mode === 'login' ? 'Iniciar sesión' : mode === 'register' ? 'Crear cuenta' : 'Enviar instrucciones'}
+                {mode === 'login' ? 'Iniciar sesión' : 'Enviar instrucciones'}
               </Text>
             )}
           </TouchableOpacity>
@@ -265,25 +215,11 @@ export function LoginScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
-            style={styles.switchBtn}
+            style={styles.skipBtn}
+            onPress={() => navigation.replace('MainTabs')}
           >
-            <Text style={styles.switchText}>
-              {mode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
-            </Text>
-            <Text style={styles.switchLink}>
-              {mode === 'login' ? ' Regístrate' : ' Inicia sesión'}
-            </Text>
+            <Text style={styles.skipText}>Entrar sin conexión</Text>
           </TouchableOpacity>
-
-          {mode === 'login' && (
-            <TouchableOpacity
-              style={styles.skipBtn}
-              onPress={() => navigation.replace('MainTabs')}
-            >
-              <Text style={styles.skipText}>Entrar sin conexión</Text>
-            </TouchableOpacity>
-          )}
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -492,22 +428,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  switchBtn: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  switchText: {
-    color: '#9090b0',
-    fontSize: 14,
-  },
-  switchLink: {
-    color: '#ff6b81',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   skipBtn: {
-    marginTop: 16,
+    marginTop: 8,
     padding: 8,
     alignItems: 'center',
     borderTopWidth: 1,
