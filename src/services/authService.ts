@@ -48,7 +48,7 @@ export function initAuth(): Promise<void> {
       resolve()
       return
     }
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, async (user) => {
       console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
       if (user) {
         setUser(user)
@@ -69,7 +69,6 @@ export function initAuth(): Promise<void> {
       }
       resolve()
     })
-    unsubscribe()
   })
 }
 
