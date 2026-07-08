@@ -33,3 +33,6 @@ for (const rel of TARGETS) {
 }
 
 console.log('Created navigation PNG assets for @react-navigation/elements');
+
+// Also generate PWA icons
+require('./generate-pwa-icons');

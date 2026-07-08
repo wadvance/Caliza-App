@@ -41,7 +41,30 @@
       ]
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./src/assets/favicon.png",
+      "output": "single",
+      "display": "standalone",
+      "themeColor": "#0f0f23",
+      "backgroundColor": "#0f0f23",
+      "description": "Exploración inteligente de recursos calcáreos",
+      "name": "GeoCaliza",
+      "scope": "/Caliza-App/",
+      "startUrl": "/Caliza-App/",
+      "lang": "es",
+      "orientation": "portrait",
+      "icons": [
+        {
+          "src": "./src/assets/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "./src/assets/icon-512x512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
     },
     "plugins": [
       [
