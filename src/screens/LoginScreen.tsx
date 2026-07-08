@@ -113,11 +113,9 @@ export function LoginScreen({ navigation }: any) {
                   <Text style={styles.installBtnText}>📲 Instalar aplicación</Text>
                 </TouchableOpacity>
               ) : (
-                <View>
-                  <TouchableOpacity style={styles.installBtn}>
-                    <Text style={styles.installBtnText}>📲 Instalar aplicación</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.installHelpText}>
+                  Para instalar: Android ⋮ → "Agregar a pantalla de inicio" | iOS Compartir → "Agregar a la pantalla de inicio"
+                </Text>
               )}
             </View>
           )}
@@ -286,5 +284,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  installHelpText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 })
