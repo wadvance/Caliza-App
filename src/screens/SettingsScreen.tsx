@@ -7,7 +7,7 @@ import { clearAllSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
-import { getInstallPrompt, clearInstallPrompt } from '../services/pwaService'
+import { getInstallPrompt, isPwaInstalled, triggerInstall } from '../services/pwaService'
 
 const isWeb = Platform.OS === 'web'
 
@@ -26,17 +26,6 @@ export function SettingsScreen({ navigation }: any) {
   useEffect(() => {
     setInstallPrompt(getInstallPrompt())
   }, [])
-
-  const handleInstall = async () => {
-    const prompt = getInstallPrompt()
-    if (!prompt) return
-    await prompt.prompt()
-    const result = await prompt.userChoice
-    if (result.outcome === 'accepted') {
-      clearInstallPrompt()
-      setInstallPrompt(null)
-    }
-  }
 
   useEffect(() => {
     loadStatus()
@@ -268,12 +257,29 @@ export function SettingsScreen({ navigation }: any) {
         )}
       </View>
 
-      {isWeb && installPrompt && (
+      {isWeb && !isPwaInstalled() && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App</Text>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleInstall}>
-            <Text style={styles.actionBtnText}>📲 Instalar aplicación</Text>
-          </TouchableOpacity>
+          {installPrompt ? (
+            <TouchableOpacity style={styles.actionBtn} onPress={async () => {
+              const ok = await triggerInstall()
+              if (ok) setInstallPrompt(null)
+            }}>
+              <Text style={styles.actionBtnText}>📲 Instalar aplicación</Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              <Text style={styles.helpText}>
+                Para instalar la app en tu dispositivo:
+              </Text>
+              <Text style={styles.helpText}>
+                Android: Menú ⋮ → "Agregar a pantalla de inicio"
+              </Text>
+              <Text style={styles.helpText}>
+                iOS: Compartir → "Agregar a la pantalla de inicio"
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -382,4 +388,5 @@ const styles = StyleSheet.create({
     borderColor: COLORS.danger,
   },
   dangerBtnText: { color: COLORS.danger, fontSize: 15, fontWeight: '600' },
+  helpText: { color: COLORS.textSecondary, fontSize: 13, marginBottom: 6, lineHeight: 18 },
 })
