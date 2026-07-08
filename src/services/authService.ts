@@ -74,25 +74,20 @@ export function initAuth(): Promise<void> {
 }
 
 export async function signInWithGoogle(): Promise<boolean> {
-  try {
-    const provider = new GoogleAuthProvider()
-    const cred = await signInWithPopup(auth, provider)
-    setUser(cred.user)
-    currentMode = 'firebase'
-
-    const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
-    if (!userDoc.exists()) {
-      await setDoc(doc(db, 'users', cred.user.uid), {
-        email: cred.user.email,
-        fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
-        role: 'operator',
-        createdAt: serverTimestamp(),
-      })
-    }
-    return true
-  } catch {
-    return false
+  const provider = new GoogleAuthProvider()
+  const cred = await signInWithPopup(auth, provider)
+  setUser(cred.user)
+  currentMode = 'firebase'
+  const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
+  if (!userDoc.exists()) {
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      email: cred.user.email,
+      fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
+      role: 'operator',
+      createdAt: serverTimestamp(),
+    })
   }
+  return true
 }
 
 export async function login(email: string, password: string): Promise<boolean> {
