@@ -45,24 +45,7 @@ jobs:
           # Cache busting meta
           sed -i 's|<head>|<head>\n  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n  <meta http-equiv="Pragma" content="no-cache">\n  <meta http-equiv="Expires" content="0">|' index.html
           # PWA manifest
-          cat > manifest.json << 'MANIFEST'
-      {
-        "name": "GeoCaliza",
-        "short_name": "GeoCaliza",
-        "description": "Exploración inteligente de recursos calcáreos",
-        "start_url": "/Caliza-App/",
-        "scope": "/Caliza-App/",
-        "display": "standalone",
-        "orientation": "portrait",
-        "theme_color": "#0f0f23",
-        "background_color": "#0f0f23",
-        "lang": "es",
-        "icons": [
-          { "src": "/Caliza-App/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
-          { "src": "/Caliza-App/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
-        ]
-      }
-      MANIFEST
+          printf '{"name":"GeoCaliza","short_name":"GeoCaliza","description":"Exploraci\\u00f3n inteligente de recursos calc\\u00e1reos","start_url":"/Caliza-App/","scope":"/Caliza-App/","display":"standalone","orientation":"portrait","theme_color":"#0f0f23","background_color":"#0f0f23","lang":"es","icons":[{"src":"/Caliza-App/icons/icon-192x192.png","sizes":"192x192","type":"image/png"},{"src":"/Caliza-App/icons/icon-512x512.png","sizes":"512x512","type":"image/png"}]}' > manifest.json
           sed -i 's|</head>|  <link rel="manifest" href="/Caliza-App/manifest.json">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n  <meta name="apple-mobile-web-app-title" content="GeoCaliza">\n</head>|' index.html
           mkdir -p icons
           cp ../src/assets/icon-192x192.png icons/
