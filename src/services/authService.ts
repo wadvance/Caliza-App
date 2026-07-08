@@ -1,6 +1,7 @@
 import { initFirebase, getFirebaseAuth, getFirebaseDb } from './firebaseConfig'
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,

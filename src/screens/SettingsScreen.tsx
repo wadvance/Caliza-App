@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
@@ -7,6 +7,8 @@ import { clearAllSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
+
+const isWeb = Platform.OS === 'web'
 
 export function SettingsScreen({ navigation }: any) {
   const currentLocation = useCurrentLocation()
@@ -18,6 +20,29 @@ export function SettingsScreen({ navigation }: any) {
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [syncing, setSyncing] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+
+  const installRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!isWeb) return
+    const handler = (e: Event) => {
+      e.preventDefault()
+      installRef.current = e
+      setInstallPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = () => {
+    const prompt = installRef.current
+    if (!prompt) return
+    prompt.prompt()
+    prompt.userChoice.then((result: any) => {
+      if (result.outcome === 'accepted') setInstallPrompt(null)
+    })
+  }
 
   useEffect(() => {
     loadStatus()
@@ -128,25 +153,28 @@ export function SettingsScreen({ navigation }: any) {
 
   const handleExport = () => {
     if (samples.length === 0) {
-      window.alert('No hay muestras para exportar')
+      if (isWeb) window.alert('No hay muestras para exportar')
+      else Alert.alert('Error', 'No hay muestras para exportar')
       return
     }
     const line = (k: string, v: any) => `${k}: ${v}`
     const rows = samples.map((s, i) => {
       const codigo = s.notes?.match(/\[(.+?)\]/)?.[1] || s.id.slice(-8)
-      return `--- Muestra ${i + 1} ---\n${line('Código', codigo)}\n${line('Tipo', s.estimatedRockType)}\n${line('Lat', s.latitude.toFixed(6))}\n${line('Lon', s.longitude.toFixed(6))}\n${line('Dims', s.rockDimensions ? `${s.rockDimensions.width}x${s.rockDimensions.height}x${s.rockDimensions.depth} cm` : '-' )}\n${line('Estado', s.status)}\n${line('Notas', s.notes || '-')}`
+      return `--- Muestra ${i + 1} ---\n${line('Código', codigo)}\n${line('Tipo', s.estimatedRockType)}\n${line('Lat', s.latitude.toFixed(6))}\n${line('Lon', s.longitude.toFixed(6))}\n${line('Estado', s.status)}\n${line('Notas', s.notes || '-')}`
     })
     const text = `Exportación: ${new Date().toLocaleString()}\nTotal: ${samples.length} muestras\n\n${rows.join('\n\n')}`
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(() => {
-        window.alert(`${samples.length} muestras copiadas al portapapeles`)
-      }).catch(() => {
+    if (isWeb) {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          window.alert(`${samples.length} muestras copiadas al portapapeles`)
+        }).catch(() => {
+          const w = window.open('', '_blank')
+          if (w) { w.document.write(`<pre>${text}</pre>`); w.document.close() }
+        })
+      } else {
         const w = window.open('', '_blank')
         if (w) { w.document.write(`<pre>${text}</pre>`); w.document.close() }
-      })
-    } else {
-      const w = window.open('', '_blank')
-      if (w) { w.document.write(`<pre>${text}</pre>`); w.document.close() }
+      }
     }
   }
 
@@ -230,9 +258,9 @@ export function SettingsScreen({ navigation }: any) {
             const doLogout = async () => {
               await authLogout()
               setAuth(null, null)
-              navigation.reset({ index: 0, routes: [{ name: 'Login' }] })
+              navigation.getParent()?.getParent()?.reset({ index: 0, routes: [{ name: 'Login' }] })
             }
-            if (Platform.OS === 'web') {
+            if (isWeb) {
               if (window.confirm('¿Cerrar sesión actual?')) doLogout()
             } else {
               Alert.alert('Cerrar sesión', '¿Cerrar sesión actual?', [
@@ -245,6 +273,15 @@ export function SettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
+
+      {isWeb && installPrompt && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>App</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleInstall}>
+            <Text style={styles.actionBtnText}>📲 Instalar aplicación</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Sincronización</Text>

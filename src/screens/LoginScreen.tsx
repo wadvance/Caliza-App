@@ -5,7 +5,7 @@ import {
   ScrollView, Animated, Dimensions,
 } from 'react-native'
 import { COLORS } from '../types/constants'
-import { signInWithGoogle, login, register, forgotPassword } from '../services/authService'
+import { signInWithGoogle, login, register, forgotPassword, isAuthenticated } from '../services/authService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -26,6 +26,10 @@ export function LoginScreen({ navigation }: any) {
   useEffect(() => {
     const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
     return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    if (isAuthenticated()) navigation.replace('MainTabs')
   }, [])
 
   const switchMode = (newMode: Mode) => {
