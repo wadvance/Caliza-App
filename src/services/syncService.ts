@@ -8,6 +8,21 @@ import { Sample } from '../types'
 let _NetInfo: any = null
 async function getNetInfo(): Promise<any> {
   if (_NetInfo) return _NetInfo
+  if (typeof document !== 'undefined') {
+    _NetInfo = {
+      fetch: async () => ({ isConnected: navigator.onLine }),
+      addEventListener: (cb: any) => {
+        const handler = () => cb({ isConnected: navigator.onLine })
+        window.addEventListener('online', handler)
+        window.addEventListener('offline', handler)
+        return () => {
+          window.removeEventListener('online', handler)
+          window.removeEventListener('offline', handler)
+        }
+      },
+    }
+    return _NetInfo
+  }
   try {
     const mod = require('@react-native-community/netinfo')
     _NetInfo = mod.default || mod
