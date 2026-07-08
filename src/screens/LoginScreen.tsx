@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -23,6 +23,11 @@ export function LoginScreen({ navigation }: any) {
   const [errorMsg, setErrorMsg] = useState('')
 
   const fadeAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
+    return () => clearTimeout(t)
+  }, [])
 
   const switchMode = (newMode: Mode) => {
     Animated.timing(fadeAnim, {
@@ -165,7 +170,7 @@ export function LoginScreen({ navigation }: any) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   returnKeyType={mode === 'register' ? 'next' : 'done'}
-                  autoComplete="off"
+                  autoComplete="new-password"
                 />
                 <TouchableOpacity
                   style={styles.eyeBtn}
