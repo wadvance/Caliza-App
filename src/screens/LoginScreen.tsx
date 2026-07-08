@@ -21,14 +21,20 @@ export function LoginScreen({ navigation }: any) {
       await signInWithGoogle()
       navigation.replace('MainTabs')
     } catch (e: any) {
+      console.error('[Login] Google sign-in error:', e?.code, e?.message)
       const code = e?.code || ''
+      let msg = ''
       if (code === 'auth/unauthorized-domain') {
-        setErrorMsg('Agrega wadvance.github.io en Firebase Console → Authentication → Settings → Authorized domains, y habilita Google como proveedor.')
+        msg = 'Agrega wadvance.github.io en Firebase Console → Authentication → Settings → Authorized domains, y habilita Google como proveedor.'
       } else if (code === 'auth/operation-not-allowed') {
-        setErrorMsg('Habilita Google en Firebase Console → Authentication → Sign-in method.')
+        msg = 'Habilita Google en Firebase Console → Authentication → Sign-in method.'
+      } else if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') {
+        msg = 'El popup fue bloqueado o cerrado. Permite ventanas emergentes para este sitio e intenta de nuevo.'
       } else {
-        setErrorMsg(e?.message || 'Error al iniciar sesión con Google.')
+        msg = e?.message || 'Error al iniciar sesión con Google.'
       }
+      setErrorMsg(msg)
+      if (typeof window !== 'undefined') window.alert(msg)
     } finally {
       setLoading(false)
     }
