@@ -151,6 +151,7 @@ export function LoginScreen({ navigation }: any) {
             autoCapitalize="none"
             keyboardType="email-address"
             returnKeyType={mode === 'forgot' ? 'done' : 'next'}
+            autoComplete="off"
           />
 
           {mode !== 'forgot' && (
@@ -164,6 +165,7 @@ export function LoginScreen({ navigation }: any) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   returnKeyType={mode === 'register' ? 'next' : 'done'}
+                  autoComplete="off"
                 />
                 <TouchableOpacity
                   style={styles.eyeBtn}
