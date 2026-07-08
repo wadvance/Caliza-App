@@ -16,6 +16,9 @@ import { ReportsScreen } from '../screens/ReportsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
 import { WorkflowGuideScreen } from '../screens/WorkflowGuideScreen'
 import { CalizaScreen } from '../screens/CalizaScreen'
+import { initPWA } from '../services/pwaService'
+
+initPWA()
 
 const RootStack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()

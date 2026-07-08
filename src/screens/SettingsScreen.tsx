@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native'
 import { COLORS } from '../types/constants'
 import { getOfflineStatus, clearCache, exportAllData, downloadMapRegion, getCacheSize } from '../services/offlineManager'
@@ -7,6 +7,7 @@ import { clearAllSamples } from '../services/database'
 import { useAppStore } from '../store/useAppStore'
 import { useCurrentLocation, getCurrentLocation } from '../services/locationService'
 import { isAuthenticated, getUser, logout as authLogout } from '../services/authService'
+import { getInstallPrompt, clearInstallPrompt } from '../services/pwaService'
 
 const isWeb = Platform.OS === 'web'
 
@@ -22,26 +23,19 @@ export function SettingsScreen({ navigation }: any) {
   const [syncing, setSyncing] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<any>(null)
 
-  const installRef = useRef<any>(null)
-
   useEffect(() => {
-    if (!isWeb) return
-    const handler = (e: Event) => {
-      e.preventDefault()
-      installRef.current = e
-      setInstallPrompt(e)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    setInstallPrompt(getInstallPrompt())
   }, [])
 
-  const handleInstall = () => {
-    const prompt = installRef.current
+  const handleInstall = async () => {
+    const prompt = getInstallPrompt()
     if (!prompt) return
-    prompt.prompt()
-    prompt.userChoice.then((result: any) => {
-      if (result.outcome === 'accepted') setInstallPrompt(null)
-    })
+    await prompt.prompt()
+    const result = await prompt.userChoice
+    if (result.outcome === 'accepted') {
+      clearInstallPrompt()
+      setInstallPrompt(null)
+    }
   }
 
   useEffect(() => {
