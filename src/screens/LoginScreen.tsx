@@ -1,30 +1,122 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
-  ScrollView,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, Animated, Dimensions,
 } from 'react-native'
 import { COLORS } from '../types/constants'
-import { signInWithGoogle } from '../services/authService'
+import { signInWithGoogle, login, register, forgotPassword } from '../services/authService'
+
+const { width, height } = Dimensions.get('window')
+
+type Mode = 'login' | 'register' | 'forgot'
 
 export function LoginScreen({ navigation }: any) {
+  const [mode, setMode] = useState<Mode>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const handleGoogleSignIn = async () => {
+  const fadeAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
+    return () => clearTimeout(t)
+  }, [])
+
+  const switchMode = (newMode: Mode) => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      setMode(newMode)
+      setLoading(false)
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start()
+    })
+  }
+
+  const handleGoogle = async () => {
     setErrorMsg('')
     setLoading(true)
     try {
       await signInWithGoogle()
+      navigation.replace('MainTabs')
     } catch (e: any) {
       const code = e?.code || ''
       if (code === 'auth/unauthorized-domain') {
-        setErrorMsg('Agrega wadvance.github.io en Firebase Console → Authentication → Settings → Authorized domains.')
+        setErrorMsg('Agrega wadvance.github.io en Firebase Console → Authentication → Settings → Authorized domains, y habilita Google como proveedor.')
       } else if (code === 'auth/operation-not-allowed') {
         setErrorMsg('Habilita Google en Firebase Console → Authentication → Sign-in method.')
       } else {
-        setErrorMsg(e?.message || 'Error al iniciar sesión. Intenta de nuevo.')
+        setErrorMsg(e?.message || 'Error al iniciar sesión con Google.')
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    setErrorMsg('')
+    if (!email.trim()) { Alert.alert('Error', 'Ingresa tu correo electrónico'); return }
+
+    if (mode === 'forgot') {
+      setLoading(true)
+      const ok = await forgotPassword(email.trim())
+      setLoading(false)
+      if (ok) {
+        Alert.alert(
+          'Correo enviado',
+          'Si el correo existe en el sistema, recibirás instrucciones para restablecer tu contraseña.',
+          [{ text: 'OK', onPress: () => switchMode('login') }],
+        )
+      } else {
+        Alert.alert('Error', 'No se pudo procesar la solicitud. Verifica tu conexión.')
+      }
+      return
+    }
+
+    if (!password) { Alert.alert('Error', 'Ingresa tu contraseña'); return }
+    if (mode === 'register') {
+      if (!fullName.trim()) { Alert.alert('Error', 'Ingresa tu nombre completo'); return }
+      if (password.length < 6) { Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres'); return }
+      if (password !== confirmPassword) { Alert.alert('Error', 'Las contraseñas no coinciden'); return }
+    }
+
+    setLoading(true)
+    try {
+      if (mode === 'login') {
+        const ok = await login(email.trim(), password)
+        if (ok) {
+          navigation.replace('MainTabs')
+        } else {
+          setErrorMsg('Credenciales inválidas. Verifica tu correo y contraseña.')
+        }
+      } else {
+        const result = await register(email.trim(), password, fullName.trim())
+        if (result === 'ok') {
+          navigation.replace('MainTabs')
+        } else if (result === 'email_confirmation') {
+          Alert.alert(
+            'Revisa tu correo',
+            'Hemos enviado un enlace de confirmación a tu correo electrónico. Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace para activar tu cuenta. Luego inicia sesión.',
+            [{ text: 'Entendido', onPress: () => switchMode('login') }],
+          )
+        } else {
+          setErrorMsg('No se pudo crear la cuenta. El correo podría ya estar registrado.')
+        }
+      }
+    } catch {
+      Alert.alert('Error', 'Error de conexión. Intenta de nuevo.')
+    } finally {
       setLoading(false)
     }
   }
@@ -51,27 +143,77 @@ export function LoginScreen({ navigation }: any) {
           <Text style={styles.subtitle}>Exploración inteligente{'\n'}de recursos calcáreos</Text>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Bienvenido</Text>
-          <Text style={styles.formSubtitle}>Inicia sesión para continuar</Text>
+        <Animated.View style={[styles.formCard, { opacity: fadeAnim }]}>
+          <Text style={styles.formTitle}>
+            {mode === 'login' ? 'Bienvenido' : mode === 'register' ? 'Crear cuenta' : 'Recuperar contraseña'}
+          </Text>
+          <Text style={styles.formSubtitle}>
+            {mode === 'login' ? 'Inicia sesión para continuar' : mode === 'register' ? 'Regístrate para comenzar' : 'Te enviaremos instrucciones'}
+          </Text>
 
-          <TouchableOpacity
-            style={[styles.googleBtn, loading && styles.googleBtnDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <View style={styles.googleIconWrapper}>
-                  <Text style={styles.googleIcon}>G</Text>
+          {mode === 'register' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre completo"
+              placeholderTextColor={COLORS.textMuted}
+              value={fullName}
+              onChangeText={setFullName}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Correo electrónico"
+            placeholderTextColor={COLORS.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            returnKeyType={mode === 'forgot' ? 'done' : 'next'}
+            autoComplete="off"
+          />
+
+          {mode !== 'forgot' && (
+            <>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Contraseña"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType={mode === 'register' ? 'next' : 'done'}
+                  autoComplete="new-password"
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>
+                    {showPassword ? '🙈' : '👁️'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {mode === 'register' && (
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Confirmar contraseña"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showPassword}
+                    returnKeyType="done"
+                    autoComplete="new-password"
+                  />
                 </View>
-                <Text style={styles.googleBtnText}>Continuar con Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+              )}
+            </>
+          )}
 
           {errorMsg ? (
             <View style={styles.errorBox}>
@@ -80,12 +222,65 @@ export function LoginScreen({ navigation }: any) {
           ) : null}
 
           <TouchableOpacity
-            style={styles.skipBtn}
-            onPress={() => navigation.replace('MainTabs')}
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+            activeOpacity={0.85}
           >
-            <Text style={styles.skipText}>Entrar sin conexión</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitText}>
+                {mode === 'login' ? 'Iniciar sesión' : mode === 'register' ? 'Crear cuenta' : 'Enviar instrucciones'}
+              </Text>
+            )}
           </TouchableOpacity>
-        </View>
+
+          {mode === 'login' && (
+            <TouchableOpacity onPress={() => switchMode('forgot')} style={styles.forgotBtn}>
+              <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogle}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <View style={styles.googleIconWrapper}>
+              <Text style={styles.googleIcon}>G</Text>
+            </View>
+            <Text style={styles.googleBtnText}>Continuar con Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
+            style={styles.switchBtn}
+          >
+            <Text style={styles.switchText}>
+              {mode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
+            </Text>
+            <Text style={styles.switchLink}>
+              {mode === 'login' ? ' Regístrate' : ' Inicia sesión'}
+            </Text>
+          </TouchableOpacity>
+
+          {mode === 'login' && (
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={() => navigation.replace('MainTabs')}
+            >
+              <Text style={styles.skipText}>Entrar sin conexión</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -179,6 +374,78 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 24,
   },
+  input: {
+    backgroundColor: '#2e2e55',
+    color: COLORS.text,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#3a3a6a',
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  passwordInput: {
+    backgroundColor: '#2e2e55',
+    color: COLORS.text,
+    borderRadius: 12,
+    padding: 16,
+    paddingRight: 48,
+    fontSize: 15,
+    borderWidth: 1.5,
+    borderColor: '#3a3a6a',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  submitBtn: {
+    backgroundColor: COLORS.accent,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  forgotBtn: {
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 4,
+  },
+  forgotText: {
+    color: '#9090b0',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#3a3a6a',
+  },
+  dividerText: {
+    color: '#9090b0',
+    fontSize: 12,
+    marginHorizontal: 12,
+  },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -187,9 +454,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     gap: 12,
-  },
-  googleBtnDisabled: {
-    opacity: 0.6,
+    marginBottom: 16,
   },
   googleIconWrapper: {
     width: 28,
@@ -215,7 +480,7 @@ const styles = StyleSheet.create({
     borderColor: '#e94560',
     borderRadius: 12,
     padding: 14,
-    marginTop: 16,
+    marginBottom: 12,
   },
   errorText: {
     color: '#ff6b81',
@@ -223,8 +488,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
+  switchBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switchText: {
+    color: '#9090b0',
+    fontSize: 14,
+  },
+  switchLink: {
+    color: '#ff6b81',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   skipBtn: {
-    marginTop: 20,
+    marginTop: 16,
     padding: 8,
     alignItems: 'center',
     borderTopWidth: 1,

@@ -1,8 +1,7 @@
 import { initFirebase, getFirebaseAuth, getFirebaseDb } from './firebaseConfig'
 import {
   signInWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -50,50 +49,40 @@ export function initAuth(): Promise<void> {
       resolve()
       return
     }
-    Promise.all([
-      new Promise<void>((r) => {
-        onAuthStateChanged(auth, async (user) => {
-          console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
-          if (user) {
-            setUser(user)
-            currentMode = 'firebase'
-            try {
-              const userDoc = await getDoc(doc(db, 'users', user.uid))
-              if (userDoc.exists()) {
-                currentUser = {
-                  id: user.uid,
-                  email: userDoc.data().email || user.email || '',
-                  full_name: userDoc.data().fullName || user.displayName || user.email?.split('@')[0] || '',
-                  role: userDoc.data().role || 'operator',
-                }
-              }
-            } catch (e) {
-              console.error('[initAuth] user doc error:', e)
+    onAuthStateChanged(auth, async (user) => {
+      console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
+      if (user) {
+        setUser(user)
+        currentMode = 'firebase'
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid))
+          if (userDoc.exists()) {
+            currentUser = {
+              id: user.uid,
+              email: userDoc.data().email || user.email || '',
+              full_name: userDoc.data().fullName || user.displayName || user.email?.split('@')[0] || '',
+              role: userDoc.data().role || 'operator',
             }
           }
-          r()
-        })
-      }),
-      handleGoogleRedirectResult(),
-    ]).then(() => resolve())
+        } catch (e) {
+          console.error('[initAuth] user doc error:', e)
+        }
+      }
+      resolve()
+    })
   })
 }
 
-export function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(): Promise<void> {
   const provider = new GoogleAuthProvider()
-  return signInWithRedirect(auth, provider)
-}
-
-export async function handleGoogleRedirectResult(): Promise<void> {
-  const result = await getRedirectResult(auth)
-  if (!result) return
-  setUser(result.user)
+  const cred = await signInWithPopup(auth, provider)
+  setUser(cred.user)
   currentMode = 'firebase'
-  const userDoc = await getDoc(doc(db, 'users', result.user.uid))
+  const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
   if (!userDoc.exists()) {
-    await setDoc(doc(db, 'users', result.user.uid), {
-      email: result.user.email,
-      fullName: result.user.displayName || result.user.email?.split('@')[0] || '',
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      email: cred.user.email,
+      fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
       role: 'operator',
       createdAt: serverTimestamp(),
     })
