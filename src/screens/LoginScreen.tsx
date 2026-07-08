@@ -5,13 +5,19 @@ import {
 } from 'react-native'
 import { COLORS } from '../types/constants'
 import { signInWithGoogle, isAuthenticated } from '../services/authService'
+import { getInstallPrompt, isPwaInstalled, triggerInstall } from '../services/pwaService'
 
 export function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
 
   useEffect(() => {
     if (isAuthenticated()) navigation.replace('MainTabs')
+  }, [])
+
+  useEffect(() => {
+    setInstallPrompt(getInstallPrompt())
   }, [])
 
   const handleGoogle = async () => {
@@ -96,6 +102,25 @@ export function LoginScreen({ navigation }: any) {
           >
             <Text style={styles.skipText}>Entrar sin conexión</Text>
           </TouchableOpacity>
+
+          {!isPwaInstalled() && (
+            <View style={styles.installSection}>
+              {installPrompt ? (
+                <TouchableOpacity style={styles.installBtn} onPress={async () => {
+                  const ok = await triggerInstall()
+                  if (ok) setInstallPrompt(null)
+                }}>
+                  <Text style={styles.installBtnText}>📲 Instalar aplicación</Text>
+                </TouchableOpacity>
+              ) : (
+                <View>
+                  <TouchableOpacity style={styles.installBtn}>
+                    <Text style={styles.installBtnText}>📲 Instalar aplicación</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -244,5 +269,22 @@ const styles = StyleSheet.create({
   skipText: {
     color: COLORS.textMuted,
     fontSize: 13,
+  },
+  installSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 16,
+  },
+  installBtn: {
+    backgroundColor: COLORS.highlight,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  installBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 })
