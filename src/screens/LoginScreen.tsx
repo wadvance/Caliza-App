@@ -16,19 +16,15 @@ export function LoginScreen({ navigation }: any) {
     setLoading(true)
     try {
       await signInWithGoogle()
-      navigation.replace('MainTabs')
     } catch (e: any) {
       const code = e?.code || ''
-      if (code === 'auth/popup-blocked') {
-        setErrorMsg('El navegador bloqueó la ventana emergente. Permite popups para este sitio.')
-      } else if (code === 'auth/unauthorized-domain') {
-        setErrorMsg('Este dominio no está autorizado en Firebase. Agrega wadvance.github.io en Firebase Console → Authentication → Authorized domains.')
+      if (code === 'auth/unauthorized-domain') {
+        setErrorMsg('Agrega wadvance.github.io en Firebase Console → Authentication → Settings → Authorized domains.')
       } else if (code === 'auth/operation-not-allowed') {
-        setErrorMsg('El inicio de sesión con Google no está habilitado. Actívalo en Firebase Console → Authentication → Sign-in method.')
+        setErrorMsg('Habilita Google en Firebase Console → Authentication → Sign-in method.')
       } else {
         setErrorMsg(e?.message || 'Error al iniciar sesión. Intenta de nuevo.')
       }
-    } finally {
       setLoading(false)
     }
   }
