@@ -65,7 +65,7 @@ export function initAuth(): Promise<void> {
             }
           }
         } catch (e) {
-          console.error('[initAuth] user doc error:', e)
+          console.warn('[initAuth] Firestore unavailable, proceeding without user doc:', e)
         }
       }
       resolve()
@@ -78,14 +78,18 @@ export async function signInWithGoogle(): Promise<void> {
   const cred = await signInWithPopup(auth, provider)
   setUser(cred.user)
   currentMode = 'firebase'
-  const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
-  if (!userDoc.exists()) {
-    await setDoc(doc(db, 'users', cred.user.uid), {
-      email: cred.user.email,
-      fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
-      role: 'operator',
-      createdAt: serverTimestamp(),
-    })
+  try {
+    const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
+    if (!userDoc.exists()) {
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        email: cred.user.email,
+        fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
+        role: 'operator',
+        createdAt: serverTimestamp(),
+      })
+    }
+  } catch (e) {
+    console.warn('[signInWithGoogle] Firestore unavailable, proceeding without user doc:', e)
   }
 }
 
