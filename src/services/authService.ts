@@ -2,7 +2,8 @@ import { initFirebase, getFirebaseAuth, getFirebaseDb } from './firebaseConfig'
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -50,6 +51,11 @@ export function initAuth(): Promise<void> {
       resolve()
       return
     }
+    getRedirectResult(auth).then((cred) => {
+      if (cred?.user) {
+        createUserDoc(cred.user, cred.user.displayName)
+      }
+    }).catch(() => {})
     onAuthStateChanged(auth, async (user) => {
       console.log('[initAuth] Auth state changed:', user ? user.uid : 'none')
       if (user) {
@@ -74,24 +80,25 @@ export function initAuth(): Promise<void> {
   })
 }
 
-export async function signInWithGoogle(): Promise<void> {
-  const provider = new GoogleAuthProvider()
-  const cred = await signInWithPopup(auth, provider)
-  setUser(cred.user)
-  currentMode = 'firebase'
+async function createUserDoc(user: User, displayName: string | null) {
   try {
-    const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
+    const userDoc = await getDoc(doc(db, 'users', user.uid))
     if (!userDoc.exists()) {
-      await setDoc(doc(db, 'users', cred.user.uid), {
-        email: cred.user.email,
-        fullName: cred.user.displayName || cred.user.email?.split('@')[0] || '',
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        fullName: displayName || user.email?.split('@')[0] || '',
         role: 'operator',
         createdAt: serverTimestamp(),
       })
     }
   } catch (e) {
-    console.warn('[signInWithGoogle] Firestore unavailable, proceeding without user doc:', e)
+    console.warn('[auth] Firestore unavailable, proceeding without user doc:', e)
   }
+}
+
+export async function signInWithGoogle(): Promise<void> {
+  const provider = new GoogleAuthProvider()
+  await signInWithRedirect(auth, provider)
 }
 
 export async function login(email: string, password: string): Promise<boolean> {
